@@ -24,6 +24,8 @@
 #
 #
 
+# TODO: differentiate between remove (disable) and hard-remove (package removal)
+
 # TODO: Enable line end comments (just strip #.*$ from every line)
 # TODO: Uninstall by default unstow, if full uninstall then run the uninstall
 # TODO: scripts, and uninstall should also remove the .tarhash file
@@ -421,13 +423,15 @@ remove_modules() {
 			execute_scripts_for_module "$1" "$remove_sripts_in_module"
 
 			# unstow
-			if [ "$SUDO_USER" ]; then
-				sudo -E -u "$SUDO_USER" \
+			if [ -e "$modules_folder/$1/.$1" ]; then
+				if [ "$SUDO_USER" ]; then
+					sudo -E -u "$SUDO_USER" \
+						stow -D -d "$modules_folder/$1/" \
+						-t "$user_home" ".$1"
+				else
 					stow -D -d "$modules_folder/$1/" \
-					-t "$user_home" ".$1"
-			else
-				stow -D -d "$modules_folder/$1/" \
-					-t "$user_home" ".$1"
+						-t "$user_home" ".$1"
+				fi
 			fi
 
 			# remove hashfile to mark as uninstalled
