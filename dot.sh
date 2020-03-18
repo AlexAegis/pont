@@ -64,6 +64,10 @@
 # TODO: add flags to disable or enable paralell work
 # TODO: add a .lock file with PID into each module just in case and remove after
 
+# TODO: forced clash on every input module. This is useful when you want to
+# TODO: have a menu to install something in a category. combine with
+# TODO: no-uninstall flags
+
 C_RESET='\033[0m'
 C_RED='\033[0;31m'
 C_GREEN='\033[0;32m'
