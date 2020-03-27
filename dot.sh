@@ -24,6 +24,9 @@
 #
 #
 
+# TODO: Experiment with `sudo -l` to find out you have sudo access or not
+# TODO: If not, automatically turn on `skip-root` and print some message
+
 # TODO: differentiate between remove (disable) and hard-remove (package removal)
 
 # TODO: Enable line end comments (just strip #.*$ from every line)
