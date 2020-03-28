@@ -94,11 +94,17 @@ is_installed() {
 	command -v "$1" 2>/dev/null
 }
 
+# Environmental config
+## This where the packages will be stowed to. Can also be set with -t, --target
+DOT_TARGET=${DOT_TARGET:-"$HOME"}
+DOTFILES_HOME="${DOTFILES_HOME-"$HOME/.dotfiles"}"
+# TODO: Support multiple folders $IFS separated
+DOT_MODULES_FOLDER=${DOT_MODULES_FOLDER:-"$DOTFILES_HOME/modules"}
+DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
+
 # Environment
 # script_path="$(dirname "$(readlink -f "$0")")"
-dotfiles_folder="${DOTFILES-"$HOME/.dotfiles"}"
 user_home=$(getent passwd "${SUDO_USER-$USER}" | cut -d: -f6)
-
 # Config
 IFS='
 '
@@ -113,9 +119,6 @@ remove=0
 all=0
 no_expand=0
 fix_permissions=0
-# TODO: Support multiple folders
-modules_folder=${DOT_MODULES_FOLDER:-"$dotfiles_folder/modules"}
-presets_folder=${DOT_PRESETS_FOLDER:-"$dotfiles_folder/presets"}
 preset_extension=".preset"
 hashfilename=".tarhash"
 dependenciesfilename=".dependencies"
@@ -145,14 +148,14 @@ if [ -e "./.dotrc" ]; then
 fi
 
 # TODO: Only needed when printing and using whiptail. Lazy load it.
-all_modules=$(find "$modules_folder/" -maxdepth 1 -mindepth 1 -printf "%f\n" |
+all_modules=$(find "$DOT_MODULES_FOLDER/" -maxdepth 1 -mindepth 1 -printf "%f\n" |
 	sort)
-all_presets=$(find "$presets_folder/" -maxdepth 1 -mindepth 1 \
+all_presets=$(find "$DOT_PRESETS_FOLDER/" -maxdepth 1 -mindepth 1 \
 	-name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
 #shellcheck disable=SC2016
-all_installed=$(grep -lm 1 -- "" "$modules_folder"/**/$hashfilename |
+all_installed=$(grep -lm 1 -- "" "$DOT_MODULES_FOLDER"/**/$hashfilename |
 	sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
-all_tags=$(find "$modules_folder"/*/ -maxdepth 1 -mindepth 1 -name '.tags' \
+all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 -name '.tags' \
 	-exec cat {} + | grep "^[^#;]" | sort | uniq)
 
 # Package manager availablity
@@ -241,6 +244,15 @@ anything you pass to it. For example:
 	-d | --dry) #  customize installable modules
 		dry=1
 		;;
+	-t | --target) # package installation target, defaults to $DOT_TARGET
+		if [ -d "$2" ]; then
+			DOT_TARGET="$1"
+		else
+			echo "${C_RED} Invalid target: $2"
+			exit 1
+		fi
+		shift
+		;;
 	-f | --force) # force installation, only the issued one
 		force=1
 		no_expand=1
@@ -284,15 +296,15 @@ done
 
 do_fix_permissions() {
 	# Fix permissions, except in submodules
-	echo "Fixing permissions in $dotfiles_folder... "
+	echo "Fixing permissions in $DOTFILES_HOME... "
 	submodules=$(
-		cd "$dotfiles_folder" || exit
+		cd "$DOTFILES_HOME" || exit
 		git submodule status | sed -e 's/^ *//' -e 's/ *$//' | rev |
 			cut -d ' ' -f 2- | rev | cut -d ' ' -f 2- |
 			sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
 	)
 
-	eval "find $modules_folder -type f \( $submodules \) \
+	eval "find $DOT_MODULES_FOLDER -type f \( $submodules \) \
 -regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod +x {} \;"
 }
 
@@ -304,20 +316,20 @@ trim_around() {
 has_tag() {
 	# Returns every dotmodule that contains any of the tags
 	# shellcheck disable=SC2016
-	grep -lRm 1 -- "$@" "$modules_folder"/*/"$tagsfilename" |
+	grep -lRm 1 -- "$@" "$DOT_MODULES_FOLDER"/*/"$tagsfilename" |
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g'
 }
 
 in_preset() {
 	# returns every
-	if [ -f "$presets_folder/$1$preset_extension" ]; then
-		sed -e 's/#.*$//' -e '/^$/d' "$presets_folder/$1$preset_extension"
+	if [ -f "$DOT_PRESETS_FOLDER/$1$preset_extension" ]; then
+		sed -e 's/#.*$//' -e '/^$/d' "$DOT_PRESETS_FOLDER/$1$preset_extension"
 	fi
 }
 
 get_dependencies() {
-	if [ -f "$modules_folder/$1/$dependenciesfilename" ]; then
-		sed -e 's/#.*$//' -e '/^$/d' "$modules_folder/$1/$dependenciesfilename"
+	if [ -f "$DOT_MODULES_FOLDER/$1/$dependenciesfilename" ]; then
+		sed -e 's/#.*$//' -e '/^$/d' "$DOT_MODULES_FOLDER/$1/$dependenciesfilename"
 	fi
 }
 
@@ -341,7 +353,7 @@ execute_scripts_for_module() {
 				[ "$privilige" = "sudo" ]; then
 				if [ "$skip_root" = 0 ]; then
 					(
-						sudo "$modules_folder/$1/$script"
+						sudo "$DOT_MODULES_FOLDER/$1/$script"
 					)
 				else
 					echo "${C_YELLOW}Skipping $script${C_RESET}"
@@ -349,11 +361,11 @@ execute_scripts_for_module() {
 			else
 				if [ "$SUDO_USER" ]; then
 					(
-						sudo -u "$SUDO_USER" "$modules_folder/$1/$script"
+						sudo -u "$SUDO_USER" "$DOT_MODULES_FOLDER/$1/$script"
 					)
 				else
 					(
-						"$modules_folder/$1/$script"
+						"$DOT_MODULES_FOLDER/$1/$script"
 					)
 				fi
 			fi
@@ -416,7 +428,7 @@ $(get_entry "$1")"
 }
 
 init_module() {
-	init_sripts_in_module=$(find "$modules_folder/$1/" -type f \
+	init_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
 		-regex "^.*/init\..*\.sh$" | sed 's|.*/||' | sort)
 	execute_scripts_for_module "$1" "$init_sripts_in_module"
 }
@@ -424,7 +436,7 @@ init_module() {
 update_modules() {
 	while :; do
 		if [ "$1" ]; then
-			update_sripts_in_module=$(find "$modules_folder/$1/" -type f \
+			update_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
 				-regex "^.*/update\..*\.sh$" | sed 's|.*/||' | sort)
 			execute_scripts_for_module "$1" "$update_sripts_in_module"
 			shift
@@ -437,25 +449,25 @@ update_modules() {
 remove_modules() {
 	while :; do
 		if [ "$1" ]; then
-			remove_sripts_in_module=$(find "$modules_folder/$1/" -type f \
+			remove_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
 				-regex "^.*/remove\..*\.sh$" | sed 's|.*/||' | sort)
 			execute_scripts_for_module "$1" "$remove_sripts_in_module"
 
 			# unstow
-			if [ -e "$modules_folder/$1/.$1" ]; then
+			if [ -e "$DOT_MODULES_FOLDER/$1/.$1" ]; then
 				if [ "$SUDO_USER" ]; then
 					sudo -E -u "$SUDO_USER" \
-						stow -D -d "$modules_folder/$1/" \
+						stow -D -d "$DOT_MODULES_FOLDER/$1/" \
 						-t "$user_home" ".$1"
 				else
-					stow -D -d "$modules_folder/$1/" \
+					stow -D -d "$DOT_MODULES_FOLDER/$1/" \
 						-t "$user_home" ".$1"
 				fi
 			fi
 
 			# remove hashfile to mark as uninstalled
-			[ -e "$modules_folder/$1/$hashfilename" ] &&
-				rm "$modules_folder/$1/$hashfilename"
+			[ -e "$DOT_MODULES_FOLDER/$1/$hashfilename" ] &&
+				rm "$DOT_MODULES_FOLDER/$1/$hashfilename"
 
 			shift
 		else
@@ -465,16 +477,21 @@ remove_modules() {
 }
 
 stow_module() {
-	if [ $dry != 1 ] && [ -e "$modules_folder/$1/.$1" ]; then
+	# TODO: This will stow every '*.MODULE-NAME' folder in the module to the
+	# folder the variable expands to. If the target is a relative path
+	# (not starting with a / ) then it will be treated as it's
+	# after $DOT_TARGET which by default is $HOME
+	# If no target folder is defined then it's also defaults to $DOT_TARGET
+	if [ $dry != 1 ] && [ -e "$DOT_MODULES_FOLDER/$1/.$1" ]; then
 		[ $verbose = 1 ] &&
-			echo "Stowing .$1 in $modules_folder/$1/ to $user_home"
+			echo "Stowing .$1 in $DOT_MODULES_FOLDER/$1/ to $user_home"
 
 		if [ "$SUDO_USER" ]; then
 			sudo -E -u "$SUDO_USER" \
-				stow -d "$modules_folder/$1/" \
+				stow -d "$DOT_MODULES_FOLDER/$1/" \
 				-t "$user_home" ".$1"
 		else
-			stow -d "$modules_folder/$1/" \
+			stow -d "$DOT_MODULES_FOLDER/$1/" \
 				-t "$user_home" ".$1"
 		fi
 
@@ -482,7 +499,7 @@ stow_module() {
 }
 
 install_module() {
-	sripts_in_module=$(find "$modules_folder/$1/" -type f \
+	sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
 		-regex "^.*/[0-9\]\..*\.sh$" | sed 's|.*/||' | sort)
 
 	[ $verbose = 1 ] && echo "Scripts in module for $1 are:
@@ -524,14 +541,14 @@ hash_module() {
 	if [ "$SUDO_USER" ]; then
 		sudo -E -u "$SUDO_USER" \
 			tar --absolute-names \
-			--exclude="$modules_folder/$1/$hashfilename" \
-			-c "$modules_folder/$1" |
-			sha1sum >"$modules_folder/$1/$hashfilename"
+			--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
+			-c "$DOT_MODULES_FOLDER/$1" |
+			sha1sum >"$DOT_MODULES_FOLDER/$1/$hashfilename"
 	else
 		tar --absolute-names \
-			--exclude="$modules_folder/$1/$hashfilename" \
-			-c "$modules_folder/$1" |
-			sha1sum >"$modules_folder/$1/$hashfilename"
+			--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
+			-c "$DOT_MODULES_FOLDER/$1" |
+			sha1sum >"$DOT_MODULES_FOLDER/$1/$hashfilename"
 	fi
 
 	if [ $dry != 1 ] && [ "$result" = 0 ]; then
@@ -548,24 +565,24 @@ execute_modules() {
 		if [ "$1" ]; then
 			result=0
 			[ $verbose = 1 ] && echo "Checking if module exists:" \
-				"$modules_folder/$1"
-			if [ ! -d "$modules_folder/$1" ]; then
+				"$DOT_MODULES_FOLDER/$1"
+			if [ ! -d "$DOT_MODULES_FOLDER/$1" ]; then
 				echo "Module $1 not found. Skipping"
 				return 1
 			fi
 
 			# cd to dotmodule just in case a dotmodule
 			# is not suited for installation outside of it
-			cd "$modules_folder/$1" || return 1
+			cd "$DOT_MODULES_FOLDER/$1" || return 1
 
 			echo "${C_BLUE}Installing $1$C_RESET"
 
 			# Only calculate the hashes if we going to use it
 			if [ "$force" = 0 ]; then
-				old_hash=$(cat "$modules_folder/$1/$hashfilename" 2>/dev/null)
+				old_hash=$(cat "$DOT_MODULES_FOLDER/$1/$hashfilename" 2>/dev/null)
 				new_hash=$(tar --absolute-names \
-					--exclude="$modules_folder/$1/$hashfilename" \
-					-c "$modules_folder/$1" | sha1sum)
+					--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
+					-c "$DOT_MODULES_FOLDER/$1" | sha1sum)
 
 				if [ "$old_hash" = "$new_hash" ]; then
 					match=$C_GREEN
@@ -580,7 +597,7 @@ execute_modules() {
 				[ "$force" = 1 ] || [ "$old_hash" != "$new_hash" ]
 			then
 
-				if [ -e "$modules_folder/$1/.deprecated" ]; then
+				if [ -e "$DOT_MODULES_FOLDER/$1/.deprecated" ]; then
 					echo "${C_YELLOW}! Warning: $1 is deprecated$C_RESET"
 					shift
 					continue
