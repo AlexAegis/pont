@@ -24,6 +24,12 @@
 #
 #
 
+# TODO: make module listing display outdated modules by tarhashing every one of
+# TODO: them
+
+# TODO: add a --pure switch to only print clean data to let dot generate
+# TODO: scriptable data
+
 # TODO: deprecation alternatives prompt, check nvm and fnm
 
 # TODO: Experiment with `sudo -l` to find out you have sudo access or not
