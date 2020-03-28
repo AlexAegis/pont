@@ -233,7 +233,11 @@ anything you pass to it. For example:
 	-d | --dry) #  customize installable modules
 		dry=1
 		;;
-	-f | --force) # force installation
+	-f | --force) # force installation, only the issued one
+		force=1
+		no_expand=1
+		;;
+	-F | --full-force) # force installation, every dependency
 		force=1
 		;;
 	-fp | --fix-permissions) # Adds executable rights to every scriptfile
