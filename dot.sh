@@ -482,6 +482,8 @@ stow_module() {
 	# (not starting with a / ) then it will be treated as it's
 	# after $DOT_TARGET which by default is $HOME
 	# If no target folder is defined then it's also defaults to $DOT_TARGET
+
+
 	if [ $dry != 1 ] && [ -e "$DOT_MODULES_FOLDER/$1/.$1" ]; then
 		[ $verbose = 1 ] &&
 			echo "Stowing .$1 in $DOT_MODULES_FOLDER/$1/ to $user_home"
