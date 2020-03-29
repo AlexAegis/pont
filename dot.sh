@@ -83,6 +83,11 @@
 # TODO: have a menu to install something in a category. combine with
 # TODO: no-uninstall flags
 
+# TODO: Change the evals into something safer
+
+IFS='
+'
+
 C_RESET='\033[0m'
 C_RED='\033[0;31m'
 C_GREEN='\033[0;32m'
@@ -98,6 +103,14 @@ is_installed() {
 	command -v "$1" 2>/dev/null
 }
 
+# Make all the variables (except IFS) in this script available to the subshells
+set -a
+# Normalize XDG variables according to the spec (Set it only if absent)
+XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
+XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME/.cache"}
+XDG_DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
+XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"$HOME/.cache/run"}
+
 # Environmental config
 ## This where the packages will be stowed to. Can also be set with -t, --target
 DOT_TARGET=${DOT_TARGET:-"$HOME"}
@@ -110,8 +123,7 @@ DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
 # script_path="$(dirname "$(readlink -f "$0")")"
 user_home=$(getent passwd "${SUDO_USER-$USER}" | cut -d: -f6)
 # Config
-IFS='
-'
+
 modules_selected=""
 resolved=""
 final_module_list=""
@@ -480,28 +492,50 @@ remove_modules() {
 	done
 }
 
-stow_module() {
-	# TODO: This will stow every '*.MODULE-NAME' folder in the module to the
-	# folder the variable expands to. If the target is a relative path
-	# (not starting with a / ) then it will be treated as it's
-	# after $DOT_TARGET which by default is $HOME
-	# If no target folder is defined then it's also defaults to $DOT_TARGET
+do_stow() {
+	# $1: the packages parent directory
+	# $2: target directory
+	# $3: package name
 
+	[ $verbose = 1 ] && echo "Stowing package $3 to $2 from $1"
 
-	if [ $dry != 1 ] && [ -e "$DOT_MODULES_FOLDER/$1/.$1" ]; then
-		[ $verbose = 1 ] &&
-			echo "Stowing .$1 in $DOT_MODULES_FOLDER/$1/ to $user_home"
-
+	if [ $dry != 1 ]; then
 		if [ "$SUDO_USER" ]; then
-			sudo -E -u "$SUDO_USER" \
-				stow -d "$DOT_MODULES_FOLDER/$1/" \
-				-t "$user_home" ".$1"
+			sudo -E -u "$SUDO_USER" stow -d "$1" -t "$2" "$3"
 		else
-			stow -d "$DOT_MODULES_FOLDER/$1/" \
-				-t "$user_home" ".$1"
+			stow -d "$1" -t "$2" "$3"
 		fi
-
 	fi
+}
+
+stow_package() {
+	# recieves a list of directories of packages inside modules
+	while :; do
+		if [ -d "$1" ]; then
+			do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
+				sed 's|^$|/|')" \
+				"$(/bin/sh -c "echo \$$(basename "$1" | rev | \
+				    cut -d '.' -f 2- | rev)" | sed -e "s|^\$$|$DOT_TARGET|" \
+					-e "s|^[^/]|$DOT_TARGET/\0|")" \
+				"$(basename "$1")"
+			shift
+		else
+			break
+		fi
+	done
+
+}
+
+stow_module() {
+	while :; do
+		if [ "$1" ]; then
+			stow_package "$DOT_MODULES_FOLDER"/"$1"/*"$1" \
+							"$DOT_MODULES_FOLDER"/"$1"/."$1"
+			shift
+		else
+			break
+		fi
+	done
 }
 
 install_module() {
@@ -676,3 +710,5 @@ else
 	# shellcheck disable=SC2086
 	execute_modules $final_module_list
 fi
+
+set +a
