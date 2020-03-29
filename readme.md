@@ -15,8 +15,7 @@ techniques as possible.
 ## Prerequisites
 
 A [POSIX](https://en.wikipedia.org/wiki/POSIX) capable shell on `/bin/sh`
-to run `dot` itself.
-I tested on `dash` and `bash`.
+to run `dot` itself. It was developed on `dash` and it does not utilize local variables.
 
 ## Installation
 

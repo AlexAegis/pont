@@ -103,27 +103,35 @@ is_installed() {
 	command -v "$1" 2>/dev/null
 }
 
+clean_symlinks() {
+	# recusively removes every broken symlink in a directory
+	# used to clean before installation and after uninstallation
+	find "${1-$PWD}" -type l -exec \
+		sh -c 'for x; do [ -e "$x" ] || rm "$x"; done' _ {} +
+}
+
 # Make all the variables (except IFS) in this script available to the subshells
 set -a
+
+# Environment
+user_home=$(getent passwd "${SUDO_USER-$USER}" | cut -d: -f6)
+
 # Normalize XDG variables according to the spec (Set it only if absent)
-XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
-XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME/.cache"}
-XDG_DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
-XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"$HOME/.cache/run"}
+XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$user_home/.config"}
+XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$user_home/.cache"}
+XDG_DATA_HOME=${XDG_DATA_HOME:-"$user_home/.local/share"}
+XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"$user_home/.cache/run"}
+XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 
 # Environmental config
 ## This where the packages will be stowed to. Can also be set with -t, --target
-DOT_TARGET=${DOT_TARGET:-"$HOME"}
-DOTFILES_HOME="${DOTFILES_HOME-"$HOME/.dotfiles"}"
+DOT_TARGET=${DOT_TARGET:-"$user_home"}
+DOTFILES_HOME="${DOTFILES_HOME-"$user_home/.dotfiles"}"
 # TODO: Support multiple folders $IFS separated
 DOT_MODULES_FOLDER=${DOT_MODULES_FOLDER:-"$DOTFILES_HOME/modules"}
 DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
 
-# Environment
-# script_path="$(dirname "$(readlink -f "$0")")"
-user_home=$(getent passwd "${SUDO_USER-$USER}" | cut -d: -f6)
 # Config
-
 modules_selected=""
 resolved=""
 final_module_list=""
@@ -133,6 +141,7 @@ force=0
 update=0
 remove=0
 all=0
+all_installed=0
 no_expand=0
 fix_permissions=0
 preset_extension=".preset"
@@ -143,6 +152,16 @@ verbose=0 # Print more
 dry=0     # When set, no installation will be done
 
 # Config file sourcing
+if [ -e "$XDG_CONFIG_HOME/dot/dotrc" ]; then
+	# shellcheck disable=SC1090
+	. "$XDG_CONFIG_HOME/dot/dotrc"
+fi
+
+if [ -e "$XDG_CONFIG_HOME/dotrc" ]; then
+	# shellcheck disable=SC1090
+	. "$XDG_CONFIG_HOME/dotrc"
+fi
+
 if [ -e "$user_home/.config/dot/dotrc" ]; then
 	# shellcheck disable=SC1090
 	. "$user_home/.config/dot/dotrc"
@@ -166,10 +185,10 @@ fi
 # TODO: Only needed when printing and using whiptail. Lazy load it.
 all_modules=$(find "$DOT_MODULES_FOLDER/" -maxdepth 1 -mindepth 1 -printf "%f\n" |
 	sort)
-all_presets=$(find "$DOT_PRESETS_FOLDER/" -maxdepth 1 -mindepth 1 \
+all_presets=$(find "$DOT_PRESETS_FOLDER/" -mindepth 1 \
 	-name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
 #shellcheck disable=SC2016
-all_installed=$(grep -lm 1 -- "" "$DOT_MODULES_FOLDER"/**/$hashfilename |
+all_installed_modules=$(grep -lm 1 -- "" "$DOT_MODULES_FOLDER"/**/$hashfilename |
 	sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 -name '.tags' \
 	-exec cat {} + | grep "^[^#;]" | sort | uniq)
@@ -179,9 +198,12 @@ pacman=$(is_installed pacman)
 apt=$(is_installed apt)
 sysctl=$(is_installed sysctl)
 systemctl=$(is_installed systemctl)
+# TODO: Check if its available, on WSL it's not even though systemctl is
 systemd=$systemctl
 # TODO: Only valid on systemd distros
 distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | tr -d '="')
+# It uses if and not && because when using && a new line would
+# return on false evaluation. `If` captures the output of test
 arch=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
 void=$(if [ "$distribution" = 'Void Linux' ]; then echo 1; fi)
 debian=$(if [ "$distribution" = 'Debian GNU/Linux' ]; then echo 1; fi)
@@ -207,7 +229,7 @@ while :; do
 		;;
 	-li | --list-installed)
 		printf "${C_BLUE}All installed modules:${C_RESET}\n%s\n" \
-			"$all_installed"
+			"$all_installed_modules"
 		exit
 		;;
 	-lm | --list-modules)
@@ -257,6 +279,9 @@ anything you pass to it. For example:
 	-a | --all) # Run all modules
 		all=1
 		;;
+	-ai | --all-installed) # Run all, already installed modules
+		all_installed=1
+		;;
 	-d | --dry) #  customize installable modules
 		dry=1
 		;;
@@ -264,7 +289,7 @@ anything you pass to it. For example:
 		if [ -d "$2" ]; then
 			DOT_TARGET="$1"
 		else
-			echo "${C_RED} Invalid target: $2"
+			echo "${C_RED} Invalid target: $2${C_RESET}"
 			exit 1
 		fi
 		shift
@@ -358,6 +383,9 @@ get_condition() {
 }
 
 execute_scripts_for_module() {
+	# 1: module name
+	# 2: scripts to run
+	# 3: sourcing setting, if set, user privileged scripts will be sourced
 	for script in $2; do
 		echo "Running $script..."
 
@@ -380,9 +408,14 @@ execute_scripts_for_module() {
 						sudo -u "$SUDO_USER" "$DOT_MODULES_FOLDER/$1/$script"
 					)
 				else
-					(
-						"$DOT_MODULES_FOLDER/$1/$script"
-					)
+					if [ "$3" ]; then
+						# shellcheck disable=SC1090
+						. "$DOT_MODULES_FOLDER/$1/$script"
+					else
+						(
+							"$DOT_MODULES_FOLDER/$1/$script"
+						)
+					fi
 				fi
 			fi
 			result=$((result + $?))
@@ -446,7 +479,7 @@ $(get_entry "$1")"
 init_module() {
 	init_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
 		-regex "^.*/init\..*\.sh$" | sed 's|.*/||' | sort)
-	execute_scripts_for_module "$1" "$init_sripts_in_module"
+	execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
 }
 
 update_modules() {
@@ -499,7 +532,29 @@ do_stow() {
 
 	[ $verbose = 1 ] && echo "Stowing package $3 to $2 from $1"
 
+	if [ ! "$(is_installed stow)" ]; then
+		echo "${C_RED}stow is not installed!${C_RESET}"
+		exit 1
+	fi
+	if [ ! -d "$1" ]; then
+		echo "${C_RED}package not found!" \
+			 "\n\t$1\n\t$2\n\t$3${C_RESET}"
+		exit 1
+	fi
+	if [ ! -d "$2" ]; then
+		echo "${C_RED}target directory does not exist!" \
+			 "\n\t$1\n\t$2\n\t$3${C_RESET}"
+		exit 1
+	fi
+	if [ ! "$3" ]; then
+		echo "${C_RED}no package name!" \
+			 "\n\t$1\n\t$2\n\t$3${C_RESET}"
+		exit 1
+	fi
+
 	if [ $dry != 1 ]; then
+		# TODO: Save the installed packages in a .dot temporary property file
+		# so even if the packages change you know what to remove IF IT MAKES SENSE
 		if [ "$SUDO_USER" ]; then
 			sudo -E -u "$SUDO_USER" stow -d "$1" -t "$2" "$3"
 		else
@@ -515,7 +570,8 @@ stow_package() {
 			do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
 				sed 's|^$|/|')" \
 				"$(/bin/sh -c "echo \$$(basename "$1" | rev | \
-				    cut -d '.' -f 2- | rev)" | sed -e "s|^\$$|$DOT_TARGET|" \
+				    cut -d '.' -f 2- | rev)" | \
+					sed -e "s|^\$$|$DOT_TARGET|" \
 					-e "s|^[^/]|$DOT_TARGET/\0|")" \
 				"$(basename "$1")"
 			shift
@@ -671,20 +727,24 @@ execute_modules() {
 	done
 }
 
-if [ "$all" = 0 ] && [ -z "$modules_selected" ] || [ "$config" = 1 ]; then
-	modules_selected=$(whiptail --title "Select modules to install" \
-		--checklist "Space changes selection, enter approves" \
-		0 0 0 zsh zsh ON vim vim OFF 3>&1 1>&2 2>&3 3>&- |
-		sed 's/ /\n/g' |
-		trim_around)
-fi
-
 ## Execution
 
 # shellcheck disable=SC2086
 if [ "$all" = 1 ]; then
 	expand_entry $all_modules
+elif [ "$all_installed" = 1 ]; then
+	expand_entry $all_installed_modules
 else
+
+	# TODO: impement config
+	if [ -z "$modules_selected" ] || [ "$config" = 1 ]; then
+		modules_selected=$(whiptail --title "Select modules to install" \
+			--checklist "Space changes selection, enter approves" \
+			0 0 0 zsh zsh ON vim vim OFF 3>&1 1>&2 2>&3 3>&- |
+			sed 's/ /\n/g' |
+			trim_around)
+	fi
+
 	# shellcheck disable=SC2086
 	if [ "$no_expand" = 1 ]; then
 		final_module_list=$modules_selected
