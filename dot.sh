@@ -553,7 +553,7 @@ do_stow() {
 	fi
 
 	if [ $dry != 1 ]; then
-		# TODO: Save the installed packages in a .dot temporary property file
+		clean_symlinks "$2"
 		# so even if the packages change you know what to remove IF IT MAKES SENSE
 		if [ "$SUDO_USER" ]; then
 			sudo -E -u "$SUDO_USER" stow -d "$1" -t "$2" "$3"
