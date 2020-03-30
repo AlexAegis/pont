@@ -24,6 +24,8 @@
 #
 #
 
+# TODO: On error remove tarhash
+
 # TODO: yank/export feature to resolve a set of dependencies but instead of
 # installing the modules, copy them over to the arguments location to safely
 # --steal-- someones dotmodules
