@@ -635,23 +635,23 @@ $sripts_to_run"
 	execute_scripts_for_module "$1" "$sripts_to_run"
 }
 
-hash_module() {
-	if [ "$SUDO_USER" ]; then
-		sudo -E -u "$SUDO_USER" \
-			tar --absolute-names \
-			--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
-			-c "$DOT_MODULES_FOLDER/$1" |
-			sha1sum >"$DOT_MODULES_FOLDER/$1/$hashfilename"
-	else
-		tar --absolute-names \
-			--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
-			-c "$DOT_MODULES_FOLDER/$1" |
-			sha1sum >"$DOT_MODULES_FOLDER/$1/$hashfilename"
-	fi
+do_hash_module() {
+	tar --absolute-names \
+		--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
+		-c "$DOT_MODULES_FOLDER/$1" |
+		sha1sum >"$DOT_MODULES_FOLDER/$1/$hashfilename"
+}
 
+hash_module() {
 	if [ $dry != 1 ] && [ "$result" = 0 ]; then
 		printf "${C_GREEN}Successfully installed \
 %s${C_RESET}\n" "$1"
+
+		if [ "$SUDO_USER" ]; then
+			sudo -E -u "$SUDO_USER" do_hash_module "$1"
+		else
+			do_hash_module "$1"
+		fi
 	else
 		printf "${C_RED}Installation failed \
 %s${C_RESET}\n" "$1"
@@ -711,12 +711,8 @@ execute_modules() {
 
 				install_module "$1"
 
-				# Calculate fresh hash (always if not dryrunning)
-
-				if [ $dry != 1 ]; then
-					hash_module "$1"
-				fi
-
+				# Calculate fresh hash
+				hash_module "$1"
 			else
 
 				echo "$C_YELLOW! $1 is already installed and no changes" \
