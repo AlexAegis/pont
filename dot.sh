@@ -128,7 +128,7 @@ XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 # Environmental config
 ## This where the packages will be stowed to. Can also be set with -t, --target
 DOT_TARGET=${DOT_TARGET:-"$user_home"}
-DOTFILES_HOME="${DOTFILES_HOME-"$user_home/.dotfiles"}"
+DOTFILES_HOME=${DOTFILES_HOME-"$user_home/.dotfiles"}
 # TODO: Support multiple folders $IFS separated
 DOT_MODULES_FOLDER=${DOT_MODULES_FOLDER:-"$DOTFILES_HOME/modules"}
 DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
@@ -138,13 +138,15 @@ modules_selected=""
 resolved=""
 final_module_list=""
 config=0
-skip_root=0
+root=1
 force=0
 update=0
 remove=0
+install=1 # by default, install, everything else turns it off, can be forced
 all=0
 all_installed=0
-no_expand=0
+expand=1
+show_module_list=0
 fix_permissions=0
 preset_extension=".preset"
 hashfilename=".tarhash"
@@ -152,6 +154,27 @@ dependenciesfilename=".dependencies"
 tagsfilename=".tags"
 verbose=0 # Print more
 dry=0     # When set, no installation will be done
+
+## Pre calculated environmental variables for modules
+# Package manager
+pacman=$(is_installed pacman)
+apt=$(is_installed apt)
+xbps=$(is_installed xbps)
+# Init system
+sysctl=$(is_installed sysctl)
+systemctl=$(is_installed systemctl)
+# TODO: Check if its available, on WSL it's not even though systemctl is
+systemd=$systemctl
+# Distribution
+# TODO: Only valid on systemd distros
+distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | tr -d '="')
+# It uses if and not && because when using && a new line would
+# return on false evaluation. `If` captures the output of test
+arch=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
+void=$(if [ "$distribution" = 'Void Linux' ]; then echo 1; fi)
+debian=$(if [ "$distribution" = 'Debian GNU/Linux' ]; then echo 1; fi)
+ubuntu=$(if [ "$distribution" = 'Ubuntu' ]; then echo 1; fi)
+fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 
 # Config file sourcing
 if [ -e "$XDG_CONFIG_HOME/dot/dotrc" ]; then
@@ -162,16 +185,6 @@ fi
 if [ -e "$XDG_CONFIG_HOME/dotrc" ]; then
 	# shellcheck disable=SC1090
 	. "$XDG_CONFIG_HOME/dotrc"
-fi
-
-if [ -e "$user_home/.config/dot/dotrc" ]; then
-	# shellcheck disable=SC1090
-	. "$user_home/.config/dot/dotrc"
-fi
-
-if [ -e "$user_home/.config/dotrc" ]; then
-	# shellcheck disable=SC1090
-	. "$user_home/.config/dotrc"
 fi
 
 if [ -e "$user_home/.dotrc" ]; then
@@ -195,22 +208,6 @@ all_installed_modules=$(grep -lm 1 -- "" "$DOT_MODULES_FOLDER"/**/$hashfilename 
 all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 -name '.tags' \
 	-exec cat {} + | grep "^[^#;]" | sort | uniq)
 
-# Package manager availablity
-pacman=$(is_installed pacman)
-apt=$(is_installed apt)
-sysctl=$(is_installed sysctl)
-systemctl=$(is_installed systemctl)
-# TODO: Check if its available, on WSL it's not even though systemctl is
-systemd=$systemctl
-# TODO: Only valid on systemd distros
-distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | tr -d '="')
-# It uses if and not && because when using && a new line would
-# return on false evaluation. `If` captures the output of test
-arch=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
-void=$(if [ "$distribution" = 'Void Linux' ]; then echo 1; fi)
-debian=$(if [ "$distribution" = 'Debian GNU/Linux' ]; then echo 1; fi)
-ubuntu=$(if [ "$distribution" = 'Ubuntu' ]; then echo 1; fi)
-fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 
 ## Argument handling
 
@@ -267,16 +264,27 @@ anything you pass to it. For example:
 "
 		exit
 		;;
+	-sm | --show-modules) # Don't run install scripts, but print them
+		show_module_list=1
+		install=0
+		;;
 	-v | --verbose) # Verbose printing TODO: Pass to the dotmodules
 		verbose=1
 		;;
-	-u | --update) # Run only update scripts
+	-u | --update) # Run update scripts
 		update=1
+		expand=0
+		install=0
 		;;
-	-r | --remove) # Run only remove scripts
+	-i | --install) # Run install scripts
+		# this is on by default, other script selector flags turn it off
+		install=1
+		;;
+	-r | --remove) # Run remove scripts
 		remove=1
 		# TODO: until orphan handling is done, do not touch other modules
-		no_expand=1
+		expand=0
+		install=0 # do not install when removing
 		;;
 	-a | --all) # Run all modules
 		all=1
@@ -298,10 +306,7 @@ anything you pass to it. For example:
 		;;
 	-f | --force) # force installation, only the issued one
 		force=1
-		no_expand=1
-		;;
-	-F | --full-force) # force installation, every dependency
-		force=1
+		expand=0
 		;;
 	-fp | --fix-permissions) # Adds executable rights to every scriptfile
 		fix_permissions=1
@@ -309,11 +314,15 @@ anything you pass to it. For example:
 	-c | --config | --custom) # Ask for everything
 		config=1
 		;;
-	-ne | --no-expand) # Disables dependency resolvement, run only selected
-		no_expand=1
+	-ne | --no-expand) # Disables dependency expansion, run only selected
+		expand=0
 		;;
-	-sr | --skip-root) # Skip root scripts
-		skip_root=1
+	-e | --expand) # Expand dependencies
+		# this is on by default, other script selector flags turn it off
+		expand=1
+		;;
+	-nr | --no-root | -sr | --skip-root) # Skip root scripts
+		root=0
 		;;
 	-sc | -cpt | --scaffold) # Ask for everything
 		# TODO: cpt template and dot --scaffold command to create from template
@@ -348,7 +357,7 @@ do_fix_permissions() {
 	)
 
 	eval "find $DOT_MODULES_FOLDER -type f \( $submodules \) \
--regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod +x {} \;"
+-regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod u+x {} \;"
 }
 
 trim_around() {
@@ -397,7 +406,7 @@ execute_scripts_for_module() {
 		if [ $dry != 1 ]; then
 			if [ "$privilige" = "root" ] ||
 				[ "$privilige" = "sudo" ]; then
-				if [ "$skip_root" = 0 ]; then
+				if [ "$root" = 1 ]; then
 					(
 						sudo "$DOT_MODULES_FOLDER/$1/$script"
 					)
@@ -744,10 +753,10 @@ else
 	fi
 
 	# shellcheck disable=SC2086
-	if [ "$no_expand" = 1 ]; then
-		final_module_list=$modules_selected
-	else
+	if [ "$expand" = 1 ]; then
 		expand_entry "base" $modules_selected
+	else
+		final_module_list=$modules_selected
 	fi
 fi
 
@@ -758,13 +767,21 @@ if [ "$fix_permissions" = 1 ]; then
 	do_fix_permissions
 fi
 
+if [ "$show_module_list" = 1 ]; then
+	echo "$C_YELLOW! All modules to be executed:$C_RESET"
+	echo "$final_module_list"
+fi
+
 if [ "$remove" = 1 ]; then
 	# shellcheck disable=SC2086
 	remove_modules $final_module_list
-elif [ "$update" = 1 ]; then
+fi
+if [ "$update" = 1 ]; then
 	# shellcheck disable=SC2086
 	update_modules $final_module_list
-else
+fi
+
+if [ "$install" = 1 ]; then
 	# shellcheck disable=SC2086
 	execute_modules $final_module_list
 fi
