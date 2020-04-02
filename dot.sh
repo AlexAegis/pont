@@ -153,7 +153,8 @@ hashfilename=".tarhash"
 dependenciesfilename=".dependencies"
 tagsfilename=".tags"
 verbose=0 # Print more
-dry=0     # When set, no installation will be done
+quiet=0 # Print less
+dry=0 # When set, no installation will be done
 
 ## Pre calculated environmental variables for modules
 # Package manager
@@ -177,25 +178,15 @@ ubuntu=$(if [ "$distribution" = 'Ubuntu' ]; then echo 1; fi)
 fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 
 # Config file sourcing
-if [ -e "$XDG_CONFIG_HOME/dot/dotrc" ]; then
-	# shellcheck disable=SC1090
-	. "$XDG_CONFIG_HOME/dot/dotrc"
-fi
+# shellcheck disable=SC1090
+[ -e "$XDG_CONFIG_HOME/dot/dotrc" ] && . "$XDG_CONFIG_HOME/dot/dotrc"
+# shellcheck disable=SC1090
+[ -e "$XDG_CONFIG_HOME/dotrc" ] && . "$XDG_CONFIG_HOME/dotrc"
+# shellcheck disable=SC1090
+[ -e "$user_home/.dotrc" ] && . "$user_home/.dotrc"
+# shellcheck disable=SC1091
+[ -e "./.dotrc" ] && . "./.dotrc"
 
-if [ -e "$XDG_CONFIG_HOME/dotrc" ]; then
-	# shellcheck disable=SC1090
-	. "$XDG_CONFIG_HOME/dotrc"
-fi
-
-if [ -e "$user_home/.dotrc" ]; then
-	# shellcheck disable=SC1090
-	. "$user_home/.dotrc"
-fi
-
-if [ -e "./.dotrc" ]; then
-	# shellcheck disable=SC1090,SC1091
-	. "./.dotrc"
-fi
 
 # TODO: Only needed when printing and using whiptail. Lazy load it.
 all_modules=$(find "$DOT_MODULES_FOLDER/" -maxdepth 1 -mindepth 1 -printf "%f\n" |
@@ -208,6 +199,8 @@ all_installed_modules=$(grep -lm 1 -- "" "$DOT_MODULES_FOLDER"/**/$hashfilename 
 all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 -name '.tags' \
 	-exec cat {} + | grep "^[^#;]" | sort | uniq)
 
+# Newline separated list of actions. Used to preserve order of flags
+execution_queue=""
 
 ## Argument handling
 
@@ -219,48 +212,88 @@ while :; do
 		exit
 		;;
 	-la | --list-all)
-		printf "${C_BLUE}All available modules:${C_RESET}\n%s\n" "$all_modules"
-		printf "${C_BLUE}All available presets:${C_RESET}\n%s\n" "$all_presets"
-		printf "${C_BLUE}All available tags:${C_RESET}\n%s\n" "$all_tags"
-		printf "${C_BLUE}All available environmental variables\
-:${C_RESET}\n%s\n" "$all_tags"
+		execution_queue="$execution_queue
+list_modules
+list_presets
+list_tags
+"
+		[ ! $quiet ] && echo "${C_BLUE}All available modules:${C_RESET}"
+		echo "$all_modules"
+		[ ! $quiet ] && echo "${C_BLUE}All available presets:${C_RESET}"
+		echo "$all_presets"
+		[ ! $quiet ] &&  echo "${C_BLUE}All available tags:${C_RESET}"
+		echo "$all_tags"
 		exit
 		;;
 	-li | --list-installed)
-		printf "${C_BLUE}All installed modules:${C_RESET}\n%s\n" \
-			"$all_installed_modules"
+		execution_queue="$execution_queue
+list_installed_modules"
+		[ ! $quiet ] && echo "${C_BLUE}All installed modules:${C_RESET}"
+		echo "$all_installed_modules"
 		exit
 		;;
 	-lm | --list-modules)
-		printf "${C_BLUE}All available modules:${C_RESET}\n%s\n" "$all_modules"
+		execution_queue="$execution_queue
+list_modules"
+		[ ! $quiet ] && echo "${C_BLUE}All available modules:${C_RESET}"
+		echo "$all_modules"
 		exit
 		;;
 	-lp | --list-presets)
-		printf "${C_BLUE}All available presets:${C_RESET}\n%s\n" "$all_presets"
+		execution_queue="$execution_queue
+list_presets"
+		[ ! $quiet ] && echo "${C_BLUE}All available presets:${C_RESET}"
+		echo "$all_presets"
 		exit
 		;;
 	-lt | --list-tags)
-		printf "${C_BLUE}All available tags:${C_RESET}\n%s\n" "$all_tags"
+		execution_queue="$execution_queue
+list_tags"
+		[ ! $quiet ] && echo "${C_BLUE}All available tags:${C_RESET}"
+		echo "$all_tags"
 		exit
 		;;
 	-le | --list-environment)
-		echo "${C_BLUE}All available environmental variables:${C_RESET}
-\$distribution: $distribution (Value of NAME in /etc/os-release)
-\$pacman: $pacman
-\$apt: $apt
-\$sysctl: $sysctl
-\$systemctl: $systemctl
-\$systemd: $systemd
-\$arch: $arch (is set when \$distribution is 'Arch Linux')
-\$void: $void (is set when \$distribution is 'Void Linux')
-\$debian: $debian (is set when \$distribution is 'Debian GNU/Linux')
-\$ubuntu: $ubuntu (is set when \$distribution is 'Ubuntu')
-\$fedora: $fedora (is set when \$distribution is 'Fedora')
+		execution_queue="$execution_queue
+list_environment"
+		[ ! $quiet ] && echo "${C_BLUE}All configurable environmental" \
+			"variables:${C_RESET}"
+		echo "
+modules_selected=$modules_selected
+resolved=$resolved
+final_module_list=$final_module_list
+config=$config
+root=$root
+force=$force
+update=$update
+remove=$remove
+install=$install
+all=$all
+all_installed=$all_installed
+expand=$expand
+show_module_list=$show_module_list
+fix_permissions=$fix_permissions
+preset_extension=$preset_extension
+hashfilename=$hashfilename
+dependenciesfilename=$dependenciesfilename
+tagsfilename=$tagsfilename
+verbose=$verbose
+quiet=$quiet
+dry=$dry
 
-anything you find in dot.sh
-anything you pass to it. For example:
-	TEST=1 dot 'base ? [ \$TEST = 1 ]' # this would pass
-	TEST=1 dot 'base ? [ \$TEST = 0 ]' # this do not
+pacman=$pacman
+apt=$apt
+xbps=$xbps
+sysctl=$sysctl
+systemctl=$systemctl
+systemd=$systemd
+distribution=$distribution
+arch=$arch
+void=$void
+debian=$debian
+ubuntu=$ubuntu
+fedora=$fedora
+
 "
 		exit
 		;;
@@ -271,16 +304,28 @@ anything you pass to it. For example:
 	-v | --verbose) # Verbose printing TODO: Pass to the dotmodules
 		verbose=1
 		;;
+	-q | --quiet) # Quite printing, only relevant output is printed
+		quiet=1
+		;;
 	-u | --update) # Run update scripts
+		execution_queue="$execution_queue
+update
+"
 		update=1
 		expand=0
 		install=0
 		;;
 	-i | --install) # Run install scripts
 		# this is on by default, other script selector flags turn it off
+		execution_queue="$execution_queue
+install
+"
 		install=1
 		;;
 	-r | --remove) # Run remove scripts
+			execution_queue="$execution_queue
+remove
+"
 		remove=1
 		# TODO: until orphan handling is done, do not touch other modules
 		expand=0
@@ -345,6 +390,9 @@ anything you pass to it. For example:
 
 	shift
 done
+
+# if nothing is selected, assume install
+[ ! "$execution_queue" ] && execution_queue="install"
 
 do_fix_permissions() {
 	# Fix permissions, except in submodules
