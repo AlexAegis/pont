@@ -95,8 +95,8 @@ convinient to use.
 ### Using dot itself
 
 If you have this repository as a submodule among your modules, you can install
-it with itself. The only script `dot` will detect is [`0.sudo.sh`](./0.sudo.sh)
-which does the linking as mentioned.
+it with itself. The only script `dot` will detect is
+[`0.sudo.sh`](./0.sudo.sh) which does the linking as mentioned.
 
 ```sh
 ~/.dotfiles/modules/dot/dot.sh dot
@@ -307,15 +307,15 @@ systems. And each will only execute on their respective platforms.
 > 0.user.**fallback**.sh
 
 There is an extra special dependency setting called `fallback`, and this is
-where `script groups` come into play. If in a script group (Defined by common
-ordering segments) none got executed, `fallback` will. If `fallback` is alone
-it will also be executed.
+where `script groups` come into play. If in a script group (Defined by a
+common ordering segment) none got executed, `fallback` will. If `fallback` is
+alone it will also be executed.
 
 > A usecase for this is the AUR. A lot of packages are available there, so on
 > `arch` systems you can probably install anyting using `pacman` or with an
-> AUR helper. If that package is only available on AUR, and it can't be installed
-> with any other package managers, you can try compile it from source or
-> download it using a custom installer script that they provide. Or
+> AUR helper. If that package is only available on AUR, and it can't be
+> installed with any other package managers, you can try compile it from
+> source or download it using a custom installer script that they provide. Or
 > install it with a different program. (Like Rust programs can be installed
 > using `cargo install`, or `node` programs with `npm -g`) But instead of
 > having a separate script for each system, or a custom script that skips on
@@ -330,8 +330,9 @@ TODO: Enable having multiple dependencies using `:`
 > `init.user.sh`
 
 Scripts starting with `init` instead of the ordering first segment are run
-before any other script do. And if it's `user` privileged it will not just run,
-but it will be sourced so everything that it defines will be available later.
+before any other script do. And if it's `user` privileged it will not just
+run, but it will be sourced so everything that it defines will be available
+later.
 
 > Thorough every module after that
 
@@ -378,8 +379,8 @@ the `-e` flag after the `-u` though to update every dependency too.
 
 ## Config files
 
-There are some files that are used for configuration but they are really simple
-and do not follow a common format
+There are some files that are used for configuration but they are really
+simple and do not follow a common format
 
 ### Dependencies
 
@@ -417,8 +418,8 @@ An example usecase for this would be the counterpart of the
 in case no other install scripts can install it. With conditional dependencies
 I can also list those that are required only for the fallback, only when
 the fallback will actually run. If a rust program can be installed with
-`pacman` on arch based systems and on any other systems you want to use `cargo`
-you'll end up with 2 install scripts like so:
+`pacman` on arch based systems and on any other systems you want to use
+`cargo` you'll end up with 2 install scripts like so:
 
 ```sh
 0.root.pacman.sh
@@ -492,10 +493,10 @@ a stow package.
 By default, stow packages will be stowed to `DOT_TARGET` (can be overriden
 in a `dotrc` file) which is just `HOME` by default.
 
-To make stowing more dynamic, stow modules can have variables before the `.` in
-their names. These variables will then be expanded. If it's an absolute path
-it will be treated as such (Ignoring `DOT_TARGET`) but if its a relative path
-(it doesn't start with `/`) it will be appended after `DOT_TARGET`.
+To make stowing more dynamic, stow modules can have variables before the `.`
+in their names. These variables will then be expanded. If it's an absolute
+path it will be treated as such (Ignoring `DOT_TARGET`) but if its a relative
+path (it doesn't start with `/`) it will be appended after `DOT_TARGET`.
 This path then will be used as the final target to stow to.
 
 > This variable can be set in the `init` script too if you wan't to be module
