@@ -772,6 +772,10 @@ if [ "$show_module_list" = 1 ]; then
 	echo "$final_module_list"
 fi
 
+# TODO: Flag based execution issuing dot -iur module should install, update
+# then remove, even if it does not make any sense
+# dot -riu or -ri could be useful to reinstall modules
+
 if [ "$remove" = 1 ]; then
 	# shellcheck disable=SC2086
 	remove_modules $final_module_list
