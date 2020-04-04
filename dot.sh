@@ -615,9 +615,12 @@ do_stow() {
 		clean_symlinks "$2"
 		# so even if the packages change you know what to remove IF IT MAKES SENSE
 		if [ "$SUDO_USER" ]; then
-			sudo -E -u "$SUDO_USER" stow -d "$1" -t "$2" "$3"
+			sudo -E -u "$SUDO_USER" stow -D -d "$1" -t "$2" "$3"
+			sudo -E -u "$SUDO_USER" stow -S -d "$1" -t "$2" "$3"
 		else
-			stow -d "$1" -t "$2" "$3"
+			# https://github.com/aspiers/stow/issues/69
+			stow -D -d "$1" -t "$2" "$3"
+			stow -S -d "$1" -t "$2" "$3"
 		fi
 	fi
 }
