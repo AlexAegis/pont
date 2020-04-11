@@ -87,6 +87,11 @@
 
 # TODO: Change the evals into something safer
 
+# TODO: env.user.sh script support. Always read it even if the module in the
+
+# TODO: force ignore deprecated
+# dependency tree is already installed
+
 IFS=' '
 
 C_RESET='\033[0m'
