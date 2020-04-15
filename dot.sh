@@ -1,7 +1,6 @@
 #!/bin/sh
 # set -e
-IFS='
-'
+IFS='\0'
 #      _       _
 #   __| | ___ | |_
 #  / _` |/ _ \| __|
@@ -138,8 +137,7 @@ hashfilename=".tarhash"
 dependenciesfilename=".dependencies"
 tagsfilename=".tags"
 dry=0 # When set, no installation will be done
-# Variables
-resolved=""
+
 
 ## Pre calculated environmental variables for modules
 # Package manager
@@ -172,21 +170,39 @@ fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 # shellcheck disable=SC1091
 [ -e "./.dotrc" ] && . "./.dotrc"
 
-# TODO: Only needed when printing and using whiptail. Lazy load it.
-all_modules=$(find "$DOT_MODULES_FOLDER/" -maxdepth 1 -mindepth 1 -printf "%f\n" |
-	sort)
-all_presets=$(find "$DOT_PRESETS_FOLDER/" -mindepth 1 \
-	-name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
-#shellcheck disable=SC2016
-all_installed_modules=$(grep -lm 1 -- "" "$DOT_MODULES_FOLDER"/**/$hashfilename |
-	sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
-all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 -name '.tags' \
-	-exec cat {} + | grep "^[^#;]" | sort | uniq)
+# Inner variables that shouldn't allowed to be changed using dotrc
+all_modules=
+all_presets=
+all_installed_modules=
+all_tags=
 
+resolved=
 # Newline separated list of actions. Used to preserve order of flags
-execution_queue=""
+execution_queue=
 
 ## Functions
+
+get_all_modules() {
+	all_modules=$(find "$DOT_MODULES_FOLDER/" -maxdepth 1 -mindepth 1 \
+		-printf "%f\n" | sort)
+}
+
+get_all_presets() {
+	all_presets=$(find "$DOT_PRESETS_FOLDER/" -mindepth 1 \
+		-name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
+}
+
+get_all_installed_modules() {
+	#shellcheck disable=SC2016
+	all_installed_modules=$(grep -lm 1 -- "" \
+		"$DOT_MODULES_FOLDER"/**/$hashfilename | \
+		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
+}
+
+get_all_tags() {
+	all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 \
+		-name '.tags' -exec cat {} + | grep "^[^#;]" | sort | uniq)
+}
 
 dequeue() {
 	# remove last or remove the supplied items
@@ -474,7 +490,7 @@ expand_entries() {
 			condition="$(get_condition "$1")"
 
 			log_trace "Trying to install $(get_entry "$1")..."
-			echo lol  "$1"
+
 			[ "$condition" ] && log_trace "...with condition $condition..."
 
 			if ! eval "$condition"; then
@@ -483,6 +499,7 @@ expand_entries() {
 				shift
 				continue
 			fi
+
 			log_trace "Already resolved entries are: $resolved"
 			if [ "$(echo "$resolved" | grep -x "$1")" = "" ]; then
 				if [ -z "$resolved" ]; then
@@ -819,21 +836,25 @@ action_list_execution_queue() {
 
 action_list_installed_modules() {
 	log_info "All installed modules:"
+	[ ! "$all_installed_modules" ] && get_all_installed_modules
 	echo "$all_installed_modules"
 }
 
 action_list_modules() {
 	log_info "All available modules:"
+	[ ! "$all_modules" ] && all_modules
 	echo "$all_modules"
 }
 
 action_list_presets() {
 	log_info "All available presets:"
+	[ ! "$all_presets" ] && get_all_presets
 	echo "$all_presets"
 }
 
 action_list_tags() {
 	log_info "All available tags:"
+	[ ! "$all_tags" ] && get_all_tags
 	echo "$all_tags"
 }
 
@@ -882,6 +903,7 @@ $final_module_list"
 action_expand_all() {
 	log_info "Set final module list to every module, expanding them."
 	final_module_list=
+	[ ! "$all_modules" ] && all_modules
 	# shellcheck disable=SC2086
 	expand_entries $all_modules
 	log_info "Final module list is:
@@ -892,6 +914,7 @@ action_expand_installed() {
 	log_info "Set final module list to every installed module," \
 			 "expanding them."
 	final_module_list=
+	[ ! "$all_installed_modules" ] && get_all_installed_modules
 	# shellcheck disable=SC2086
 	expand_entries $all_installed_modules
 	log_info "Final module list is:
