@@ -297,7 +297,7 @@ scaffold() {
 #
 
 parse_args() {
-	/usr/bin/getopt -o "hVlvq\
+	/usr/bin/getopt -u -o "hVlvq\
 AIMPTCLQSX\
 uirneamdf\
 cRts\
@@ -474,6 +474,7 @@ expand_entries() {
 			condition="$(get_condition "$1")"
 
 			log_trace "Trying to install $(get_entry "$1")..."
+			echo lol  "$1"
 			[ "$condition" ] && log_trace "...with condition $condition..."
 
 			if ! eval "$condition"; then
@@ -482,8 +483,8 @@ expand_entries() {
 				shift
 				continue
 			fi
-
-			if [ "$(echo "$resolved" | grep "$1")" = "" ]; then
+			log_trace "Already resolved entries are: $resolved"
+			if [ "$(echo "$resolved" | grep -x "$1")" = "" ]; then
 				if [ -z "$resolved" ]; then
 					resolved="$1"
 				else
@@ -716,7 +717,7 @@ execute_modules() {
 			result=0
 			log_trace "Checking if module exists: $DOT_MODULES_FOLDER/$1"
 			if [ ! -d "$DOT_MODULES_FOLDER/$1" ]; then
-				log_warning "Module $1 not found. Skipping"
+				log_error "Module $1 not found. Skipping"
 				return 1
 			fi
 
@@ -928,11 +929,11 @@ action_update_modules() {
 #
 ask_modules() {
 	log_trace "Manual module input"
-		modules_selected=$(whiptail --title "Select modules to install" \
+		modules_selected=$(whiptail --separate-output --clear \
+			--title "Select modules to install" \
 			--checklist "Space changes selection, enter approves" \
 			0 0 0 zsh zsh ON vim vim OFF 3>&1 1>&2 2>&3 3>&- |
-			sed 's/ /\n/g' |
-			trim_around)
+			sed 's/ /\n/g')
 }
 
 execute_queue() {
