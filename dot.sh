@@ -1,6 +1,9 @@
 #!/bin/sh
-# set -e
-IFS='\0'
+# ORIGINAL_IFS=$IFS
+SCRIPT_IFS='
+'
+IFS=$SCRIPT_IFS
+
 #      _       _
 #   __| | ___ | |_
 #  / _` |/ _ \| __|
@@ -34,9 +37,6 @@ IFS='\0'
 # TODO: make module listing display outdated modules by tarhashing every one of
 # TODO: them
 
-# TODO: add a --pure switch to only print clean data to let dot generate
-# TODO: scriptable data
-
 # TODO: deprecation alternatives prompt, check nvm and fnm
 
 # TODO: Experiment with `sudo -l` to find out you have sudo access or not
@@ -54,17 +54,12 @@ IFS='\0'
 
 # TODO: clash feature support tags, see if something from that tag is installed
 
-# TODO: Auto unstow at end of uninstall
-
 # TODO: track dangling dependencies. When installing leave a file in the module
 # TODO: that will store a snapshot of the dependencies. During uninstall check
 # TODO: If there is a dependency somewhere that is not directly installed.
 # TODO: (Or maybe dont and leave this to dot2)
 
-# TODO: Before installing a module (Right before autostowing)
-# TODO: Create every folder in the module as an empty folder in $TARGET
-
-# TODO: If the module containes a git submodule. Check it out / update it
+# TODO: If the module contains a git submodule. Check it out / update it
 
 # TODO: Experiment with paralell execution (sort dependencies into a tree)
 # TODO: Right now every dependency is sorted into a column and executed
@@ -90,7 +85,6 @@ IFS='\0'
 
 # TODO: env.user.sh script support. Always read it even if the module in the
 
-# TODO: force ignore deprecated
 # dependency tree is already installed
 
 C_RESET='\033[0m'
@@ -132,8 +126,10 @@ final_module_list=""
 config=0
 root=1
 force=0
+no_base=0
 preset_extension=".preset"
 hashfilename=".tarhash"
+deprecatedfilename=".deprecated"
 dependenciesfilename=".dependencies"
 tagsfilename=".tags"
 dry=0 # When set, no installation will be done
@@ -174,13 +170,14 @@ fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 all_modules=
 all_presets=
 all_installed_modules=
+all_depracated_modules=
 all_tags=
 
 resolved=
 # Newline separated list of actions. Used to preserve order of flags
 execution_queue=
 
-## Functions
+## Internal functions
 
 get_all_modules() {
 	all_modules=$(find "$DOT_MODULES_FOLDER/" -maxdepth 1 -mindepth 1 \
@@ -198,6 +195,14 @@ get_all_installed_modules() {
 		"$DOT_MODULES_FOLDER"/**/$hashfilename | \
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
+
+get_all_deprecated_modules() {
+	#shellcheck disable=SC2016
+	all_deprecated_modules=$(grep -lm 1 -- "" \
+		"$DOT_MODULES_FOLDER"/**/$deprecatedfilename | \
+		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
+}
+
 
 get_all_tags() {
 	all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 \
@@ -278,7 +283,6 @@ log_error() {
 	[ "${log_level:-1}" -le 3 ] && echo "${C_RED}[  Error  ]: $*${C_RESET}"
 }
 
-
 show_help() {
 	echo "install <modules>"
 	exit
@@ -304,31 +308,91 @@ scaffold() {
 	log_info "Scaffolding module $1 using cpt"
 }
 
+# Listings
+
+action_list_execution_queue() {
+	log_trace "Listing execution queue:"
+	echo "$execution_queue"
+}
+
+action_list_installed_modules() {
+	log_trace "All installed modules:"
+	[ ! "$all_installed_modules" ] && get_all_installed_modules
+	echo "$all_installed_modules"
+}
+
+action_list_deprecated() {
+	log_trace "All deprecated modules:"
+	[ ! "$all_deprecated_modules" ] && get_all_deprecated_modules
+	echo "$all_deprecated_modules"
+}
+
+action_list_modules() {
+	log_trace "All available modules:"
+	[ ! "$all_modules" ] && get_all_modules
+	echo "$all_modules"
+}
+
+action_list_presets() {
+	log_trace "All available presets:"
+	[ ! "$all_presets" ] && get_all_presets
+	echo "$all_presets"
+}
+
+action_list_tags() {
+	log_trace "All available tags:"
+	[ ! "$all_tags" ] && get_all_tags
+	echo "$all_tags"
+}
+
+action_list_config() {
+	log_info "All configurable variables:"
+	echo "modules_selected=$modules_selected" \
+		"dry=${dry:-0}" \
+		"force=${force:-0}" \
+		"root=${root:-1}" \
+		"config=${config:-0}" \
+		"preset_extension=$preset_extension" \
+		"hashfilename=$hashfilename" \
+		"dependenciesfilename=$dependenciesfilename" \
+		"tagsfilename=$tagsfilename" \
+		"pacman=$pacman" \
+		"apt=$apt" \
+		"xbps=$xbps" \
+		"sysctl=$sysctl" \
+		"systemctl=$systemctl" \
+		"systemd=$systemd" \
+		"distribution=$distribution" \
+		"arch=$arch" \
+		"void=$void" \
+		"debian=$debian" \
+		"ubuntu=$ubuntu" \
+		"fedora=$fedora" && exit
+}
+
+action_list_modules_to_execute() {
+	# Print the to-be installed modules
+	log_info "List modules to execute:"
+	echo "$final_module_list"
+}
+
 ## Argument handling
-
-
-# Meta
-# List
-# Selection
-#
 
 parse_args() {
 	/usr/bin/getopt -u -o "hVlvq\
 AIMPTCLQSX\
-uirneamdf\
+uirneamdbf\
 cRts\
 " -l "help,version,log,log-level,verbose,quiet,\
 list-all,list-installed,list-modules,list-presets,list-tags,list-config,\
 list-install,list-queue,clean-symlinks,fix-permissions,\
-update,install,remove,no-expand,expand,all,all-installed,dry,force,\
+update,install,remove,no-expand,expand,all,all-installed,dry,no-base,force,\
 config,no-root,skip-root,target,cpt,scaffold\
 " -- "$@" || exit 1
 }
 IFS=' '
 for arg in $(parse_args "$@"); do
-	IFS='
-'
-	log_info "Resolving arg $arg"
+	IFS=$SCRIPT_IFS
 	case $arg in
 		-h | -\? | --help) show_help ;;
 		-V | --version) show_version ;;
@@ -344,23 +408,18 @@ for arg in $(parse_args "$@"); do
 			esac
 			shift
 			;;
-		-v | --verbose)
-		echo 'que pasa'
-
-		log_level=0 ;; # Log level trace
+		-v | --verbose)	log_level=0 ;; # Log level trace
 		-q | --quiet) log_level=3 ;; # Log level error
-		-A | --list-all) enqueue "action_list_modules" "action_list_presets" \
-			"action_list_tags" "action_quit" ;;
-		-I | --list-installed) enqueue "action_list_installed_modules" \
-			"action_quit" ;;
-		-M | --list-modules) enqueue "action_list_modules" "action_quit" ;;
-		-P | --list-presets) enqueue "action_list_presets" "action_quit" ;;
-		-T | --list-tags) enqueue "action_list_tags" "action_quit" ;;
-		-C | --list-config) enqueue "action_list_config" "action_quit" ;;
-		-L | --list-install) enqueue "action_list_modules_to_install" \
-			"action_quit" ;;
-		-Q | --list-queue) enqueue "action_list_execution_queue" \
-			"action_quit" ;;
+		-A | --list-all) action_list_modules action_list_presets \
+			action_list_tags; exit 0 ;;
+		-I | --list-installed) action_list_installed_modules; exit 0 ;;
+		-M | --list-modules) action_list_modules; exit 0 ;;
+		-P | --list-presets) action_list_presets; exit 0 ;;
+		-T | --list-tags) action_list_tags; exit 0 ;;
+		-C | --list-config) action_list_config; exit 0 ;;
+		-L | --list-install) action_list_modules_to_install; exit 0 ;;
+		-D | --list-deprecated) action_list_deprecated; exit 0 ;;
+		-Q | --list-queue) action_list_execution_queue; exit 0 ;;
 		-S | --clean-symlinks) enqueue_front "action_clean_symlinks" ;;
 		-X | --fix-permissions) enqueue_front "action_fix_permissions" ;;
 		-u | --update) enqueue "action_update_modules" ;;
@@ -371,12 +430,13 @@ for arg in $(parse_args "$@"); do
 		-a | --all) enqueue "action_expand_all" ;;
 		-m | --all-installed) enqueue "action_expand_installed" ;;
 		-d | --dry) dry=1 ;;
-		-f | --force) force=1 ;;
+		-b | --no-base) no_base=1 ;;
+		-f | --force) force=1; enqueue "action_expand_none" ;;
 		-c | --config | --custom) config=1 ;;
 		-R | --no-root | --skip-root) root=0 ;;
 		-t | --target) # package installation target, defaults to $DOT_TARGET
 			if [ -d "$2" ]; then
-				DOT_TARGET="$1"
+				DOT_TARGET="$2"
 			else
 				log_error "Invalid target: $2"; exit 1
 			fi
@@ -391,9 +451,7 @@ for arg in $(parse_args "$@"); do
 		-?*) log_error "Unknown option (ignored): $arg" b;;
 		*) # The rest are selected modules
 			# TODO: Pre validate them
-			echo "what the fuck $arg"
 			if [ "$arg" ]; then
-				echo "what the fuck2 $arg"
 				if [ "$modules_selected" ]; then
 					modules_selected="$modules_selected${IFS:-\0}$arg"
 				else
@@ -434,11 +492,11 @@ get_dependencies() {
 }
 
 get_entry() {
-	echo "$1" | cut -d '?' -f 1 | sed 's/ $//'
+	echo "$1" | cut -d '?' -f 1 | cut -d '#' -f 1 | sed 's/ $//'
 }
 
 get_condition() {
-	echo "$1" | cut -d '?' -s -f 2- | sed 's/^ //'
+	echo "$1" | cut -d '?' -s -f 2- | cut -d '#' -f 1  | sed 's/^ //'
 }
 
 execute_scripts_for_module() {
@@ -770,7 +828,8 @@ execute_modules() {
 				[ "${force:-0}" = 1 ] || [ "$old_hash" != "$new_hash" ]
 			then
 
-				if [ -e "$DOT_MODULES_FOLDER/$1/.deprecated" ]; then
+				if [ "${force:-0}" != 1 ] && \
+					[ -e "$DOT_MODULES_FOLDER/$1/.deprecated" ]; then
 					log_warning "$1 is deprecated$C_RESET"
 					shift
 					continue
@@ -798,7 +857,7 @@ execute_modules() {
 
 			else
 				log_info "$1 is already installed and no changes" \
-					"are detected"
+					" are detected"
 			fi
 			shift
 		else
@@ -832,65 +891,6 @@ action_clean_symlinks() {
 	clean_symlinks "$DOT_TARGET"
 }
 
-action_list_execution_queue() {
-	log_info "Listing execution queue:"
-	echo "$execution_queue"
-}
-
-action_list_installed_modules() {
-	log_info "All installed modules:"
-	[ ! "$all_installed_modules" ] && get_all_installed_modules
-	echo "$all_installed_modules"
-}
-
-action_list_modules() {
-	log_info "All available modules:"
-	[ ! "$all_modules" ] && all_modules
-	echo "$all_modules"
-}
-
-action_list_presets() {
-	log_info "All available presets:"
-	[ ! "$all_presets" ] && get_all_presets
-	echo "$all_presets"
-}
-
-action_list_tags() {
-	log_info "All available tags:"
-	[ ! "$all_tags" ] && get_all_tags
-	echo "$all_tags"
-}
-
-action_list_config() {
-	log_info "All configurable variables:"
-	echo "modules_selected=$modules_selected" \
-		"dry=${dry:-0}" \
-		"force=${force:-0}" \
-		"root=${root:-1}" \
-		"config=${config:-0}" \
-		"preset_extension=$preset_extension" \
-		"hashfilename=$hashfilename" \
-		"dependenciesfilename=$dependenciesfilename" \
-		"tagsfilename=$tagsfilename" \
-		"pacman=$pacman" \
-		"apt=$apt" \
-		"xbps=$xbps" \
-		"sysctl=$sysctl" \
-		"systemctl=$systemctl" \
-		"systemd=$systemd" \
-		"distribution=$distribution" \
-		"arch=$arch" \
-		"void=$void" \
-		"debian=$debian" \
-		"ubuntu=$ubuntu" \
-		"fedora=$fedora" && exit
-}
-
-action_list_modules_to_execute() {
-	# Print the to-be installed modules
-	log_info "List modules to execute:"
-	echo "$final_module_list"
-}
 
 
 action_expand_selected() {
@@ -898,6 +898,14 @@ action_expand_selected() {
 		 " expanding them."
 	final_module_list=
 	# shellcheck disable=SC2086
+	if [ "${no_base:-0}" != 1 ]; then
+		if [ "$modules_selected" ]; then
+			modules_selected="base${IFS:-\0}$modules_selected"
+		else
+			modules_selected="base"
+		fi
+	fi
+
 	expand_entries "base" $modules_selected
 	log_info "Final module list is:
 $final_module_list"
