@@ -1,5 +1,6 @@
 #!/bin/sh
-
+# set -e
+IFS='\0'
 #      _       _
 #   __| | ___ | |_
 #  / _` |/ _ \| __|
@@ -87,8 +88,10 @@
 
 # TODO: Change the evals into something safer
 
-IFS='
-'
+# TODO: env.user.sh script support. Always read it even if the module in the
+
+# TODO: force ignore deprecated
+# dependency tree is already installed
 
 C_RESET='\033[0m'
 C_RED='\033[0;31m'
@@ -97,23 +100,12 @@ C_YELLOW='\033[0;33m'
 C_BLUE='\033[0;34m'
 C_CYAN='\033[0;36m'
 
-show_help() {
-	echo "install <modules>"
-}
+# Make all the variables (except IFS) in this script available to the subshells
+set -a
 
 is_installed() {
 	command -v "$1" 2>/dev/null
 }
-
-clean_symlinks() {
-	# recusively removes every broken symlink in a directory
-	# used to clean before installation and after uninstallation
-	find "${1-$PWD}" -type l -exec \
-		sh -c 'for x; do [ -e "$x" ] || rm "$x"; done' _ {} +
-}
-
-# Make all the variables (except IFS) in this script available to the subshells
-set -a
 
 # Environment
 user_home=$(getent passwd "${SUDO_USER-$USER}" | cut -d: -f6)
@@ -129,31 +121,23 @@ XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 ## This where the packages will be stowed to. Can also be set with -t, --target
 DOT_TARGET=${DOT_TARGET:-"$user_home"}
 DOTFILES_HOME=${DOTFILES_HOME-"$user_home/.dotfiles"}
-# TODO: Support multiple folders $IFS separated
+# TODO: Support multiple folders $IFS separated, quote them
 DOT_MODULES_FOLDER=${DOT_MODULES_FOLDER:-"$DOTFILES_HOME/modules"}
 DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
 
 # Config
+log_level=1
 modules_selected=""
-resolved=""
 final_module_list=""
 config=0
 root=1
 force=0
-update=0
-remove=0
-install=1 # by default, install, everything else turns it off, can be forced
-all=0
-all_installed=0
-expand=1
-show_module_list=0
-fix_permissions=0
 preset_extension=".preset"
 hashfilename=".tarhash"
 dependenciesfilename=".dependencies"
 tagsfilename=".tags"
-verbose=0 # Print more
-dry=0     # When set, no installation will be done
+dry=0 # When set, no installation will be done
+
 
 ## Pre calculated environmental variables for modules
 # Package manager
@@ -163,7 +147,7 @@ xbps=$(is_installed xbps)
 # Init system
 sysctl=$(is_installed sysctl)
 systemctl=$(is_installed systemctl)
-# TODO: Check if its available, on WSL it's not even though systemctl is
+# TODO: Check if its available, on WSL it's not, even though systemctl is
 systemd=$systemctl
 # Distribution
 # TODO: Only valid on systemd distros
@@ -177,188 +161,252 @@ ubuntu=$(if [ "$distribution" = 'Ubuntu' ]; then echo 1; fi)
 fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 
 # Config file sourcing
-if [ -e "$XDG_CONFIG_HOME/dot/dotrc" ]; then
-	# shellcheck disable=SC1090
-	. "$XDG_CONFIG_HOME/dot/dotrc"
-fi
+# shellcheck disable=SC1090
+[ -e "$XDG_CONFIG_HOME/dot/dotrc" ] && . "$XDG_CONFIG_HOME/dot/dotrc"
+# shellcheck disable=SC1090
+[ -e "$XDG_CONFIG_HOME/dotrc" ] && . "$XDG_CONFIG_HOME/dotrc"
+# shellcheck disable=SC1090
+[ -e "$user_home/.dotrc" ] && . "$user_home/.dotrc"
+# shellcheck disable=SC1091
+[ -e "./.dotrc" ] && . "./.dotrc"
 
-if [ -e "$XDG_CONFIG_HOME/dotrc" ]; then
-	# shellcheck disable=SC1090
-	. "$XDG_CONFIG_HOME/dotrc"
-fi
+# Inner variables that shouldn't allowed to be changed using dotrc
+all_modules=
+all_presets=
+all_installed_modules=
+all_tags=
 
-if [ -e "$user_home/.dotrc" ]; then
-	# shellcheck disable=SC1090
-	. "$user_home/.dotrc"
-fi
+resolved=
+# Newline separated list of actions. Used to preserve order of flags
+execution_queue=
 
-if [ -e "./.dotrc" ]; then
-	# shellcheck disable=SC1090,SC1091
-	. "./.dotrc"
-fi
+## Functions
 
-# TODO: Only needed when printing and using whiptail. Lazy load it.
-all_modules=$(find "$DOT_MODULES_FOLDER/" -maxdepth 1 -mindepth 1 -printf "%f\n" |
-	sort)
-all_presets=$(find "$DOT_PRESETS_FOLDER/" -mindepth 1 \
-	-name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
-#shellcheck disable=SC2016
-all_installed_modules=$(grep -lm 1 -- "" "$DOT_MODULES_FOLDER"/**/$hashfilename |
-	sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
-all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 -name '.tags' \
-	-exec cat {} + | grep "^[^#;]" | sort | uniq)
+get_all_modules() {
+	all_modules=$(find "$DOT_MODULES_FOLDER/" -maxdepth 1 -mindepth 1 \
+		-printf "%f\n" | sort)
+}
 
+get_all_presets() {
+	all_presets=$(find "$DOT_PRESETS_FOLDER/" -mindepth 1 \
+		-name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
+}
+
+get_all_installed_modules() {
+	#shellcheck disable=SC2016
+	all_installed_modules=$(grep -lm 1 -- "" \
+		"$DOT_MODULES_FOLDER"/**/$hashfilename | \
+		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
+}
+
+get_all_tags() {
+	all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 \
+		-name '.tags' -exec cat {} + | grep "^[^#;]" | sort | uniq)
+}
+
+dequeue() {
+	# remove last or remove the supplied items
+	if [ ! "$1" ]; then
+		execution_queue=$(echo "$execution_queue" | sed '$ d')
+		return
+	fi
+	while :; do
+		if [ "$1" ]; then
+			execution_queue=$(echo "$execution_queue" | grep -v "$1")
+			shift
+		else
+			break
+		fi
+	done
+}
+
+enqueue() {
+	log_trace "Enqueuing $*"
+	while :; do
+		if [ "$1" ]; then
+			if [ "$execution_queue" ]; then
+				execution_queue="${execution_queue}${IFS:-\0}${1}"
+			else
+				execution_queue="${1}"
+			fi
+			shift
+		else
+			break
+		fi
+	done
+}
+
+enqueue_front() {
+	log_trace "Enqueuing to the front $*"
+	while :; do
+		if [ "$1" ]; then
+			if [ "$execution_queue" ]; then
+				execution_queue="${1}${IFS:-\0}${execution_queue}"
+			else
+				execution_queue="${1}"
+			fi
+			shift
+		else
+			break
+		fi
+	done
+}
+
+# Logging, the default log level is 1 meaning only trace logs are omitted
+log_trace() {
+	# Visible at and under log level 0
+	[ "${log_level:-1}" -le 0 ] && echo "${C_CYAN}[  Trace  ]: $*${C_RESET}"
+}
+
+log_info() {
+	# Visible at and under log level 1
+	[ "${log_level:-1}" -le 1 ] && echo "${C_BLUE}[  Info   ]: $*${C_RESET}"
+}
+
+log_warning() {
+	# Visible at and under log level 2
+	[ "${log_level:-1}" -le 2 ] && echo "${C_YELLOW}[ Warning ]: $*${C_RESET}"
+}
+
+log_success() {
+	# Visible at and under log level 2, same as warning but green
+	[ "${log_level:-1}" -le 2 ] && echo "${C_GREEN}[ Success ]: $*${C_RESET}"
+}
+
+log_error() {
+	# Visible at and under log level 3
+	[ "${log_level:-1}" -le 3 ] && echo "${C_RED}[  Error  ]: $*${C_RESET}"
+}
+
+
+show_help() {
+	echo "install <modules>"
+	exit
+}
+
+show_version() {
+	echo "Version: 0.2.0" && exit
+}
+
+clean_symlinks() {
+	# recusively removes every broken symlink in a directory
+	# used to clean before installation and after uninstallation
+	find "${1-$PWD}" -type l -exec \
+		sh -c 'for x; do [ -e "$x" ] || rm "$x"; done' _ {} +
+}
+
+scaffold() {
+	# TODO scaffold
+	# cpt template and dot --scaffold command to create from template
+	# Use the remaining inputs as module folders to scaffold using cpt
+	# If cpt is not available then try install it with cargo first
+	# If no cargo is available then prompt the user to install it
+	log_info "Scaffolding module $1 using cpt"
+}
 
 ## Argument handling
 
-while :; do
-	# echo "Evaluating $1"
-	case $1 in
-	-h | -\? | --help) # Show help.
-		show_help
-		exit
-		;;
-	-la | --list-all)
-		printf "${C_BLUE}All available modules:${C_RESET}\n%s\n" "$all_modules"
-		printf "${C_BLUE}All available presets:${C_RESET}\n%s\n" "$all_presets"
-		printf "${C_BLUE}All available tags:${C_RESET}\n%s\n" "$all_tags"
-		printf "${C_BLUE}All available environmental variables\
-:${C_RESET}\n%s\n" "$all_tags"
-		exit
-		;;
-	-li | --list-installed)
-		printf "${C_BLUE}All installed modules:${C_RESET}\n%s\n" \
-			"$all_installed_modules"
-		exit
-		;;
-	-lm | --list-modules)
-		printf "${C_BLUE}All available modules:${C_RESET}\n%s\n" "$all_modules"
-		exit
-		;;
-	-lp | --list-presets)
-		printf "${C_BLUE}All available presets:${C_RESET}\n%s\n" "$all_presets"
-		exit
-		;;
-	-lt | --list-tags)
-		printf "${C_BLUE}All available tags:${C_RESET}\n%s\n" "$all_tags"
-		exit
-		;;
-	-le | --list-environment)
-		echo "${C_BLUE}All available environmental variables:${C_RESET}
-\$distribution: $distribution (Value of NAME in /etc/os-release)
-\$pacman: $pacman
-\$apt: $apt
-\$sysctl: $sysctl
-\$systemctl: $systemctl
-\$systemd: $systemd
-\$arch: $arch (is set when \$distribution is 'Arch Linux')
-\$void: $void (is set when \$distribution is 'Void Linux')
-\$debian: $debian (is set when \$distribution is 'Debian GNU/Linux')
-\$ubuntu: $ubuntu (is set when \$distribution is 'Ubuntu')
-\$fedora: $fedora (is set when \$distribution is 'Fedora')
 
-anything you find in dot.sh
-anything you pass to it. For example:
-	TEST=1 dot 'base ? [ \$TEST = 1 ]' # this would pass
-	TEST=1 dot 'base ? [ \$TEST = 0 ]' # this do not
-"
-		exit
-		;;
-	-sm | --show-modules) # Don't run install scripts, but print them
-		show_module_list=1
-		install=0
-		;;
-	-v | --verbose) # Verbose printing TODO: Pass to the dotmodules
-		verbose=1
-		;;
-	-u | --update) # Run update scripts
-		update=1
-		expand=0
-		install=0
-		;;
-	-i | --install) # Run install scripts
-		# this is on by default, other script selector flags turn it off
-		install=1
-		;;
-	-r | --remove) # Run remove scripts
-		remove=1
-		# TODO: until orphan handling is done, do not touch other modules
-		expand=0
-		install=0 # do not install when removing
-		;;
-	-a | --all) # Run all modules
-		all=1
-		;;
-	-ai | --all-installed) # Run all, already installed modules
-		all_installed=1
-		;;
-	-d | --dry) #  customize installable modules
-		dry=1
-		;;
-	-t | --target) # package installation target, defaults to $DOT_TARGET
-		if [ -d "$2" ]; then
-			DOT_TARGET="$1"
-		else
-			echo "${C_RED} Invalid target: $2${C_RESET}"
-			exit 1
-		fi
-		shift
-		;;
-	-f | --force) # force installation, only the issued one
-		force=1
-		expand=0
-		;;
-	-fp | --fix-permissions) # Adds executable rights to every scriptfile
-		fix_permissions=1
-		;;
-	-c | --config | --custom) # Ask for everything
-		config=1
-		;;
-	-ne | --no-expand) # Disables dependency expansion, run only selected
-		expand=0
-		;;
-	-e | --expand) # Expand dependencies
-		# this is on by default, other script selector flags turn it off
-		expand=1
-		;;
-	-nr | --no-root | -sr | --skip-root) # Skip root scripts
-		root=0
-		;;
-	-sc | -cpt | --scaffold) # Ask for everything
-		# TODO: cpt template and dot --scaffold command to create from template
-		# TODO: Use the remaining inputs as module folders to scaffold using cpt
-		# TODO: If cpt is not available then try install it with cargo first
-		# TODO: If no cargo is available then prompt the user to install it
-		exit 0
-		;;
-	-?*)
-		printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
-		;;
-	*) # Installs modules specified after it
-		if [ -n "$1" ]; then
-			modules_selected=$*
-			[ $verbose = 1 ] && echo "Initially selected: $modules_selected"
-		fi
-		break
-		;;
-	esac
+# Meta
+# List
+# Selection
+#
 
-	shift
-done
-
-do_fix_permissions() {
-	# Fix permissions, except in submodules
-	echo "Fixing permissions in $DOTFILES_HOME... "
-	submodules=$(
-		cd "$DOTFILES_HOME" || exit
-		git submodule status | sed -e 's/^ *//' -e 's/ *$//' | rev |
-			cut -d ' ' -f 2- | rev | cut -d ' ' -f 2- |
-			sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
-	)
-
-	eval "find $DOT_MODULES_FOLDER -type f \( $submodules \) \
--regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod u+x {} \;"
+parse_args() {
+	/usr/bin/getopt -u -o "hVlvq\
+AIMPTCLQSX\
+uirneamdf\
+cRts\
+" -l "help,version,log,log-level,verbose,quiet,\
+list-all,list-installed,list-modules,list-presets,list-tags,list-config,\
+list-install,list-queue,clean-symlinks,fix-permissions,\
+update,install,remove,no-expand,expand,all,all-installed,dry,force,\
+config,no-root,skip-root,target,cpt,scaffold\
+" -- "$@" || exit 1
 }
+IFS=' '
+for arg in $(parse_args "$@"); do
+	IFS='
+'
+	log_info "Resolving arg $arg"
+	case $arg in
+		-h | -\? | --help) show_help ;;
+		-V | --version) show_version ;;
+		-l | --log | --log-level)
+			case $2 in
+				'trace' | 'TRACE' | '0') log_level='0' ;;
+				'info' | 'INFO' | '1') log_level='1' ;;
+				'warning' | 'WARNING' | '2') log_level='2' ;;
+				'success' | 'SUCCESS') log_level='2' ;;
+				'error' | 'ERROR' | '3') log_level='3' ;;
+				'none' | 'NONE' | '4') log_level='4' ;;
+				*) log_error "Invalid loglevel: $2"; exit 1 ;;
+			esac
+			shift
+			;;
+		-v | --verbose)
+		echo 'que pasa'
+
+		log_level=0 ;; # Log level trace
+		-q | --quiet) log_level=3 ;; # Log level error
+		-A | --list-all) enqueue "action_list_modules" "action_list_presets" \
+			"action_list_tags" "action_quit" ;;
+		-I | --list-installed) enqueue "action_list_installed_modules" \
+			"action_quit" ;;
+		-M | --list-modules) enqueue "action_list_modules" "action_quit" ;;
+		-P | --list-presets) enqueue "action_list_presets" "action_quit" ;;
+		-T | --list-tags) enqueue "action_list_tags" "action_quit" ;;
+		-C | --list-config) enqueue "action_list_config" "action_quit" ;;
+		-L | --list-install) enqueue "action_list_modules_to_install" \
+			"action_quit" ;;
+		-Q | --list-queue) enqueue "action_list_execution_queue" \
+			"action_quit" ;;
+		-S | --clean-symlinks) enqueue_front "action_clean_symlinks" ;;
+		-X | --fix-permissions) enqueue_front "action_fix_permissions" ;;
+		-u | --update) enqueue "action_update_modules" ;;
+		-i | --install) enqueue "action_execute_modules" ;;
+		-r | --remove) enqueue "action_remove_modules" ;;
+		-n | --no-expand) enqueue "action_expand_none" ;;
+		-e | --expand) enqueue "action_expand_selected" ;;
+		-a | --all) enqueue "action_expand_all" ;;
+		-m | --all-installed) enqueue "action_expand_installed" ;;
+		-d | --dry) dry=1 ;;
+		-f | --force) force=1 ;;
+		-c | --config | --custom) config=1 ;;
+		-R | --no-root | --skip-root) root=0 ;;
+		-t | --target) # package installation target, defaults to $DOT_TARGET
+			if [ -d "$2" ]; then
+				DOT_TARGET="$1"
+			else
+				log_error "Invalid target: $2"; exit 1
+			fi
+			shift
+			;;
+		-s | --cpt | --scaffold) # Ask for everything
+			shift
+			scaffold "$@"
+			exit 0
+			;;
+		--)	;;
+		-?*) log_error "Unknown option (ignored): $arg" b;;
+		*) # The rest are selected modules
+			# TODO: Pre validate them
+			echo "what the fuck $arg"
+			if [ "$arg" ]; then
+				echo "what the fuck2 $arg"
+				if [ "$modules_selected" ]; then
+					modules_selected="$modules_selected${IFS:-\0}$arg"
+				else
+					modules_selected="$arg"
+				fi
+				log_trace "Initially selected:
+$modules_selected"
+			else
+				break
+			fi
+			;;
+	esac
+done
 
 trim_around() {
 	# removes the first and last characters from every line
@@ -373,15 +421,15 @@ has_tag() {
 }
 
 in_preset() {
-	# returns every
-	if [ -f "$DOT_PRESETS_FOLDER/$1$preset_extension" ]; then
-		sed -e 's/#.*$//' -e '/^$/d' "$DOT_PRESETS_FOLDER/$1$preset_extension"
-	fi
+	# returns every entry in a preset
+	find "$DOT_PRESETS_FOLDER" -mindepth 1 -name "$1$preset_extension" \
+		-print0 | xargs -0 sed -e 's/#.*$//' -e '/^$/d'
 }
 
 get_dependencies() {
 	if [ -f "$DOT_MODULES_FOLDER/$1/$dependenciesfilename" ]; then
-		sed -e 's/#.*$//' -e '/^$/d' "$DOT_MODULES_FOLDER/$1/$dependenciesfilename"
+		sed -e 's/#.*$//' -e '/^$/d' \
+			"$DOT_MODULES_FOLDER/$1/$dependenciesfilename"
 	fi
 }
 
@@ -398,20 +446,21 @@ execute_scripts_for_module() {
 	# 2: scripts to run
 	# 3: sourcing setting, if set, user privileged scripts will be sourced
 	for script in $2; do
-		echo "Running $script..."
+		log_trace "Running $script..."
 
 		privilige=$(echo "$script" | cut -d '.' -f 2 |
 			sed 's/-.*//')
 
-		if [ $dry != 1 ]; then
+		if [ ${dry:-0} != 1 ]; then
 			if [ "$privilige" = "root" ] ||
 				[ "$privilige" = "sudo" ]; then
-				if [ "$root" = 1 ]; then
+				if [ "${root:-1}" = 1 ]; then
 					(
 						sudo "$DOT_MODULES_FOLDER/$1/$script"
 					)
 				else
-					echo "${C_YELLOW}Skipping $script${C_RESET}"
+					log_info "Skipping $script because root execution" \
+						"is disabled"
 				fi
 			else
 				if [ "$SUDO_USER" ]; then
@@ -434,51 +483,53 @@ execute_scripts_for_module() {
 	done
 }
 
-expand_entry() {
+expand_entries() {
 	while :; do
 		if [ "$1" ]; then
 			# Extracting condition, if there is
 			condition="$(get_condition "$1")"
 
-			if [ $verbose = 1 ]; then
-				echo "${C_YELLOW}Trying to install $(get_entry "$1")...$C_RESET"
-				[ "$condition" ] &&
-					echo "${C_YELLOW}...with condition $condition...$C_RESET"
-			fi
+			log_trace "Trying to install $(get_entry "$1")..."
+
+			[ "$condition" ] && log_trace "...with condition $condition..."
 
 			if ! eval "$condition"; then
-				echo "${C_YELLOW}Condition ($condition) for $1" \
-					"did not met, skipping$C_RESET"
+				log_info "Condition ($condition) for $1" \
+					"did not met, skipping"
 				shift
 				continue
 			fi
 
-			if [ "$(echo "$resolved" | grep "$1")" = "" ]; then
-				resolved="$resolved
-$1"
+			log_trace "Already resolved entries are: $resolved"
+			if [ "$(echo "$resolved" | grep -x "$1")" = "" ]; then
+				if [ -z "$resolved" ]; then
+					resolved="$1"
+				else
+					resolved="$resolved${IFS:-\0}$1"
+				fi
 				case "$1" in
 				+*) # presets
 					# shellcheck disable=SC2046
-					expand_entry $(in_preset "$(get_entry "$1" | cut -c2-)")
+					expand_entries $(in_preset "$(get_entry "$1" | cut -c2-)")
 					;;
 				:*) # tags
 					# shellcheck disable=SC2046
-					expand_entry $(has_tag "$(get_entry "$1" | cut -c2-)")
+					expand_entries $(has_tag "$(get_entry "$1" | cut -c2-)")
 					;;
 				*) # modules
 					# shellcheck disable=SC2046
-					expand_entry $(get_dependencies "$(get_entry "$1")")
+					expand_entries $(get_dependencies "$(get_entry "$1")")
 					if [ -z "$final_module_list" ]; then
 						final_module_list="$(get_entry "$1")"
 					else
-						final_module_list="$final_module_list
-$(get_entry "$1")"
+						#TODO 80
+						final_module_list="$final_module_list${IFS:-\0}$(get_entry "$1")"
 					fi
 					;;
 				esac
-				[ $verbose = 1 ] && echo "...done resolving $1"
+				log_trace "...done resolving $1"
 			else
-				[ $verbose = 1 ] && echo "...already resolved $1"
+				log_trace "...already resolved $1"
 			fi
 			shift
 		else
@@ -487,13 +538,22 @@ $(get_entry "$1")"
 	done
 }
 
-init_module() {
-	init_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
-		-regex "^.*/init\..*\.sh$" | sed 's|.*/||' | sort)
-	execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
+init_modules() {
+	log_info "Initializing modules $*"
+	while :; do
+		if [ "$1" ]; then
+			init_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
+				-regex "^.*/init\..*\.sh$" | sed 's|.*/||' | sort)
+			execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
+			shift
+		else
+			break
+		fi
+	done
 }
 
 update_modules() {
+	log_info "Updating modules $*"
 	while :; do
 		if [ "$1" ]; then
 			update_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
@@ -507,6 +567,7 @@ update_modules() {
 }
 
 remove_modules() {
+	log_info "Removing modules $*"
 	while :; do
 		if [ "$1" ]; then
 			remove_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
@@ -541,29 +602,36 @@ do_stow() {
 	# $2: target directory
 	# $3: package name
 
-	[ $verbose = 1 ] && echo "Stowing package $3 to $2 from $1"
+	[ ${log_level:-1} = 0 ] && echo "Stowing package $3 to $2 from $1"
 
 	if [ ! "$(is_installed stow)" ]; then
-		echo "${C_RED}stow is not installed!${C_RESET}"
+		log_error "stow is not installed!"
 		exit 1
 	fi
 	if [ ! -d "$1" ]; then
-		echo "${C_RED}package not found!" \
-			 "\n\t$1\n\t$2\n\t$3${C_RESET}"
+		log_error "package not found!
+	$1
+	$2
+	$3"
 		exit 1
 	fi
 	if [ ! -d "$2" ]; then
-		echo "${C_RED}target directory does not exist!" \
-			 "\n\t$1\n\t$2\n\t$3${C_RESET}"
+		log_error "target directory does not exist!
+	$1
+	$2
+	$3"
 		exit 1
 	fi
 	if [ ! "$3" ]; then
-		echo "${C_RED}no package name!" \
-			 "\n\t$1\n\t$2\n\t$3${C_RESET}"
+		log_error "no package name!
+	$1
+	$2
+	$3"
 		exit 1
 	fi
 
-	if [ $dry != 1 ]; then
+	if [ ${dry:-0} != 1 ]; then
+		# Module target symlinks are always cleaned
 		clean_symlinks "$2"
 		# so even if the packages change you know what to remove IF IT MAKES SENSE
 		if [ "$SUDO_USER" ]; then
@@ -609,15 +677,14 @@ install_module() {
 	sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
 		-regex "^.*/[0-9\]\..*\.sh$" | sed 's|.*/||' | sort)
 
-	[ $verbose = 1 ] && echo "Scripts in module for $1 are:
+	[ ${log_level:-1} = 0 ] && echo "Scripts in module for $1 are:
 $sripts_in_module"
 	sripts_to_almost_run=
 	for script in $sripts_in_module; do
 		direct_dependency=$(echo "$script" | cut -d '.' -f 3)
 		if [ "$(command -v "$direct_dependency" 2>/dev/null)" ] ||
 			[ "$direct_dependency" = "fallback" ]; then
-			sripts_to_almost_run="$sripts_to_almost_run
-$script"
+			sripts_to_almost_run="$sripts_to_almost_run${IFS:-\0}$script"
 		fi
 	done
 	sripts_to_run=
@@ -629,15 +696,13 @@ $script"
 		if [ "$direct_dependency" = "fallback" ]; then
 			if [ "$(echo "$sripts_to_almost_run" |
 				grep -c "$index.*")" = 1 ]; then
-				sripts_to_run="$sripts_to_run
-$script"
+				sripts_to_run="$sripts_to_run${IFS:-\0}$script"
 			fi
 		else
-			sripts_to_run="$sripts_to_run
-$script"
+			sripts_to_run="$sripts_to_run${IFS:-\0}$script"
 		fi
 	done
-	[ $verbose = 1 ] && echo "Scripts to run for $1 are:
+	log_trace "Scripts to run for $1 are:
 $sripts_to_run"
 
 	# Run the resulting script list
@@ -652,18 +717,14 @@ do_hash_module() {
 }
 
 hash_module() {
-	if [ $dry != 1 ] && [ "$result" = 0 ]; then
-		printf "${C_GREEN}Successfully installed \
-%s${C_RESET}\n" "$1"
+	if [ ${dry:-0} != 1 ]; then
+		log_success "Successfully installed $1"
 
 		if [ "$SUDO_USER" ]; then
 			sudo -E -u "$SUDO_USER" do_hash_module "$1"
 		else
 			do_hash_module "$1"
 		fi
-	else
-		printf "${C_RED}Installation failed \
-%s${C_RESET}\n" "$1"
 	fi
 }
 
@@ -671,10 +732,9 @@ execute_modules() {
 	while :; do
 		if [ "$1" ]; then
 			result=0
-			[ $verbose = 1 ] && echo "Checking if module exists:" \
-				"$DOT_MODULES_FOLDER/$1"
+			log_trace "Checking if module exists: $DOT_MODULES_FOLDER/$1"
 			if [ ! -d "$DOT_MODULES_FOLDER/$1" ]; then
-				echo "Module $1 not found. Skipping"
+				log_error "Module $1 not found. Skipping"
 				return 1
 			fi
 
@@ -682,50 +742,60 @@ execute_modules() {
 			# is not suited for installation outside of it
 			cd "$DOT_MODULES_FOLDER/$1" || return 1
 
-			echo "${C_BLUE}Installing $1$C_RESET"
+			log_info "Installing $1"
 
 			# Only calculate the hashes if we going to use it
-			if [ "$force" = 0 ]; then
-				old_hash=$(cat "$DOT_MODULES_FOLDER/$1/$hashfilename" 2>/dev/null)
+			if [ "${force:-0}" = 0 ]; then
+				old_hash=$(cat "$DOT_MODULES_FOLDER/$1/$hashfilename" \
+					2>/dev/null)
 				new_hash=$(tar --absolute-names \
 					--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
 					-c "$DOT_MODULES_FOLDER/$1" | sha1sum)
 
 				if [ "$old_hash" = "$new_hash" ]; then
-					match=$C_GREEN
-				fi
-
-				[ $verbose = 1 ] && printf "${match-$C_RED}%s\n%s\n$C_RESET" \
+					log_trace "${C_GREEN}hash match" \
 					"$old_hash" \
 					"$new_hash"
+				else
+					log_trace "${C_RED}hash mismatch" \
+					"$old_hash" \
+					"$new_hash"
+				fi
 			fi
 
 			if
-				[ "$force" = 1 ] || [ "$old_hash" != "$new_hash" ]
+				[ "${force:-0}" = 1 ] || [ "$old_hash" != "$new_hash" ]
 			then
 
 				if [ -e "$DOT_MODULES_FOLDER/$1/.deprecated" ]; then
-					echo "${C_YELLOW}! Warning: $1 is deprecated$C_RESET"
+					log_warning "$1 is deprecated$C_RESET"
 					shift
 					continue
 				fi
 
-				[ "$dry" = 1 ] && echo "${C_RED}$1 would be installed!$C_RESET"
+				if [ "${dry:-0}" = 1 ]; then
+					log_trace "Dotmodule $1 would be installed"
+				else
+					log_trace "Applying dotmodule $1"
+				fi
 
-				[ "$dry" != 1 ] && echo "${C_CYAN}Applying dotmodule $1$C_RESET"
-
-				init_module "$1"
+				init_modules "$1"
 
 				stow_module "$1"
 
 				install_module "$1"
 
-				# Calculate fresh hash
-				hash_module "$1"
-			else
+				if [ "$result" = 0 ]; then
+					log_success "Successfully installed $1"
+					# Calculate fresh hash on success
+					hash_module "$1"
+				else
+					log_error "Installation failed $1"
+				fi
 
-				echo "$C_YELLOW! $1 is already installed and no changes" \
-					"are detected$C_RESET"
+			else
+				log_info "$1 is already installed and no changes" \
+					"are detected"
 			fi
 			shift
 		else
@@ -734,60 +804,182 @@ execute_modules() {
 	done
 }
 
-## Execution
+## Actions
 
-# shellcheck disable=SC2086
-if [ "$all" = 1 ]; then
-	expand_entry $all_modules
-elif [ "$all_installed" = 1 ]; then
-	expand_entry $all_installed_modules
-else
+action_quit() {
+	exit "${1:-0}"
+}
 
-	# TODO: impement config
-	if [ -z "$modules_selected" ] || [ "$config" = 1 ]; then
-		modules_selected=$(whiptail --title "Select modules to install" \
-			--checklist "Space changes selection, enter approves" \
-			0 0 0 zsh zsh ON vim vim OFF 3>&1 1>&2 2>&3 3>&- |
-			sed 's/ /\n/g' |
-			trim_around)
-	fi
+action_fix_permissions() {
+	# Fix permissions, except in submodules
+	log_info "Fixing permissions in $DOTFILES_HOME... "
+	submodules=$(
+		cd "$DOTFILES_HOME" || exit
+		git submodule status | sed -e 's/^ *//' -e 's/ *$//' | rev |
+			cut -d ' ' -f 2- | rev | cut -d ' ' -f 2- |
+			sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
+	)
 
-	# shellcheck disable=SC2086
-	if [ "$expand" = 1 ]; then
-		expand_entry "base" $modules_selected
-	else
-		final_module_list=$modules_selected
-	fi
-fi
+	eval "find $DOT_MODULES_FOLDER -type f \( $submodules \) \
+-regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod u+x {} \;"
+}
 
-[ $verbose = 1 ] && printf "${C_CYAN}Going to install:${C_RESET}\n%s\n" \
-	"$final_module_list"
+action_clean_symlinks() {
+	# Remove incorrect symlinks in DOT_TARGET
+	clean_symlinks "$DOT_TARGET"
+}
 
-if [ "$fix_permissions" = 1 ]; then
-	do_fix_permissions
-fi
+action_list_execution_queue() {
+	log_info "Listing execution queue:"
+	echo "$execution_queue"
+}
 
-if [ "$show_module_list" = 1 ]; then
-	echo "$C_YELLOW! All modules to be executed:$C_RESET"
+action_list_installed_modules() {
+	log_info "All installed modules:"
+	[ ! "$all_installed_modules" ] && get_all_installed_modules
+	echo "$all_installed_modules"
+}
+
+action_list_modules() {
+	log_info "All available modules:"
+	[ ! "$all_modules" ] && all_modules
+	echo "$all_modules"
+}
+
+action_list_presets() {
+	log_info "All available presets:"
+	[ ! "$all_presets" ] && get_all_presets
+	echo "$all_presets"
+}
+
+action_list_tags() {
+	log_info "All available tags:"
+	[ ! "$all_tags" ] && get_all_tags
+	echo "$all_tags"
+}
+
+action_list_config() {
+	log_info "All configurable variables:"
+	echo "modules_selected=$modules_selected" \
+		"dry=${dry:-0}" \
+		"force=${force:-0}" \
+		"root=${root:-1}" \
+		"config=${config:-0}" \
+		"preset_extension=$preset_extension" \
+		"hashfilename=$hashfilename" \
+		"dependenciesfilename=$dependenciesfilename" \
+		"tagsfilename=$tagsfilename" \
+		"pacman=$pacman" \
+		"apt=$apt" \
+		"xbps=$xbps" \
+		"sysctl=$sysctl" \
+		"systemctl=$systemctl" \
+		"systemd=$systemd" \
+		"distribution=$distribution" \
+		"arch=$arch" \
+		"void=$void" \
+		"debian=$debian" \
+		"ubuntu=$ubuntu" \
+		"fedora=$fedora" && exit
+}
+
+action_list_modules_to_execute() {
+	# Print the to-be installed modules
+	log_info "List modules to execute:"
 	echo "$final_module_list"
-fi
+}
 
-# TODO: Flag based execution issuing dot -iur module should install, update
-# then remove, even if it does not make any sense
-# dot -riu or -ri could be useful to reinstall modules
 
-if [ "$remove" = 1 ]; then
+action_expand_selected() {
+	log_info "Set final module list to every selected module," \
+		 " expanding them."
+	final_module_list=
+	# shellcheck disable=SC2086
+	expand_entries "base" $modules_selected
+	log_info "Final module list is:
+$final_module_list"
+}
+
+action_expand_all() {
+	log_info "Set final module list to every module, expanding them."
+	final_module_list=
+	[ ! "$all_modules" ] && all_modules
+	# shellcheck disable=SC2086
+	expand_entries $all_modules
+	log_info "Final module list is:
+$final_module_list"
+}
+
+action_expand_installed() {
+	log_info "Set final module list to every installed module," \
+			 "expanding them."
+	final_module_list=
+	[ ! "$all_installed_modules" ] && get_all_installed_modules
+	# shellcheck disable=SC2086
+	expand_entries $all_installed_modules
+	log_info "Final module list is:
+$final_module_list"
+}
+
+action_expand_none() {
+	log_info "Set final module list only to the selected modules," \
+			 "no expansion."
+	final_module_list=$modules_selected
+	log_info "Final module list is:
+$final_module_list"
+}
+
+action_list_modules_to_install() {
+	log_info "List modules to install:"
+	echo "$final_module_list"
+}
+
+action_remove_modules() {
 	# shellcheck disable=SC2086
 	remove_modules $final_module_list
-fi
-if [ "$update" = 1 ]; then
-	# shellcheck disable=SC2086
-	update_modules $final_module_list
-fi
+}
 
-if [ "$install" = 1 ]; then
+action_execute_modules() {
 	# shellcheck disable=SC2086
 	execute_modules $final_module_list
-fi
+}
+
+action_update_modules() {
+	# shellcheck disable=SC2086
+	update_modules $final_module_list
+}
+
+#
+ask_modules() {
+	log_trace "Manual module input"
+		modules_selected=$(whiptail --separate-output --clear \
+			--title "Select modules to install" \
+			--checklist "Space changes selection, enter approves" \
+			0 0 0 zsh zsh ON vim vim OFF 3>&1 1>&2 2>&3 3>&- |
+			sed 's/ /\n/g')
+}
+
+execute_queue() {
+	log_trace "executing queue: $*"
+	for action in "$@"; do
+		log_info "Executing: $action"
+		$action
+	done
+}
+## Validate execution queue, only entries starting with action are allowed
+
+## Execution
+
+# if nothing is selected, ask for modules
+[ ! "$modules_selected" ] && ask_modules
+# if nothing is in the execution queue, assume expand and execute
+[ ! "$execution_queue" ] \
+	 && enqueue "action_expand_selected" "action_execute_modules"
+
+log_trace "Execution queue:
+$execution_queue"
+
+# shellcheck disable=SC2086
+execute_queue $execution_queue
 
 set +a
