@@ -1066,7 +1066,10 @@ IFS=' '
 interpret_args $(parse_args "$@")
 
 # if nothing is selected, ask for modules
-[ ! "$entries_selected" ] && ask_entries
+[ $config = 1 ] && ask_entries
+[ $config != 1 ] && [ ! "$entries_selected" ] && [ ! "$execution_queue" ] \
+	&& ask_entries # config checked again to avoid double call on ask_entries
+
 # if nothing is in the execution queue, assume expand and execute
 [ ! "$execution_queue" ] \
 	 && enqueue "action_expand_selected" "action_execute_modules"
@@ -1076,8 +1079,5 @@ $execution_queue"
 
 # shellcheck disable=SC2086
 execute_queue $execution_queue
-# echo lele $entries_selected
-# huhu="$(do_expand_entries $entries_selected)"
-# echo KEKIEK
-# echo "$huhu"
+
 set +a
