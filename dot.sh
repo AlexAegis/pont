@@ -13,8 +13,6 @@
 # TODO: Experiment with `sudo -l` to find out you have sudo access or not
 # TODO: If not, automatically turn on `skip-root` and print some message
 
-# TODO: differentiate between remove (disable) and hard-remove (package removal)
-
 # TODO: Enable line end comments (just strip #.*$ from every line)
 # TODO: Uninstall by default unstow, if full uninstall then run the uninstall
 # TODO: scripts, and uninstall should also remove the .tarhash file
@@ -427,7 +425,7 @@ interpret_args() {
 				"action_execute_modules" ;;
 			-r | --remove) # behaves differently when called multiple times
 				remove_count=$((${remove_count:-0} + 1))
-				[ ${remove_count:-0} = 0 ] && \
+				[ ${remove_count:-0} = 1 ] && \
 					enqueue "action_default_no_expansion" \
 							"action_remove_modules" ;;
 			-n | --no-expand) enqueue "action_expand_none" ;;
@@ -660,14 +658,17 @@ update_modules() {
 }
 
 remove_modules() {
-	log_info "Removing modules $*"
+	log_trace "Removing modules $*"
 	while :; do
 		if [ "$1" ]; then
 			# Only run the remove scripts with -rr, a single r just unstows
 			if [ "$remove_count" -ge 2 ]; then
+				log_info "Hard remove $1"
 				remove_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" \
 				-type f -regex "^.*/remove\..*\.sh$" | sed 's|.*/||' | sort)
 				execute_scripts_for_module "$1" "$remove_sripts_in_module"
+			else
+				log_info "Soft remove $1"
 			fi
 
 			# unstow
