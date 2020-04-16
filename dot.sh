@@ -382,7 +382,7 @@ parse_args() {
 	/usr/bin/getopt -u -o "hVlvq\
 AIMPTCLQSX\
 uirneamdbf\
-cRtsyY\
+cRt:s:y:Y:\
 " -l "help,version,log,log-level,verbose,quiet,\
 list-all,list-installed,list-modules,list-presets,list-tags,list-config,\
 list-install,list-queue,clean-symlinks,fix-permissions,\
@@ -390,102 +390,106 @@ update,install,remove,no-expand,expand,all,all-installed,dry,no-base,force,\
 config,no-root,skip-root,target,cpt,scaffold,yank,yank-expanded\
 " -- "$@" || exit 1
 }
-IFS=' '
-for arg in $(parse_args "$@"); do
-	IFS=$SCRIPT_IFS
-	case $arg in
-		-h | -\? | --help) show_help ;;
-		-V | --version) show_version ;;
-		-l | --log | --log-level)
-			case $2 in
-				'trace' | 'TRACE' | '0') log_level='0' ;;
-				'info' | 'INFO' | '1') log_level='1' ;;
-				'warning' | 'WARNING' | '2') log_level='2' ;;
-				'success' | 'SUCCESS') log_level='2' ;;
-				'error' | 'ERROR' | '3') log_level='3' ;;
-				'none' | 'NONE' | '4') log_level='4' ;;
-				*) log_error "Invalid loglevel: $2"; exit 1 ;;
-			esac
-			shift
-			;;
-		-v | --verbose)	log_level=0 ;; # Log level trace
-		-q | --quiet) log_level=3 ;; # Log level error
-		-A | --list-all) action_list_modules action_list_presets \
-			action_list_tags; exit 0 ;;
-		-I | --list-installed) action_list_installed_modules; exit 0 ;;
-		-M | --list-modules) action_list_modules; exit 0 ;;
-		-P | --list-presets) action_list_presets; exit 0 ;;
-		-T | --list-tags) action_list_tags; exit 0 ;;
-		-C | --list-config) action_list_config; exit 0 ;;
-		-L | --list-install) action_list_modules_to_install; exit 0 ;;
-		-D | --list-deprecated) action_list_deprecated; exit 0 ;;
-		-Q | --list-queue) action_list_execution_queue; exit 0 ;;
-		-S | --clean-symlinks) enqueue_front "action_clean_symlinks" ;;
-		-X | --fix-permissions) enqueue_front "action_fix_permissions" ;;
-		-u | --update) enqueue "action_default_no_expansion" \
-			"action_update_modules" ;;
-		-i | --install) enqueue "action_default_no_expansion" \
-			"action_execute_modules" ;;
-		-r | --remove) enqueue "action_default_no_expansion" \
-			"action_remove_modules" ;;
-		-n | --no-expand) enqueue "action_expand_none" ;;
-		-e | --expand) enqueue "action_expand_selected" ;;
-		-a | --all) enqueue "action_expand_all" ;;
-		-m | --all-installed) enqueue "action_expand_installed" ;;
-		-d | --dry) dry=1 ;;
-		-b | --no-base) no_base=1 ;;
-		-f | --force) force=1; enqueue "action_expand_none" ;;
-		-c | --config | --custom) config=1 ;;
-		-R | --no-root | --skip-root) root=0 ;;
-		-t | --target) # package installation target, defaults to $DOT_TARGET
-			if [ -d "$2" ]; then
-				DOT_TARGET="$2"
-			else
-				log_error "Invalid target: $2"; exit 1
-			fi
-			shift
-			;;
-		-s | --cpt | --scaffold) # Ask for everything
-			shift
-			scaffold "$@"
-			exit 0
-			;;
-		-y | --yank)
-			enqueue "action_default_no_expansion" "action_yank"
-			if [ -d "$2" ]; then
-				yank_target="$2"
-			else
-				log_error "Invalid target: $2"; exit 1
-			fi
-			shift
-			;;
-		-Y | --yank-expanded)
-			enqueue "action_expand_selected" "action_yank"
-			if [ -d "$2" ]; then
-				yank_target="$2"
-			else
-				log_error "Invalid target: $2"; exit 1
-			fi
-			shift
-			;;
-		--)	;;
-		-?*) log_error "Unknown option (ignored): $arg" b;;
-		*) # The rest are selected modules
-			# TODO: Pre validate them
-			if [ "$arg" ]; then
-				if [ "$entries_selected" ]; then
-					entries_selected="$entries_selected${IFS:-\0}$arg"
+
+interpret_args() {
+	while :; do
+		IFS=$SCRIPT_IFS
+		case $1 in
+			-h | -\? | --help) show_help ;;
+			-V | --version) show_version ;;
+			-l | --log | --log-level)
+				case $2 in
+					'trace' | 'TRACE' | '0') log_level='0' ;;
+					'info' | 'INFO' | '1') log_level='1' ;;
+					'warning' | 'WARNING' | '2') log_level='2' ;;
+					'success' | 'SUCCESS') log_level='2' ;;
+					'error' | 'ERROR' | '3') log_level='3' ;;
+					'none' | 'NONE' | '4') log_level='4' ;;
+					*) log_error "Invalid loglevel: $2"; exit 1 ;;
+				esac
+				shift
+				;;
+			-v | --verbose)	log_level=0 ;; # Log level trace
+			-q | --quiet) log_level=3 ;; # Log level error
+			-A | --list-all) action_list_modules action_list_presets \
+				action_list_tags; exit 0 ;;
+			-I | --list-installed) action_list_installed_modules; exit 0 ;;
+			-M | --list-modules) action_list_modules; exit 0 ;;
+			-P | --list-presets) action_list_presets; exit 0 ;;
+			-T | --list-tags) action_list_tags; exit 0 ;;
+			-C | --list-config) action_list_config; exit 0 ;;
+			-L | --list-install) action_list_modules_to_install; exit 0 ;;
+			-D | --list-deprecated) action_list_deprecated; exit 0 ;;
+			-Q | --list-queue) action_list_execution_queue; exit 0 ;;
+			-S | --clean-symlinks) enqueue_front "action_clean_symlinks" ;;
+			-X | --fix-permissions) enqueue_front "action_fix_permissions" ;;
+			-u | --update) enqueue "action_default_no_expansion" \
+				"action_update_modules" ;;
+			-i | --install) enqueue "action_default_no_expansion" \
+				"action_execute_modules" ;;
+			-r | --remove) enqueue "action_default_no_expansion" \
+				"action_remove_modules" ;;
+			-n | --no-expand) enqueue "action_expand_none" ;;
+			-e | --expand) enqueue "action_expand_selected" ;;
+			-a | --all) enqueue "action_expand_all" ;;
+			-m | --all-installed) enqueue "action_expand_installed" ;;
+			-d | --dry) dry=1 ;;
+			-b | --no-base) no_base=1 ;;
+			-f | --force) force=1; enqueue "action_expand_none" ;;
+			-c | --config | --custom) config=1 ;;
+			-R | --no-root | --skip-root) root=0 ;;
+			-t | --target) # package installation target
+				if [ -d "$2" ]; then
+					DOT_TARGET="$2"
 				else
-					entries_selected="$arg"
+					log_error "Invalid target: $2"; exit 1
 				fi
-				log_trace "Initially selected:
+				shift
+				;;
+			-s | --cpt | --scaffold) # Ask for everything
+				shift
+				scaffold "$@"
+				exit 0
+				;;
+			-y | --yank)
+				enqueue "action_default_no_expansion" "action_yank"
+				if [ -d "$2" ]; then
+					yank_target="$2"
+				else
+					log_error "Invalid target: $2"; exit 1
+				fi
+				echo "yank_target $yank_target"
+				shift
+				;;
+			-Y | --yank-expanded)
+				enqueue "action_expand_selected" "action_yank"
+				if [ -d "$2" ]; then
+					yank_target="$2"
+				else
+					log_error "Invalid target: $2"; exit 1
+				fi
+				shift
+				;;
+			--)	;;
+			-?*) log_error "Unknown option (ignored): $1" b;;
+			*) # The rest are selected modules
+				# TODO: Pre validate them
+				if [ "$1" ]; then
+					if [ "$entries_selected" ]; then
+						entries_selected="$entries_selected${IFS:-\0}$1"
+					else
+						entries_selected="$1"
+					fi
+					log_trace "Initially selected:
 $entries_selected"
-			else
-				break
-			fi
-			;;
-	esac
-done
+				else
+					break
+				fi
+				;;
+		esac
+		shift
+	done
+}
 
 trim_around() {
 	# removes the first and last characters from every line
@@ -991,6 +995,7 @@ action_update_modules() {
 do_yank() {
 	while :; do
 		if [ "$1" ]; then
+			log_info "Yanking $DOT_MODULES_FOLDER/$1 to $yank_target/$1"
 			cp -r "$DOT_MODULES_FOLDER/$1" "$yank_target/$1"
 			shift
 		else
@@ -1037,6 +1042,10 @@ execute_queue() {
 ## Validate execution queue, only entries starting with action are allowed
 
 ## Execution
+
+IFS=' '
+# shellcheck disable=SC2046
+interpret_args $(parse_args "$@")
 
 # if nothing is selected, ask for modules
 [ ! "$entries_selected" ] && ask_entries
