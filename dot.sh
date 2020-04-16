@@ -1,31 +1,11 @@
 #!/bin/sh
-# ORIGINAL_IFS=$IFS
-SCRIPT_IFS='
-'
-IFS=$SCRIPT_IFS
-
 #      _       _
 #   __| | ___ | |_
 #  / _` |/ _ \| __|
 # | (_| | (_) | |_
 #  \__,_|\___/ \__|
 #
-# A simple dotmodule manager
-# TODO: Rice this script https://stackoverflow.com/questions/430078
-#
-# Dots main purpose is to invoke scripts defined in dotmodules
-# It is designed this way so each dotmodule is a self contained entity
-# which you can use without dot itself.
-# Dots other functionality is dependency resolvement. Dotmodules can
-# depend on other dotmodules and it's dots job to install those beforehand
-# Dot is also capable of skipping installations if nothing is changed
-# since the last one. This is done by hashing the tar of the module.
-#
-# Each dotmodule is unique and the only common part of each of them is
-# that you have to stow a folder to your home directory.
-# But besides that you might have to install packages too.
-# And packages are too can be installed differently on different systems
-#
+# The dotmodule manager
 #
 
 # TODO: deprecation alternatives prompt, check nvm and fnm
@@ -103,7 +83,7 @@ XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"$user_home/.cache/run"}
 XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 
 # Environmental config
-## This where the packages will be stowed to. Can also be set with -t, --target
+## This where the packages will be stowed to. Can also be set with -t
 DOT_TARGET=${DOT_TARGET:-"$user_home"}
 DOTFILES_HOME=${DOTFILES_HOME-"$user_home/.dotfiles"}
 # TODO: Support multiple folders $IFS separated, quote them
@@ -122,6 +102,7 @@ preset_extension=".preset"
 hashfilename=".tarhash"
 deprecatedfilename=".deprecated"
 dependenciesfilename=".dependencies"
+clashfilename=".clash"
 tagsfilename=".tags"
 dry=0 # When set, no installation will be done
 default_expansion_action="action_expand_none"
@@ -162,10 +143,11 @@ fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 all_modules=
 all_presets=
 all_installed_modules=
-all_depracated_modules=
+all_deprecated_modules=
 all_tags=
 yank_target=
 resolved=
+
 # Newline separated list of actions. Used to preserve order of flags
 execution_queue=
 
@@ -252,27 +234,32 @@ enqueue_front() {
 # Logging, the default log level is 1 meaning only trace logs are omitted
 log_trace() {
 	# Visible at and under log level 0
-	[ "${log_level:-1}" -le 0 ] && echo "${C_CYAN}[  Trace  ]: $*${C_RESET}"
+	[ "${log_level:-1}" -le 0 ] && \
+		echo "${C_CYAN}[  Trace  ]: $*${C_RESET}" >&2
 }
 
 log_info() {
 	# Visible at and under log level 1
-	[ "${log_level:-1}" -le 1 ] && echo "${C_BLUE}[  Info   ]: $*${C_RESET}"
+	[ "${log_level:-1}" -le 1 ] && \
+		echo "${C_BLUE}[  Info   ]: $*${C_RESET}" >&2
 }
 
 log_warning() {
 	# Visible at and under log level 2
-	[ "${log_level:-1}" -le 2 ] && echo "${C_YELLOW}[ Warning ]: $*${C_RESET}"
+	[ "${log_level:-1}" -le 2 ] && \
+		echo "${C_YELLOW}[ Warning ]: $*${C_RESET}" >&2
 }
 
 log_success() {
 	# Visible at and under log level 2, same as warning but green
-	[ "${log_level:-1}" -le 2 ] && echo "${C_GREEN}[ Success ]: $*${C_RESET}"
+	[ "${log_level:-1}" -le 2 ] && \
+		echo "${C_GREEN}[ Success ]: $*${C_RESET}" >&2
 }
 
 log_error() {
 	# Visible at and under log level 3
-	[ "${log_level:-1}" -le 3 ] && echo "${C_RED}[  Error  ]: $*${C_RESET}"
+	[ "${log_level:-1}" -le 3 ] && \
+		echo "${C_RED}[  Error  ]: $*${C_RESET}" >&2
 }
 
 show_help() {
@@ -359,6 +346,7 @@ action_list_config() {
 		"preset_extension=$preset_extension" \
 		"hashfilename=$hashfilename" \
 		"dependenciesfilename=$dependenciesfilename" \
+		"clashfilename=$clashfilename" \
 		"tagsfilename=$tagsfilename" \
 		"default_expansion_action=$default_expansion_action" \
 		"pacman=$pacman" \
@@ -400,8 +388,9 @@ config,no-root,skip-root,target,cpt,scaffold,yank,yank-expanded\
 }
 
 interpret_args() {
+	IFS='
+'
 	while :; do
-		IFS=$SCRIPT_IFS
 		case $1 in
 			-h | -\? | --help) show_help ;;
 			-V | --version) show_version ;;
@@ -436,8 +425,11 @@ interpret_args() {
 				"action_update_modules" ;;
 			-i | --install) enqueue "action_default_no_expansion" \
 				"action_execute_modules" ;;
-			-r | --remove) enqueue "action_default_no_expansion" \
-				"action_remove_modules" ;;
+			-r | --remove) # behaves differently when called multiple times
+				remove_count=$((${remove_count:-0} + 1))
+				[ ${remove_count:-0} = 0 ] && \
+					enqueue "action_default_no_expansion" \
+							"action_remove_modules" ;;
 			-n | --no-expand) enqueue "action_expand_none" ;;
 			-e | --expand) enqueue "action_expand_selected" ;;
 			-a | --all) enqueue "action_expand_all" ;;
@@ -518,6 +510,13 @@ in_preset() {
 		-print0 | xargs -0 sed -e 's/#.*$//' -e '/^$/d'
 }
 
+get_clashes() {
+	if [ -f "$DOT_MODULES_FOLDER/$1/$clashfilename" ]; then
+		sed -e 's/#.*$//' -e '/^$/d' \
+			"$DOT_MODULES_FOLDER/$1/$clashfilename"
+	fi
+}
+
 get_dependencies() {
 	if [ -f "$DOT_MODULES_FOLDER/$1/$dependenciesfilename" ]; then
 		sed -e 's/#.*$//' -e '/^$/d' \
@@ -575,13 +574,13 @@ execute_scripts_for_module() {
 	done
 }
 
-expand_entries() {
+do_expand_entries() {
 	while :; do
 		if [ "$1" ]; then
 			# Extracting condition, if there is
 			condition="$(get_condition "$1")"
 
-			log_trace "Trying to install $(get_entry "$1")..."
+			log_trace "Trying to expand $(get_entry "$1")..."
 
 			[ "$condition" ] && log_trace "...with condition $condition..."
 
@@ -602,21 +601,19 @@ expand_entries() {
 				case "$1" in
 				+*) # presets
 					# shellcheck disable=SC2046
-					expand_entries $(in_preset "$(get_entry "$1" | cut -c2-)")
+					do_expand_entries \
+						$(in_preset "$(get_entry "$1" | cut -c2-)")
 					;;
 				:*) # tags
 					# shellcheck disable=SC2046
-					expand_entries $(has_tag "$(get_entry "$1" | cut -c2-)")
+					do_expand_entries \
+						$(has_tag "$(get_entry "$1" | cut -c2-)")
 					;;
 				*) # modules
 					# shellcheck disable=SC2046
-					expand_entries $(get_dependencies "$(get_entry "$1")")
-					if [ -z "$final_module_list" ]; then
-						final_module_list="$(get_entry "$1")"
-					else
-						#TODO 80
-						final_module_list="$final_module_list${IFS:-\0}$(get_entry "$1")"
-					fi
+					do_expand_entries \
+						$(get_dependencies "$(get_entry "$1")")
+					get_entry "$1"
 					;;
 				esac
 				log_trace "...done resolving $1"
@@ -628,6 +625,10 @@ expand_entries() {
 			break
 		fi
 	done
+}
+
+expand_entries() {
+	final_module_list="$(do_expand_entries "$@")"
 }
 
 init_modules() {
@@ -662,9 +663,12 @@ remove_modules() {
 	log_info "Removing modules $*"
 	while :; do
 		if [ "$1" ]; then
-			remove_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
-				-regex "^.*/remove\..*\.sh$" | sed 's|.*/||' | sort)
-			execute_scripts_for_module "$1" "$remove_sripts_in_module"
+			# Only run the remove scripts with -rr, a single r just unstows
+			if [ "$remove_count" -ge 2 ]; then
+				remove_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" \
+				-type f -regex "^.*/remove\..*\.sh$" | sed 's|.*/||' | sort)
+				execute_scripts_for_module "$1" "$remove_sripts_in_module"
+			fi
 
 			# unstow
 			if [ -e "$DOT_MODULES_FOLDER/$1/.$1" ]; then
@@ -992,6 +996,8 @@ action_list_modules_to_install() {
 
 action_remove_modules() {
 	# shellcheck disable=SC2086
+	action_remove_modules_ran=1
+
 	remove_modules $final_module_list
 }
 
@@ -1022,7 +1028,7 @@ action_yank() {
 }
 
 ask_entries() {
-	[ ! "$(is_installed whiptadil)" ] && log_error "No whiptail installed" \
+	[ ! "$(is_installed whiptail)" ] && log_error "No whiptail installed" \
 		&& exit 1
 
 	[ ! "$all_modules" ] && get_all_modules
@@ -1052,7 +1058,6 @@ execute_queue() {
 		$action
 	done
 }
-## Validate execution queue, only entries starting with action are allowed
 
 ## Execution
 
@@ -1071,5 +1076,8 @@ $execution_queue"
 
 # shellcheck disable=SC2086
 execute_queue $execution_queue
-
+# echo lele $entries_selected
+# huhu="$(do_expand_entries $entries_selected)"
+# echo KEKIEK
+# echo "$huhu"
 set +a
