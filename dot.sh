@@ -28,9 +28,6 @@ IFS=$SCRIPT_IFS
 #
 #
 
-# TODO: make module listing display outdated modules by tarhashing every one of
-# TODO: them
-
 # TODO: deprecation alternatives prompt, check nvm and fnm
 
 # TODO: Experiment with `sudo -l` to find out you have sudo access or not
