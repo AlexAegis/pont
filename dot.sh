@@ -82,7 +82,7 @@ XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 # Environmental config
 ## This where the packages will be stowed to. Can also be set with -t
 DOT_TARGET=${DOT_TARGET:-"$user_home"}
-DOTFILES_HOME=${DOTFILES_HOME-"$user_home/.dotfiles"}
+DOTFILES_HOME=${DOTFILES_HOME:-"$user_home/.dotfiles"}
 # TODO: Support multiple folders $IFS separated, quote them
 DOT_MODULES_HOME=${DOT_MODULES_HOME:-"$DOTFILES_HOME/modules"}
 DOT_PRESETS_HOME=${DOT_PRESETS_HOME:-"$DOTFILES_HOME/presets"}
@@ -94,6 +94,8 @@ DOT_DRY_FLAG=0
 DOT_FORCE_FLAG=0
 DOT_NO_BASE_FLAG=0
 DOT_ROOT_FLAG=1
+DOT_SCRIPTS_ENABLED=1
+DOT_MAKE_ENABLED=1
 DOT_PRESET_EXTENSION=".preset"
 DOT_HASHFILE_NAME=".tarhash"
 DOT_DEPRECATIONFILE_NAME=".deprecated"
@@ -342,7 +344,7 @@ action_list_outdated() {
 	done
 }
 
-action_list_config() {
+action_list_environment() {
 	log_info "All configurable variables:"
 	echo "DOT_DRY_FLAG=${DOT_DRY_FLAG:-0}" \
 		"DOT_FORCE_FLAG=${DOT_FORCE_FLAG:-0}" \
@@ -378,17 +380,19 @@ action_list_modules_to_execute() {
 
 parse_args() {
 	/usr/bin/getopt -u -o "hVlvq\
-AIMPT\
-CLDQSX\
-O\
-uirneamdbf\
+IADPT\
+ELQO\
+CX\
+uxrneaidbf\
 cRt:s:y:Y:\
+S\
 " -l "help,version,log,log-level,verbose,quiet,\
-list-all,list-installed,list-modules,list-deprecated,list-presets,list-tags,\
-list-config,list-install,list-queue,clean-symlinks,fix-permissions,\
-list-outdated,\
+list-installed,list-modules,list-deprecated,list-presets,list-tags,\
+list-environment,list-install,list-queue,list-outdated,\
+clean-symlinks,fix-permissions,\
 update,install,remove,no-expand,expand,all,all-installed,dry,no-base,force,\
-config,no-root,skip-root,target,cpt,scaffold,yank,yank-expanded\
+config,root,no-root,skip-root,target,cpt,scaffold,yank,yank-expanded\
+no-scripts,skip-scripts\
 " -- "$@" || exit 1
 }
 
@@ -413,23 +417,21 @@ interpret_args() {
 				;;
 			-v | --verbose)	DOT_LOG_LEVEL=0 ;; # Log level trace
 			-q | --quiet) DOT_LOG_LEVEL=3 ;; # Log level error
-			-A | --list-all) action_list_modules action_list_presets \
-				action_list_tags; exit 0 ;;
 			-I | --list-installed) action_list_installed_modules; exit 0 ;;
-			-M | --list-modules) action_list_modules; exit 0 ;;
+			-A | --list-modules) action_list_modules; exit 0 ;;
+			-D | --list-deprecated) action_list_deprecated; exit 0 ;;
 			-P | --list-presets) action_list_presets; exit 0 ;;
 			-T | --list-tags) action_list_tags; exit 0 ;;
-			-C | --list-config) action_list_config; exit 0 ;;
+			-E | --list-environment) action_list_environment; exit 0 ;;
 			-L | --list-install) action_list_modules_to_install; exit 0 ;;
-			-D | --list-deprecated) action_list_deprecated; exit 0 ;;
 			-Q | --list-queue) action_list_execution_queue; exit 0 ;;
 			-O | --list-outdated) action_list_outdated; exit 0 ;;
-			-S | --clean-symlinks) enqueue_front "action_clean_symlinks" ;;
+			-C | --clean-symlinks) enqueue_front "action_clean_symlinks" ;;
 			-X | --fix-permissions) enqueue_front "action_fix_permissions" ;;
 			-u | --update) enqueue "action_default_no_expansion" \
 				"action_update_modules" ;;
-			-i | --install) enqueue "action_default_no_expansion" \
-				"action_execute_modules" ;;
+			-x | --execute | --install) enqueue \
+				"action_default_no_expansion" "action_execute_modules" ;;
 			-r | --remove) # behaves differently when called multiple times
 				remove_count=$((${remove_count:-0} + 1))
 				[ ${remove_count:-0} = 1 ] && \
@@ -438,12 +440,17 @@ interpret_args() {
 			-n | --no-expand) enqueue "action_expand_none" ;;
 			-e | --expand) enqueue "action_expand_selected" ;;
 			-a | --all) enqueue "action_expand_all" ;;
-			-m | --all-installed) enqueue "action_expand_installed" ;;
+			-i | --all-installed) enqueue "action_expand_installed" ;;
 			-d | --dry) DOT_DRY_FLAG=1 ;;
 			-b | --no-base) DOT_NO_BASE_FLAG=1 ;;
 			-f | --force) DOT_FORCE_FLAG=1; enqueue "action_expand_none" ;;
 			-c | --config | --custom) DOT_CONFIG_FLAG=1 ;;
+			--root) DOT_ROOT_FLAG=1 ;;
 			-R | --no-root | --skip-root) DOT_ROOT_FLAG=0 ;;
+			-s | --scripts) DOT_SCRIPTS_ENABLED=1 ;;
+			-S | --no-scripts | --skip-scripts) DOT_SCRIPTS_ENABLED=0 ;;
+			-m | --make) DOT_MAKE_ENABLED=1 ;;
+			-M | --no-make | --skip-make) DOT_MAKE_ENABLED=0 ;;
 			-t | --target) # package installation target
 				if [ -d "$2" ]; then
 					DOT_TARGET="$2"
@@ -452,7 +459,7 @@ interpret_args() {
 				fi
 				shift
 				;;
-			-s | --cpt | --scaffold) # Ask for everything
+			--scaffold) # Ask for everything
 				shift
 				scaffold "$@"
 				exit 0
@@ -505,11 +512,9 @@ trim_around() {
 has_tag() {
 	# Returns every dotmodule that contains any of the tags
 	# shellcheck disable=SC2016
-	grep -lRm 1 -- "$@" "$DOT_MODULES_HOME"/*/"$DOT_TAGSFILE_NAME" |
+	grep -lRxEm 1 -- "$1 ?#?.*" \
+		"$DOT_MODULES_HOME"/*/"$DOT_TAGSFILE_NAME" |
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g'
-
-
-
 }
 
 in_preset() {
@@ -545,12 +550,11 @@ execute_scripts_for_module() {
 	# 2: scripts to run
 	# 3: sourcing setting, if set, user privileged scripts will be sourced
 	for script in $2; do
-		log_trace "Running $script..."
+		if [ ${DOT_DRY_FLAG:-0} = 0 ] && \
+			[ ${DOT_SCRIPTS_ENABLED:-1} = 1 ]; then
+			log_trace "Running $script..."
+			privilige=$(echo "$script" | cut -d '.' -f 2 | sed 's/-.*//')
 
-		privilige=$(echo "$script" | cut -d '.' -f 2 |
-			sed 's/-.*//')
-
-		if [ ${DOT_DRY_FLAG:-0} != 1 ]; then
 			if [ "$privilige" = "root" ] ||
 				[ "$privilige" = "sudo" ]; then
 				if [ "${DOT_ROOT_FLAG:-1}" = 1 ]; then
@@ -578,6 +582,8 @@ execute_scripts_for_module() {
 				fi
 			fi
 			result=$((result + $?))
+		else
+			log_trace "Skipping $script..."
 		fi
 	done
 }
@@ -782,6 +788,17 @@ stow_module() {
 	done
 }
 
+make_module() {
+	if [ ${DOT_MAKE_ENABLED:-1} = 1 ] \
+		&& [ -e "$DOT_MODULES_HOME/$1/Makefile" ]; then
+		if [ ! "$(is_installed "make")" ]; then
+			log_error "Make not available"; exit 1
+		fi
+
+		make # It's already cd'd in
+	fi
+}
+
 install_module() {
 	sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
 		-regex "^.*/[0-9\]\..*\.sh$" | sed 's|.*/||' | sort)
@@ -896,6 +913,11 @@ execute_modules() {
 
 				stow_module "$1"
 
+				# Make isn't a separate step because there only
+				# should be one single install step so that the hashes
+				# and the result can be determined in a single step
+				make_module "$1"
+
 				install_module "$1"
 
 				if [ "$result" = 0 ]; then
@@ -1005,8 +1027,6 @@ action_list_modules_to_install() {
 
 action_remove_modules() {
 	# shellcheck disable=SC2086
-	action_remove_modules_ran=1
-
 	remove_modules $final_module_list
 }
 
