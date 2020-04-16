@@ -1,9 +1,25 @@
-# Dotmodule template
+# Template
 
-Read the individual files for an example
+This folder contains a module template which can be used by `cpt` to
+quickly scaffold you a module with your commonly used files
 
-## Why do I use separate files for package managers
+## Requirements
 
-- Easier to use
-- Some modules need multiple packages installed of which I don't want to make
-  a module. (module !== package)
+Rust and cargo installed
+
+If cargo is available and cpt is not, dot will attempt to install it
+on scaffolding
+
+## Usage
+
+```sh
+dot --scaffold <modules...>
+```
+
+This will copy this folder as many times as many arguments you gave to it
+overwriting every intance of `{{name}}` with the modules name.
+
+If a module already exists, it will be ignored.
+
+Only files with a `.tmp` extension will be affected, the rest is just copied
+the `.tmp` extension will be ommitted. (`a.sh.tmp` will become `a.sh`)

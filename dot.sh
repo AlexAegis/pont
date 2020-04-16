@@ -6,7 +6,6 @@
 #  \__,_|\___/ \__|
 #
 # The dotmodule manager
-#
 
 # TODO: deprecation alternatives prompt, check nvm and fnm
 
@@ -85,25 +84,23 @@ XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 DOT_TARGET=${DOT_TARGET:-"$user_home"}
 DOTFILES_HOME=${DOTFILES_HOME-"$user_home/.dotfiles"}
 # TODO: Support multiple folders $IFS separated, quote them
-DOT_MODULES_FOLDER=${DOT_MODULES_FOLDER:-"$DOTFILES_HOME/modules"}
-DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
+DOT_MODULES_HOME=${DOT_MODULES_HOME:-"$DOTFILES_HOME/modules"}
+DOT_PRESETS_HOME=${DOT_PRESETS_HOME:-"$DOTFILES_HOME/presets"}
 
 # Config
-log_level=1
-entries_selected=""
-final_module_list=""
-config=0
-root=1
-force=0
-no_base=0
-preset_extension=".preset"
-hashfilename=".tarhash"
-deprecatedfilename=".deprecated"
-dependenciesfilename=".dependencies"
-clashfilename=".clash"
-tagsfilename=".tags"
-dry=0 # When set, no installation will be done
-default_expansion_action="action_expand_none"
+DOT_LOG_LEVEL=1
+DOT_CONFIG_FLAG=0
+DOT_DRY_FLAG=0
+DOT_FORCE_FLAG=0
+DOT_NO_BASE_FLAG=0
+DOT_ROOT_FLAG=1
+DOT_PRESET_EXTENSION=".preset"
+DOT_HASHFILE_NAME=".tarhash"
+DOT_DEPRECATIONFILE_NAME=".deprecated"
+DOT_DEPENDENCIESFILE_NAME=".dependencies"
+DOT_CLASHFILE_NAME=".clash"
+DOT_TAGSFILE_NAME=".tags"
+DOT_DEFAULT_EXPANSION_ACTION="action_expand_none"
 
 
 ## Pre calculated environmental variables for modules
@@ -137,7 +134,7 @@ fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 # shellcheck disable=SC1091
 [ -e "./.dotrc" ] && . "./.dotrc"
 
-# Inner variables that shouldn't allowed to be changed using dotrc
+# Inner variables that are not allowed to be changed using dotrc
 all_modules=
 all_presets=
 all_installed_modules=
@@ -145,39 +142,50 @@ all_deprecated_modules=
 all_tags=
 yank_target=
 resolved=
+entries_selected=
+final_module_list=
 
 # Newline separated list of actions. Used to preserve order of flags
 execution_queue=
 
 ## Internal functions
 
+is_deprecated() {
+	[ -e "$DOT_MODULES_HOME/$1/$DOT_DEPRECATIONFILE_NAME" ]
+}
+
+module_exists() {
+	[ ! "$all_modules" ] && get_all_modules
+	echo "$all_modules" | grep -x "$1"
+}
+
 get_all_modules() {
-	all_modules=$(find "$DOT_MODULES_FOLDER/" -maxdepth 1 -mindepth 1 \
+	all_modules=$(find "$DOT_MODULES_HOME/" -maxdepth 1 -mindepth 1 \
 		-printf "%f\n" | sort)
 }
 
 get_all_presets() {
-	all_presets=$(find "$DOT_PRESETS_FOLDER/" -mindepth 1 \
+	all_presets=$(find "$DOT_PRESETS_HOME/" -mindepth 1 \
 		-name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
 }
 
 get_all_installed_modules() {
 	#shellcheck disable=SC2016
 	all_installed_modules=$(grep -lm 1 -- "" \
-		"$DOT_MODULES_FOLDER"/**/$hashfilename | \
+		"$DOT_MODULES_HOME"/**/$DOT_HASHFILE_NAME | \
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
 
 get_all_deprecated_modules() {
 	#shellcheck disable=SC2016
 	all_deprecated_modules=$(grep -lm 1 -- "" \
-		"$DOT_MODULES_FOLDER"/**/$deprecatedfilename | \
+		"$DOT_MODULES_HOME"/**/$DOT_DEPRECATIONFILE_NAME | \
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
 
 
 get_all_tags() {
-	all_tags=$(find "$DOT_MODULES_FOLDER"/*/ -maxdepth 1 -mindepth 1 \
+	all_tags=$(find "$DOT_MODULES_HOME"/*/ -maxdepth 1 -mindepth 1 \
 		-name '.tags' -exec cat {} + | grep "^[^#;]" | sort | uniq)
 }
 
@@ -232,31 +240,31 @@ enqueue_front() {
 # Logging, the default log level is 1 meaning only trace logs are omitted
 log_trace() {
 	# Visible at and under log level 0
-	[ "${log_level:-1}" -le 0 ] && \
+	[ "${DOT_LOG_LEVEL:-1}" -le 0 ] && \
 		echo "${C_CYAN}[  Trace  ]: $*${C_RESET}" >&2
 }
 
 log_info() {
 	# Visible at and under log level 1
-	[ "${log_level:-1}" -le 1 ] && \
+	[ "${DOT_LOG_LEVEL:-1}" -le 1 ] && \
 		echo "${C_BLUE}[  Info   ]: $*${C_RESET}" >&2
 }
 
 log_warning() {
 	# Visible at and under log level 2
-	[ "${log_level:-1}" -le 2 ] && \
+	[ "${DOT_LOG_LEVEL:-1}" -le 2 ] && \
 		echo "${C_YELLOW}[ Warning ]: $*${C_RESET}" >&2
 }
 
 log_success() {
 	# Visible at and under log level 2, same as warning but green
-	[ "${log_level:-1}" -le 2 ] && \
+	[ "${DOT_LOG_LEVEL:-1}" -le 2 ] && \
 		echo "${C_GREEN}[ Success ]: $*${C_RESET}" >&2
 }
 
 log_error() {
 	# Visible at and under log level 3
-	[ "${log_level:-1}" -le 3 ] && \
+	[ "${DOT_LOG_LEVEL:-1}" -le 3 ] && \
 		echo "${C_RED}[  Error  ]: $*${C_RESET}" >&2
 }
 
@@ -326,27 +334,26 @@ action_list_outdated() {
 	log_trace "Listing outdated modules:"
 	[ ! "$all_modules" ] && get_all_modules
 	for mod in $all_modules; do
-		if [ -e "$DOT_MODULES_FOLDER/$mod/$hashfilename" ]; then
-			fresh_hash="$(do_hash $mod)"
-			current_hash="$(cat "$DOT_MODULES_FOLDER/$mod/$hashfilename")"
-			[ "$fresh_hash" != "$current_hash" ] && echo "$mod"
+		if [ -e "$DOT_MODULES_HOME/$mod/$DOT_HASHFILE_NAME" ]; then
+			fresh_hash="$(do_hash "$mod")"
+			old_hash="$(cat "$DOT_MODULES_HOME/$mod/$DOT_HASHFILE_NAME")"
+			[ "$fresh_hash" != "$old_hash" ] && echo "$mod"
 		fi
 	done
 }
 
 action_list_config() {
 	log_info "All configurable variables:"
-	echo "entries_selected=$entries_selected" \
-		"dry=${dry:-0}" \
-		"force=${force:-0}" \
-		"root=${root:-1}" \
-		"config=${config:-0}" \
-		"preset_extension=$preset_extension" \
-		"hashfilename=$hashfilename" \
-		"dependenciesfilename=$dependenciesfilename" \
-		"clashfilename=$clashfilename" \
-		"tagsfilename=$tagsfilename" \
-		"default_expansion_action=$default_expansion_action" \
+	echo "DOT_DRY_FLAG=${DOT_DRY_FLAG:-0}" \
+		"DOT_FORCE_FLAG=${DOT_FORCE_FLAG:-0}" \
+		"DOT_ROOT_FLAG=${DOT_ROOT_FLAG:-1}" \
+		"DOT_CONFIG_FLAG=${DOT_CONFIG_FLAG:-0}" \
+		"DOT_PRESET_EXTENSION=$DOT_PRESET_EXTENSION" \
+		"DOT_HASHFILE_NAME=$DOT_HASHFILE_NAME" \
+		"DOT_DEPENDENCIESFILE_NAME=$DOT_DEPENDENCIESFILE_NAME" \
+		"DOT_CLASHFILE_NAME=$DOT_CLASHFILE_NAME" \
+		"DOT_TAGSFILE_NAME=$DOT_TAGSFILE_NAME" \
+		"DOT_DEFAULT_EXPANSION_ACTION=$DOT_DEFAULT_EXPANSION_ACTION" \
 		"pacman=$pacman" \
 		"apt=$apt" \
 		"xbps=$xbps" \
@@ -394,18 +401,18 @@ interpret_args() {
 			-V | --version) show_version ;;
 			-l | --log | --log-level)
 				case $2 in
-					'trace' | 'TRACE' | '0') log_level='0' ;;
-					'info' | 'INFO' | '1') log_level='1' ;;
-					'warning' | 'WARNING' | '2') log_level='2' ;;
-					'success' | 'SUCCESS') log_level='2' ;;
-					'error' | 'ERROR' | '3') log_level='3' ;;
-					'none' | 'NONE' | '4') log_level='4' ;;
+					'trace' | 'TRACE' | '0') DOT_LOG_LEVEL='0' ;;
+					'info' | 'INFO' | '1') DOT_LOG_LEVEL='1' ;;
+					'warning' | 'WARNING' | '2') DOT_LOG_LEVEL='2' ;;
+					'success' | 'SUCCESS') DOT_LOG_LEVEL='2' ;;
+					'error' | 'ERROR' | '3') DOT_LOG_LEVEL='3' ;;
+					'none' | 'NONE' | '4') DOT_LOG_LEVEL='4' ;;
 					*) log_error "Invalid loglevel: $2"; exit 1 ;;
 				esac
 				shift
 				;;
-			-v | --verbose)	log_level=0 ;; # Log level trace
-			-q | --quiet) log_level=3 ;; # Log level error
+			-v | --verbose)	DOT_LOG_LEVEL=0 ;; # Log level trace
+			-q | --quiet) DOT_LOG_LEVEL=3 ;; # Log level error
 			-A | --list-all) action_list_modules action_list_presets \
 				action_list_tags; exit 0 ;;
 			-I | --list-installed) action_list_installed_modules; exit 0 ;;
@@ -432,11 +439,11 @@ interpret_args() {
 			-e | --expand) enqueue "action_expand_selected" ;;
 			-a | --all) enqueue "action_expand_all" ;;
 			-m | --all-installed) enqueue "action_expand_installed" ;;
-			-d | --dry) dry=1 ;;
-			-b | --no-base) no_base=1 ;;
-			-f | --force) force=1; enqueue "action_expand_none" ;;
-			-c | --config | --custom) config=1 ;;
-			-R | --no-root | --skip-root) root=0 ;;
+			-d | --dry) DOT_DRY_FLAG=1 ;;
+			-b | --no-base) DOT_NO_BASE_FLAG=1 ;;
+			-f | --force) DOT_FORCE_FLAG=1; enqueue "action_expand_none" ;;
+			-c | --config | --custom) DOT_CONFIG_FLAG=1 ;;
+			-R | --no-root | --skip-root) DOT_ROOT_FLAG=0 ;;
 			-t | --target) # package installation target
 				if [ -d "$2" ]; then
 					DOT_TARGET="$2"
@@ -498,27 +505,30 @@ trim_around() {
 has_tag() {
 	# Returns every dotmodule that contains any of the tags
 	# shellcheck disable=SC2016
-	grep -lRm 1 -- "$@" "$DOT_MODULES_FOLDER"/*/"$tagsfilename" |
+	grep -lRm 1 -- "$@" "$DOT_MODULES_HOME"/*/"$DOT_TAGSFILE_NAME" |
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g'
+
+
+
 }
 
 in_preset() {
 	# returns every entry in a preset
-	find "$DOT_PRESETS_FOLDER" -mindepth 1 -name "$1$preset_extension" \
+	find "$DOT_PRESETS_HOME" -mindepth 1 -name "$1$DOT_PRESET_EXTENSION" \
 		-print0 | xargs -0 sed -e 's/#.*$//' -e '/^$/d'
 }
 
 get_clashes() {
-	if [ -f "$DOT_MODULES_FOLDER/$1/$clashfilename" ]; then
+	if [ -f "$DOT_MODULES_HOME/$1/$DOT_CLASHFILE_NAME" ]; then
 		sed -e 's/#.*$//' -e '/^$/d' \
-			"$DOT_MODULES_FOLDER/$1/$clashfilename"
+			"$DOT_MODULES_HOME/$1/$DOT_CLASHFILE_NAME"
 	fi
 }
 
 get_dependencies() {
-	if [ -f "$DOT_MODULES_FOLDER/$1/$dependenciesfilename" ]; then
+	if [ -f "$DOT_MODULES_HOME/$1/$DOT_DEPENDENCIESFILE_NAME" ]; then
 		sed -e 's/#.*$//' -e '/^$/d' \
-			"$DOT_MODULES_FOLDER/$1/$dependenciesfilename"
+			"$DOT_MODULES_HOME/$1/$DOT_DEPENDENCIESFILE_NAME"
 	fi
 }
 
@@ -540,12 +550,12 @@ execute_scripts_for_module() {
 		privilige=$(echo "$script" | cut -d '.' -f 2 |
 			sed 's/-.*//')
 
-		if [ ${dry:-0} != 1 ]; then
+		if [ ${DOT_DRY_FLAG:-0} != 1 ]; then
 			if [ "$privilige" = "root" ] ||
 				[ "$privilige" = "sudo" ]; then
-				if [ "${root:-1}" = 1 ]; then
+				if [ "${DOT_ROOT_FLAG:-1}" = 1 ]; then
 					(
-						sudo "$DOT_MODULES_FOLDER/$1/$script"
+						sudo "$DOT_MODULES_HOME/$1/$script"
 					)
 				else
 					log_info "Skipping $script because root execution" \
@@ -554,15 +564,15 @@ execute_scripts_for_module() {
 			else
 				if [ "$SUDO_USER" ]; then
 					(
-						sudo -u "$SUDO_USER" "$DOT_MODULES_FOLDER/$1/$script"
+						sudo -u "$SUDO_USER" "$DOT_MODULES_HOME/$1/$script"
 					)
 				else
 					if [ "$3" ]; then
 						# shellcheck disable=SC1090
-						. "$DOT_MODULES_FOLDER/$1/$script"
+						. "$DOT_MODULES_HOME/$1/$script"
 					else
 						(
-							"$DOT_MODULES_FOLDER/$1/$script"
+							"$DOT_MODULES_HOME/$1/$script"
 						)
 					fi
 				fi
@@ -633,7 +643,7 @@ init_modules() {
 	log_info "Initializing modules $*"
 	while :; do
 		if [ "$1" ]; then
-			init_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
+			init_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
 				-regex "^.*/init\..*\.sh$" | sed 's|.*/||' | sort)
 			execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
 			shift
@@ -647,7 +657,7 @@ update_modules() {
 	log_info "Updating modules $*"
 	while :; do
 		if [ "$1" ]; then
-			update_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
+			update_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
 				-regex "^.*/update\..*\.sh$" | sed 's|.*/||' | sort)
 			execute_scripts_for_module "$1" "$update_sripts_in_module"
 			shift
@@ -664,7 +674,7 @@ remove_modules() {
 			# Only run the remove scripts with -rr, a single r just unstows
 			if [ "$remove_count" -ge 2 ]; then
 				log_info "Hard remove $1"
-				remove_sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" \
+				remove_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
 				-type f -regex "^.*/remove\..*\.sh$" | sed 's|.*/||' | sort)
 				execute_scripts_for_module "$1" "$remove_sripts_in_module"
 			else
@@ -672,20 +682,20 @@ remove_modules() {
 			fi
 
 			# unstow
-			if [ -e "$DOT_MODULES_FOLDER/$1/.$1" ]; then
+			if [ -e "$DOT_MODULES_HOME/$1/.$1" ]; then
 				if [ "$SUDO_USER" ]; then
 					sudo -E -u "$SUDO_USER" \
-						stow -D -d "$DOT_MODULES_FOLDER/$1/" \
+						stow -D -d "$DOT_MODULES_HOME/$1/" \
 						-t "$user_home" ".$1"
 				else
-					stow -D -d "$DOT_MODULES_FOLDER/$1/" \
+					stow -D -d "$DOT_MODULES_HOME/$1/" \
 						-t "$user_home" ".$1"
 				fi
 			fi
 
 			# remove hashfile to mark as uninstalled
-			[ -e "$DOT_MODULES_FOLDER/$1/$hashfilename" ] &&
-				rm "$DOT_MODULES_FOLDER/$1/$hashfilename"
+			[ -e "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" ] &&
+				rm "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
 
 			shift
 		else
@@ -699,7 +709,7 @@ do_stow() {
 	# $2: target directory
 	# $3: package name
 
-	[ ${log_level:-1} = 0 ] && echo "Stowing package $3 to $2 from $1"
+	[ ${DOT_LOG_LEVEL:-1} = 0 ] && echo "Stowing package $3 to $2 from $1"
 
 	if [ ! "$(is_installed stow)" ]; then
 		log_error "stow is not installed!"
@@ -727,10 +737,9 @@ do_stow() {
 		exit 1
 	fi
 
-	if [ ${dry:-0} != 1 ]; then
+	if [ ${DOT_DRY_FLAG:-0} != 1 ]; then
 		# Module target symlinks are always cleaned
 		clean_symlinks "$2"
-		# so even if the packages change you know what to remove IF IT MAKES SENSE
 		if [ "$SUDO_USER" ]; then
 			sudo -E -u "$SUDO_USER" stow -D -d "$1" -t "$2" "$3"
 			sudo -E -u "$SUDO_USER" stow -S -d "$1" -t "$2" "$3"
@@ -764,8 +773,8 @@ stow_package() {
 stow_module() {
 	while :; do
 		if [ "$1" ]; then
-			stow_package "$DOT_MODULES_FOLDER"/"$1"/*"$1" \
-							"$DOT_MODULES_FOLDER"/"$1"/."$1"
+			stow_package "$DOT_MODULES_HOME"/"$1"/*"$1" \
+							"$DOT_MODULES_HOME"/"$1"/."$1"
 			shift
 		else
 			break
@@ -774,10 +783,10 @@ stow_module() {
 }
 
 install_module() {
-	sripts_in_module=$(find "$DOT_MODULES_FOLDER/$1/" -type f \
+	sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
 		-regex "^.*/[0-9\]\..*\.sh$" | sed 's|.*/||' | sort)
 
-	[ ${log_level:-1} = 0 ] && echo "Scripts in module for $1 are:
+	[ ${DOT_LOG_LEVEL:-1} = 0 ] && echo "Scripts in module for $1 are:
 $sripts_in_module"
 	sripts_to_almost_run=
 	for script in $sripts_in_module; do
@@ -811,17 +820,17 @@ $sripts_to_run"
 
 do_hash() {
 	tar --absolute-names \
-		--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
-		-c "$DOT_MODULES_FOLDER/$1" |
+		--exclude="$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
+		-c "$DOT_MODULES_HOME/$1" |
 		sha1sum
 }
 
 do_hash_module() {
-	do_hash "$1" >"$DOT_MODULES_FOLDER/$1/$hashfilename"
+	do_hash "$1" >"$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
 }
 
 hash_module() {
-	if [ ${dry:-0} != 1 ]; then
+	if [ ${DOT_DRY_FLAG:-0} != 1 ]; then
 		log_success "Successfully installed $1"
 
 		if [ "$SUDO_USER" ]; then
@@ -836,25 +845,25 @@ execute_modules() {
 	while :; do
 		if [ "$1" ]; then
 			result=0
-			log_trace "Checking if module exists: $DOT_MODULES_FOLDER/$1"
-			if [ ! -d "$DOT_MODULES_FOLDER/$1" ]; then
+			log_trace "Checking if module exists: $DOT_MODULES_HOME/$1"
+			if [ ! -d "$DOT_MODULES_HOME/$1" ]; then
 				log_error "Module $1 not found. Skipping"
 				return 1
 			fi
 
 			# cd to dotmodule just in case a dotmodule
 			# is not suited for installation outside of it
-			cd "$DOT_MODULES_FOLDER/$1" || return 1
+			cd "$DOT_MODULES_HOME/$1" || return 1
 
 			log_info "Installing $1"
 
 			# Only calculate the hashes if we going to use it
-			if [ "${force:-0}" = 0 ]; then
-				old_hash=$(cat "$DOT_MODULES_FOLDER/$1/$hashfilename" \
+			if [ "${DOT_FORCE_FLAG:-0}" = 0 ]; then
+				old_hash=$(cat "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
 					2>/dev/null)
 				new_hash=$(tar --absolute-names \
-					--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
-					-c "$DOT_MODULES_FOLDER/$1" | sha1sum)
+					--exclude="$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
+					-c "$DOT_MODULES_HOME/$1" | sha1sum)
 
 				if [ "$old_hash" = "$new_hash" ]; then
 					log_trace "${C_GREEN}hash match" \
@@ -867,18 +876,17 @@ execute_modules() {
 				fi
 			fi
 
-			if
-				[ "${force:-0}" = 1 ] || [ "$old_hash" != "$new_hash" ]
-			then
+			if [ "${DOT_FORCE_FLAG:-0}" = 1 ] \
+				|| [ "$old_hash" != "$new_hash" ]; then
 
-				if [ "${force:-0}" != 1 ] && \
-					[ -e "$DOT_MODULES_FOLDER/$1/.deprecated" ]; then
-					log_warning "$1 is deprecated$C_RESET"
+				if [ "${DOT_FORCE_FLAG:-0}" != 1 ] && $(is_deprecated "$1");
+					then
+					log_warning "$1 is deprecated"
 					shift
 					continue
 				fi
 
-				if [ "${dry:-0}" = 1 ]; then
+				if [ "${DOT_DRY_FLAG:-0}" = 1 ]; then
 					log_trace "Dotmodule $1 would be installed"
 				else
 					log_trace "Applying dotmodule $1"
@@ -896,8 +904,8 @@ execute_modules() {
 					hash_module "$1"
 				else
 					log_error "Installation failed $1"
-					[ -e "$DOT_MODULES_FOLDER/$1/$hashfilename" ] &&
-						rm "$DOT_MODULES_FOLDER/$1/$hashfilename"
+					[ -e "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" ] &&
+						rm "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
 				fi
 
 			else
@@ -927,7 +935,7 @@ action_fix_permissions() {
 			sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
 	)
 
-	eval "find $DOT_MODULES_FOLDER -type f \( $submodules \) \
+	eval "find $DOT_MODULES_HOME -type f \( $submodules \) \
 -regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod u+x {} \;"
 }
 
@@ -943,7 +951,7 @@ action_expand_selected() {
 		 " expanding them."
 	final_module_list=
 	# shellcheck disable=SC2086
-	if [ "${no_base:-0}" != 1 ]; then
+	if [ "${DOT_NO_BASE_FLAG:-0}" != 1 ]; then
 		if [ "$entries_selected" ]; then
 			entries_selected="base${IFS:-\0}$entries_selected"
 		else
@@ -979,7 +987,7 @@ action_expand_installed() {
 
 action_default_no_expansion() {
 	# If no expansion happened at this point, execute the default one
-	[ ! "$final_module_list" ] && "$default_expansion_action"
+	[ ! "$final_module_list" ] && "$DOT_DEFAULT_EXPANSION_ACTION"
 }
 
 action_expand_none() {
@@ -1015,8 +1023,8 @@ action_update_modules() {
 do_yank() {
 	while :; do
 		if [ "$1" ]; then
-			log_info "Yanking $DOT_MODULES_FOLDER/$1 to $yank_target/$1"
-			cp -r "$DOT_MODULES_FOLDER/$1" "$yank_target/$1"
+			log_info "Yanking $DOT_MODULES_HOME/$1 to $yank_target/$1"
+			cp -r "$DOT_MODULES_HOME/$1" "$yank_target/$1"
 			shift
 		else
 			break
@@ -1067,8 +1075,9 @@ IFS=' '
 interpret_args $(parse_args "$@")
 
 # if nothing is selected, ask for modules
-[ $config = 1 ] && ask_entries
-[ $config != 1 ] && [ ! "$entries_selected" ] && [ ! "$execution_queue" ] \
+[ $DOT_CONFIG_FLAG = 1 ] && ask_entries
+[ $DOT_CONFIG_FLAG != 1 ] && [ ! "$entries_selected" ] \
+	&& [ ! "$execution_queue" ] \
 	&& ask_entries # config checked again to avoid double call on ask_entries
 
 # if nothing is in the execution queue, assume expand and execute

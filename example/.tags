@@ -1,0 +1,7 @@
+# Each line here defines a tag
+# When installing modules by tag, dot will search for the presence
+# of the tags for each module. Tags are referenced with a : prefix
+# A dependency of `:base` means every module that is tagged as `base`
+base
+gui
+tui

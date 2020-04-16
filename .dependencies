@@ -1,0 +1,10 @@
+# This file is used by dot itself
+# and these are recommended modules to use with it
+# an XDG module which provides XDG locations of your choice
+# This is where dots user level symlink will be stowed to
+xdg
+# stow, to let itself be stowed in the first place
+stow
+
+# Neither of these are necessary to use dot, this is only used
+# for placing a symlink to $XDG_BIN_HOME
