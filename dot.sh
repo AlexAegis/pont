@@ -28,8 +28,6 @@ IFS=$SCRIPT_IFS
 #
 #
 
-# TODO: On error remove tarhash
-
 # TODO: yank/export feature to resolve a set of dependencies but instead of
 # installing the modules, copy them over to the arguments location to safely
 # --steal-- someones dotmodules
@@ -121,7 +119,7 @@ DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
 
 # Config
 log_level=1
-modules_selected=""
+entries_selected=""
 final_module_list=""
 config=0
 root=1
@@ -133,6 +131,7 @@ deprecatedfilename=".deprecated"
 dependenciesfilename=".dependencies"
 tagsfilename=".tags"
 dry=0 # When set, no installation will be done
+default_expansion_action="action_expand_none"
 
 
 ## Pre calculated environmental variables for modules
@@ -172,7 +171,7 @@ all_presets=
 all_installed_modules=
 all_depracated_modules=
 all_tags=
-
+yank_target=
 resolved=
 # Newline separated list of actions. Used to preserve order of flags
 execution_queue=
@@ -347,7 +346,7 @@ action_list_tags() {
 
 action_list_config() {
 	log_info "All configurable variables:"
-	echo "modules_selected=$modules_selected" \
+	echo "entries_selected=$entries_selected" \
 		"dry=${dry:-0}" \
 		"force=${force:-0}" \
 		"root=${root:-1}" \
@@ -356,6 +355,7 @@ action_list_config() {
 		"hashfilename=$hashfilename" \
 		"dependenciesfilename=$dependenciesfilename" \
 		"tagsfilename=$tagsfilename" \
+		"default_expansion_action=$default_expansion_action" \
 		"pacman=$pacman" \
 		"apt=$apt" \
 		"xbps=$xbps" \
@@ -382,12 +382,12 @@ parse_args() {
 	/usr/bin/getopt -u -o "hVlvq\
 AIMPTCLQSX\
 uirneamdbf\
-cRts\
+cRtsyY\
 " -l "help,version,log,log-level,verbose,quiet,\
 list-all,list-installed,list-modules,list-presets,list-tags,list-config,\
 list-install,list-queue,clean-symlinks,fix-permissions,\
 update,install,remove,no-expand,expand,all,all-installed,dry,no-base,force,\
-config,no-root,skip-root,target,cpt,scaffold\
+config,no-root,skip-root,target,cpt,scaffold,yank,yank-expanded\
 " -- "$@" || exit 1
 }
 IFS=' '
@@ -422,9 +422,12 @@ for arg in $(parse_args "$@"); do
 		-Q | --list-queue) action_list_execution_queue; exit 0 ;;
 		-S | --clean-symlinks) enqueue_front "action_clean_symlinks" ;;
 		-X | --fix-permissions) enqueue_front "action_fix_permissions" ;;
-		-u | --update) enqueue "action_update_modules" ;;
-		-i | --install) enqueue "action_execute_modules" ;;
-		-r | --remove) enqueue "action_remove_modules" ;;
+		-u | --update) enqueue "action_default_no_expansion" \
+			"action_update_modules" ;;
+		-i | --install) enqueue "action_default_no_expansion" \
+			"action_execute_modules" ;;
+		-r | --remove) enqueue "action_default_no_expansion" \
+			"action_remove_modules" ;;
 		-n | --no-expand) enqueue "action_expand_none" ;;
 		-e | --expand) enqueue "action_expand_selected" ;;
 		-a | --all) enqueue "action_expand_all" ;;
@@ -447,18 +450,36 @@ for arg in $(parse_args "$@"); do
 			scaffold "$@"
 			exit 0
 			;;
+		-y | --yank)
+			enqueue "action_default_no_expansion" "action_yank"
+			if [ -d "$2" ]; then
+				yank_target="$2"
+			else
+				log_error "Invalid target: $2"; exit 1
+			fi
+			shift
+			;;
+		-Y | --yank-expanded)
+			enqueue "action_expand_selected" "action_yank"
+			if [ -d "$2" ]; then
+				yank_target="$2"
+			else
+				log_error "Invalid target: $2"; exit 1
+			fi
+			shift
+			;;
 		--)	;;
 		-?*) log_error "Unknown option (ignored): $arg" b;;
 		*) # The rest are selected modules
 			# TODO: Pre validate them
 			if [ "$arg" ]; then
-				if [ "$modules_selected" ]; then
-					modules_selected="$modules_selected${IFS:-\0}$arg"
+				if [ "$entries_selected" ]; then
+					entries_selected="$entries_selected${IFS:-\0}$arg"
 				else
-					modules_selected="$arg"
+					entries_selected="$arg"
 				fi
 				log_trace "Initially selected:
-$modules_selected"
+$entries_selected"
 			else
 				break
 			fi
@@ -853,6 +874,8 @@ execute_modules() {
 					hash_module "$1"
 				else
 					log_error "Installation failed $1"
+					[ -e "$DOT_MODULES_FOLDER/$1/$hashfilename" ] &&
+						rm "$DOT_MODULES_FOLDER/$1/$hashfilename"
 				fi
 
 			else
@@ -899,14 +922,14 @@ action_expand_selected() {
 	final_module_list=
 	# shellcheck disable=SC2086
 	if [ "${no_base:-0}" != 1 ]; then
-		if [ "$modules_selected" ]; then
-			modules_selected="base${IFS:-\0}$modules_selected"
+		if [ "$entries_selected" ]; then
+			entries_selected="base${IFS:-\0}$entries_selected"
 		else
-			modules_selected="base"
+			entries_selected="base"
 		fi
 	fi
 
-	expand_entries "base" $modules_selected
+	expand_entries "base" $entries_selected
 	log_info "Final module list is:
 $final_module_list"
 }
@@ -932,10 +955,15 @@ action_expand_installed() {
 $final_module_list"
 }
 
+action_default_no_expansion() {
+	# If no expansion happened at this point, execute the default one
+	[ ! "$final_module_list" ] && "$default_expansion_action"
+}
+
 action_expand_none() {
 	log_info "Set final module list only to the selected modules," \
 			 "no expansion."
-	final_module_list=$modules_selected
+	final_module_list=$entries_selected
 	log_info "Final module list is:
 $final_module_list"
 }
@@ -960,14 +988,43 @@ action_update_modules() {
 	update_modules $final_module_list
 }
 
-#
-ask_modules() {
+do_yank() {
+	while :; do
+		if [ "$1" ]; then
+			cp -r "$DOT_MODULES_FOLDER/$1" "$yank_target/$1"
+			shift
+		else
+			break
+		fi
+	done
+}
+
+action_yank() {
+	do_yank $final_module_list
+}
+
+ask_entries() {
+	[ ! "$(is_installed whiptadil)" ] && log_error "No whiptail installed" \
+		&& exit 1
+
+	[ ! "$all_modules" ] && get_all_modules
+	[ ! "$all_tags" ] && get_all_tags
+	[ ! "$all_presets" ] && get_all_presets
+
+	preset_options="$(echo "$all_presets" | \
+		awk '{printf ":%s :%s OFF ", $1, $1}')"
+	tag_options="$(echo "$all_tags" | \
+		awk '{printf ":%s :%s OFF ", $1, $1}')"
+	module_options="$(echo "$all_modules" | \
+		awk '{printf "%s %s OFF ", $1, $1}')"
+
 	log_trace "Manual module input"
-		modules_selected=$(whiptail --separate-output --clear \
-			--title "Select modules to install" \
-			--checklist "Space changes selection, enter approves" \
-			0 0 0 zsh zsh ON vim vim OFF 3>&1 1>&2 2>&3 3>&- |
-			sed 's/ /\n/g')
+
+	entries_selected=$(eval "whiptail --separate-output --clear --notags \
+		--title 'Select modules to install' \
+		--checklist 'Space changes selection, enter approves' \
+		0 0 0 $preset_options $tag_options $module_options \
+		3>&1 1>&2 2>&3 3>&- | sed 's/ /\n/g'")
 }
 
 execute_queue() {
@@ -982,7 +1039,7 @@ execute_queue() {
 ## Execution
 
 # if nothing is selected, ask for modules
-[ ! "$modules_selected" ] && ask_modules
+[ ! "$entries_selected" ] && ask_entries
 # if nothing is in the execution queue, assume expand and execute
 [ ! "$execution_queue" ] \
 	 && enqueue "action_expand_selected" "action_execute_modules"
