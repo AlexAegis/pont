@@ -28,10 +28,6 @@ IFS=$SCRIPT_IFS
 #
 #
 
-# TODO: yank/export feature to resolve a set of dependencies but instead of
-# installing the modules, copy them over to the arguments location to safely
-# --steal-- someones dotmodules
-
 # TODO: make module listing display outdated modules by tarhashing every one of
 # TODO: them
 
@@ -344,6 +340,18 @@ action_list_tags() {
 	echo "$all_tags"
 }
 
+action_list_outdated() {
+	log_trace "Listing outdated modules:"
+	[ ! "$all_modules" ] && get_all_modules
+	for mod in $all_modules; do
+		if [ -e "$DOT_MODULES_FOLDER/$mod/$hashfilename" ]; then
+			fresh_hash="$(do_hash $mod)"
+			current_hash="$(cat "$DOT_MODULES_FOLDER/$mod/$hashfilename")"
+			[ "$fresh_hash" != "$current_hash" ] && echo "$mod"
+		fi
+	done
+}
+
 action_list_config() {
 	log_info "All configurable variables:"
 	echo "entries_selected=$entries_selected" \
@@ -380,12 +388,15 @@ action_list_modules_to_execute() {
 
 parse_args() {
 	/usr/bin/getopt -u -o "hVlvq\
-AIMPTCLQSX\
+AIMPT\
+CLDQSX\
+O\
 uirneamdbf\
 cRt:s:y:Y:\
 " -l "help,version,log,log-level,verbose,quiet,\
-list-all,list-installed,list-modules,list-presets,list-tags,list-config,\
-list-install,list-queue,clean-symlinks,fix-permissions,\
+list-all,list-installed,list-modules,list-deprecated,list-presets,list-tags,\
+list-config,list-install,list-queue,clean-symlinks,fix-permissions,\
+list-outdated,\
 update,install,remove,no-expand,expand,all,all-installed,dry,no-base,force,\
 config,no-root,skip-root,target,cpt,scaffold,yank,yank-expanded\
 " -- "$@" || exit 1
@@ -421,6 +432,7 @@ interpret_args() {
 			-L | --list-install) action_list_modules_to_install; exit 0 ;;
 			-D | --list-deprecated) action_list_deprecated; exit 0 ;;
 			-Q | --list-queue) action_list_execution_queue; exit 0 ;;
+			-O | --list-outdated) action_list_outdated; exit 0 ;;
 			-S | --clean-symlinks) enqueue_front "action_clean_symlinks" ;;
 			-X | --fix-permissions) enqueue_front "action_fix_permissions" ;;
 			-u | --update) enqueue "action_default_no_expansion" \
@@ -795,11 +807,15 @@ $sripts_to_run"
 	execute_scripts_for_module "$1" "$sripts_to_run"
 }
 
-do_hash_module() {
+do_hash() {
 	tar --absolute-names \
 		--exclude="$DOT_MODULES_FOLDER/$1/$hashfilename" \
 		-c "$DOT_MODULES_FOLDER/$1" |
-		sha1sum >"$DOT_MODULES_FOLDER/$1/$hashfilename"
+		sha1sum
+}
+
+do_hash_module() {
+	do_hash "$1" >"$DOT_MODULES_FOLDER/$1/$hashfilename"
 }
 
 hash_module() {
