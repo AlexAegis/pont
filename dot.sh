@@ -951,18 +951,18 @@ action_expand_selected() {
 	fi
 
 	expand_entries "base" $entries_selected
-	log_info "Final module list is:
-$final_module_list"
+	log_info "Final module list is:"
+	echo "$final_module_list"
 }
 
 action_expand_all() {
 	log_info "Set final module list to every module, expanding them."
 	final_module_list=
-	[ ! "$all_modules" ] && all_modules
+	[ ! "$all_modules" ] && get_all_modules
 	# shellcheck disable=SC2086
 	expand_entries $all_modules
-	log_info "Final module list is:
-$final_module_list"
+	log_info "Final module list is:"
+	echo "$final_module_list"
 }
 
 action_expand_installed() {
@@ -972,8 +972,8 @@ action_expand_installed() {
 	[ ! "$all_installed_modules" ] && get_all_installed_modules
 	# shellcheck disable=SC2086
 	expand_entries $all_installed_modules
-	log_info "Final module list is:
-$final_module_list"
+	log_info "Final module list is:"
+	echo "$final_module_list"
 }
 
 action_default_no_expansion() {
@@ -985,8 +985,8 @@ action_expand_none() {
 	log_info "Set final module list only to the selected modules," \
 			 "no expansion."
 	final_module_list=$entries_selected
-	log_info "Final module list is:
-$final_module_list"
+	log_info "Final module list is:"
+	echo "$final_module_list"
 }
 
 action_list_modules_to_install() {
