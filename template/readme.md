@@ -21,5 +21,5 @@ overwriting every intance of `{{name}}` with the modules name.
 
 If a module already exists, it will be ignored.
 
-Only files with a `.tmp` extension will be affected, the rest is just copied
-the `.tmp` extension will be ommitted. (`a.sh.tmp` will become `a.sh`)
+Only files with a `.tpl` extension will be affected, the rest is just copied
+the `.tpl` extension will be ommitted. (`a.sh.tpl` will become `a.sh`)
