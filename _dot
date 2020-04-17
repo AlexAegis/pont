@@ -1,6 +1,6 @@
 #compdef _dot dot
 
-DOT_FOLDER=${DOT_FOLDER:-~/.dotfiles}
+DOT_FOLDER=${DOT_FOLDER:-~/.config/dotfiles}
 
 function __get_presets {
 	find ${DOT_PRESETS_FOLDER:-$DOT_FOLDER/presets/*} -regex '.*.preset' \

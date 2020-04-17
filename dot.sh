@@ -84,7 +84,7 @@ XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 # Environmental config
 ## This where the packages will be stowed to. Can also be set with -t
 DOT_TARGET=${DOT_TARGET:-"$user_home"}
-DOTFILES_HOME=${DOTFILES_HOME:-"$user_home/.dotfiles"}
+DOTFILES_HOME=${DOTFILES_HOME:-"$user_home/.config/dotfiles"}
 # TODO: Support multiple folders $IFS separated, quote them
 DOT_MODULES_HOME=${DOT_MODULES_HOME:-"$DOTFILES_HOME/modules"}
 DOT_PRESETS_HOME=${DOT_PRESETS_HOME:-"$DOTFILES_HOME/presets"}
