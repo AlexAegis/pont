@@ -7,6 +7,8 @@
 #
 # The dotmodule manager
 
+# TODO: use make on update and remove too use Make targets, check if exits
+
 # TODO: deprecation alternatives prompt, check nvm and fnm
 
 # TODO: Experiment with `sudo -l` to find out you have sudo access or not
@@ -103,6 +105,8 @@ DOT_DEPENDENCIESFILE_NAME=".dependencies"
 DOT_CLASHFILE_NAME=".clash"
 DOT_TAGSFILE_NAME=".tags"
 DOT_DEFAULT_EXPANSION_ACTION="action_expand_none"
+DOT_CLEAN_SYMLINKS=0
+DOT_FIX_PERMISSIONS=0
 
 
 ## Pre calculated environmental variables for modules
@@ -389,7 +393,7 @@ S\
 " -l "help,version,log,log-level,verbose,quiet,\
 list-installed,list-modules,list-deprecated,list-presets,list-tags,\
 list-environment,list-install,list-queue,list-outdated,\
-clean-symlinks,fix-permissions,\
+toggle-clean-symlinks,toggle-fix-permissions,\
 update,install,remove,no-expand,expand,all,all-installed,dry,no-base,force,\
 config,root,no-root,skip-root,target,cpt,scaffold,yank,yank-expanded\
 no-scripts,skip-scripts\
@@ -426,8 +430,10 @@ interpret_args() {
 			-L | --list-install) action_list_modules_to_install; exit 0 ;;
 			-Q | --list-queue) action_list_execution_queue; exit 0 ;;
 			-O | --list-outdated) action_list_outdated; exit 0 ;;
-			-C | --clean-symlinks) enqueue_front "action_clean_symlinks" ;;
-			-X | --fix-permissions) enqueue_front "action_fix_permissions" ;;
+			-C | --toggle-clean-symlinks)
+				DOT_CLEAN_SYMLINKS=$((1-DOT_CLEAN_SYMLINKS)) ;;
+			-X | --toggle-fix-permissions)
+				DOT_FIX_PERMISSIONS=$((1-DOT_FIX_PERMISSIONS)) ;;
 			-u | --update) enqueue "action_default_no_expansion" \
 				"action_update_modules" ;;
 			-x | --execute | --install) enqueue \
@@ -794,8 +800,13 @@ make_module() {
 		if [ ! "$(is_installed "make")" ]; then
 			log_error "Make not available"; exit 1
 		fi
-
-		make # It's already cd'd in
+		# It's already cd'd in.
+		# Makefiles are always executed using user rights
+		if [ "$SUDO_USER" ]; then
+			sudo -E -u "$SUDO_USER" make
+		else
+			make
+		fi
 	fi
 }
 
@@ -1107,7 +1118,10 @@ interpret_args $(parse_args "$@")
 log_trace "Execution queue:
 $execution_queue"
 
+[ $DOT_FIX_PERMISSIONS = 1 ] && action_fix_permissions
 # shellcheck disable=SC2086
 execute_queue $execution_queue
+
+[ $DOT_CLEAN_SYMLINKS = 1 ] && action_clean_symlinks
 
 set +a

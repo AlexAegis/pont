@@ -67,30 +67,13 @@ not utilize linking.
 ## Installation
 
 This repository can be used to download and install dot. It can also act
-as a dotmodule itself. If you wish to use this kind of organization in your
-dotfiles repo, add this as a git submodule.
+as a dotmodule itself. You can inclide this repository as a submodule to your
+dotfiles repo.
 
 ```sh
-git clone http://www.github.com/AlexAegis/dotfiles ~/.dotfiles
-cd ~/.dotfiles
-git submodule update --init --recursive
+git clone --recurse-submodules -j8 \
+  http://www.github.com/AlexAegis/dotfiles ~/.config/dotfiles
 ```
-
-### With make
-
-> Read what [`0.sudo.sh`](./0.sudo.sh) does before you execute it with sudo
-
-Then to make `dot` available everywhere, create a symlink of it with
-[`0.sudo.sh`](./0.sudo.sh), there is also a [`Makefile`](./Makefile)
-which will execute this script for convinience.
-
-```sh
-cd ~/.dotfiles/modules/dot/
-sudo make
-```
-
-This will symlink [`dot.sh`](./dot.sh) to `/usr/local/bin/dot` so it's more
-convinient to use.
 
 ### Using dot itself
 
@@ -151,7 +134,7 @@ executing dot like `DOT_TARGET="./target" dot <module1> <module2>...`
 # The default target of module packages
 DOT_TARGET=${DOT_TARGET:-"$HOME"}
 # Your dotfiles location. Not directly utilized, only through the next two
-DOTFILES_HOME=${DOTFILES_HOME-"$HOME/.dotfiles"}
+DOTFILES_HOME=${DOTFILES_HOME:-"$HOME/.dotfiles"}
 # I suggest keeping these relative to DOTFILES_HOME
 # Dotmodules will be searched here. Only direct descendant folders.
 DOT_MODULES_FOLDER=${DOT_MODULES_FOLDER:-"$DOTFILES_HOME/modules"}
@@ -160,14 +143,16 @@ DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
 ```
 
 ```sh
+# Will always remove broken symlinks after execution in DOT_TARGET
+DOT_CLEAN_SYMLINKS=1
 # Makes it always execute `chmod u+x` on '.*.(sh|zsh|bash|fish|dash)' files in
 # the modules. I use it so when making scripts I don't have to deal with it.
-fix_permissions=1
+DOT_FIX_PERMISSIONS=1
 ```
 
 ### Installing dotmodules
 
-You can optionally set flags, then as much modules/presets/tags as you want
+You can optionally set flags, then as much modules/presets/tags as you want.
 
 ```sh
 dot [-flags] modules...
@@ -214,14 +199,19 @@ dot -lm
 Every module can have 3 kinds of files inside, each of them being optional.
 An empty module is a valid module too.
 
-## Install scripts
+## Installation scripts
+
+> Using [script selection flags](#Flagged-scripts), install scripts are
+> getting automatically excluded from execution but re-adding the `-x` flag
+> after these, these scripts can be re-enabled.
 
 These scripts are what supposed to install packages for your module to work.
 And they will run by default when installing a module.
 
-> Using [script selection flags](#Flagged-scripts), install scripts are
-> getting automatically excluded from execution but re-adding the `-i` flag
-> after these, these scripts can be re-enabled.
+> They are not the only way to describe the installation process of a module.
+> You can use a `Makefile` with an `install` target. Both will execute, so
+> either only create one type of installation or set a flag to disable one
+> of them. See the [Makefiles](#Makefiles) section for more.
 
 Since package management is unique to each system, and not just by having
 different commands to install a package. Often their name is different. Or
@@ -377,10 +367,27 @@ Non installed modules can't be updated. This won't expand the dependency graph
 and only the mentioned modules will be updated. You can force expanding with
 the `-e` flag after the `-u` though to update every dependency too.
 
+> Alternatively create a `Makefile` with an `update` target.
+
 ## Config files
 
 There are some files that are used for configuration but they are really
 simple and do not follow a common format
+
+### Makefiles
+
+> This is meant for simpler modules where `root` is not needed and direct
+> dependencies are not used. For more granular installation (while it can be
+> implemented inside the `Makefile`) the regular
+> [Installation scripts](#Installation-scripts) are much easier to use.
+
+Makefiles provide an alternative or complementary mode of defining the
+installation, update and remove procedures using make targets.
+If there is a `Makefile` in the module, it will be executed if `make` is
+available, and running makefiles are enabled. (It is by default)
+
+They will always execute after the regular installation scripts and
+are always executed using `user` privileges.
 
 ### Dependencies
 
