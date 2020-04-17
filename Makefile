@@ -1,5 +1,5 @@
 all:
-	./dotlink.sh
+	echo 'Make'
 
 clean:
 	rm /usr/local/bin/dot

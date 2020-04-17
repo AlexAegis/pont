@@ -824,8 +824,8 @@ make_module() {
 }
 
 install_module() {
-	sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
-		-regex "^.*/[0-9\]\..*\.sh$" | sed 's|.*/||' | sort)
+	sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
+		-type f -regex "^.*/[0-9\]\..*\.sh$" | sed 's|.*/||' | sort)
 
 	[ ${DOT_LOG_LEVEL:-1} = 0 ] && echo "Scripts in module for $1 are:
 $sripts_in_module"
