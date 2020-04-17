@@ -144,6 +144,7 @@ fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 all_modules=
 all_presets=
 all_installed_modules=
+all_outdated_modules=
 all_deprecated_modules=
 all_tags=
 yank_target=
@@ -180,6 +181,21 @@ get_all_installed_modules() {
 	all_installed_modules=$(grep -lm 1 -- "" \
 		"$DOT_MODULES_HOME"/**/$DOT_HASHFILE_NAME | \
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
+}
+
+echo_all_outdated_modules() {
+	[ ! "$all_modules" ] && get_all_modules
+	for mod in $all_modules; do
+		if [ -e "$DOT_MODULES_HOME/$mod/$DOT_HASHFILE_NAME" ]; then
+			fresh_hash="$(do_hash "$mod")"
+			old_hash="$(cat "$DOT_MODULES_HOME/$mod/$DOT_HASHFILE_NAME")"
+			[ "$fresh_hash" != "$old_hash" ] && echo "$mod"
+		fi
+	done
+}
+
+get_all_outdated_modules() {
+	all_outdated_modules=$(echo_all_outdated_modules)
 }
 
 get_all_deprecated_modules() {
@@ -338,14 +354,8 @@ action_list_tags() {
 
 action_list_outdated() {
 	log_trace "Listing outdated modules:"
-	[ ! "$all_modules" ] && get_all_modules
-	for mod in $all_modules; do
-		if [ -e "$DOT_MODULES_HOME/$mod/$DOT_HASHFILE_NAME" ]; then
-			fresh_hash="$(do_hash "$mod")"
-			old_hash="$(cat "$DOT_MODULES_HOME/$mod/$DOT_HASHFILE_NAME")"
-			[ "$fresh_hash" != "$old_hash" ] && echo "$mod"
-		fi
-	done
+	[ ! "$all_outdated_modules" ] && get_all_outdated_modules
+	echo "$all_outdated_modules"
 }
 
 action_list_environment() {
@@ -387,14 +397,16 @@ parse_args() {
 IADPT\
 ELQO\
 CX\
-uxrneaidbf\
+uxrneaio\
+dbf\
 cRt:s:y:Y:\
 S\
 " -l "help,version,log,log-level,verbose,quiet,\
 list-installed,list-modules,list-deprecated,list-presets,list-tags,\
 list-environment,list-install,list-queue,list-outdated,\
 toggle-clean-symlinks,toggle-fix-permissions,\
-update,install,remove,no-expand,expand,all,all-installed,dry,no-base,force,\
+update,install,remove,no-expand,expand,all,all-installed,outdated,\
+dry,no-base,force,\
 config,root,no-root,skip-root,target,cpt,scaffold,yank,yank-expanded\
 no-scripts,skip-scripts\
 " -- "$@" || exit 1
@@ -447,6 +459,7 @@ interpret_args() {
 			-e | --expand) enqueue "action_expand_selected" ;;
 			-a | --all) enqueue "action_expand_all" ;;
 			-i | --all-installed) enqueue "action_expand_installed" ;;
+			-o | --outdated) enqueue "action_expand_outdated" ;;
 			-d | --dry) DOT_DRY_FLAG=1 ;;
 			-b | --no-base) DOT_NO_BASE_FLAG=1 ;;
 			-f | --force) DOT_FORCE_FLAG=1; enqueue "action_expand_none" ;;
@@ -858,7 +871,7 @@ do_hash_module() {
 }
 
 hash_module() {
-	if [ ${DOT_DRY_FLAG:-0} != 1 ]; then
+	if [ ${DOT_DRY_FLAG:-0} = 0 ]; then
 		log_success "Successfully installed $1"
 
 		if [ "$SUDO_USER" ]; then
@@ -907,7 +920,7 @@ execute_modules() {
 			if [ "${DOT_FORCE_FLAG:-0}" = 1 ] \
 				|| [ "$old_hash" != "$new_hash" ]; then
 
-				if [ "${DOT_FORCE_FLAG:-0}" != 1 ] && $(is_deprecated "$1");
+				if [ "${DOT_FORCE_FLAG:-0}" != 1 ] && is_deprecated "$1";
 					then
 					log_warning "$1 is deprecated"
 					shift
@@ -932,7 +945,6 @@ execute_modules() {
 				install_module "$1"
 
 				if [ "$result" = 0 ]; then
-					log_success "Successfully installed $1"
 					# Calculate fresh hash on success
 					hash_module "$1"
 				else
@@ -1014,6 +1026,17 @@ action_expand_installed() {
 	[ ! "$all_installed_modules" ] && get_all_installed_modules
 	# shellcheck disable=SC2086
 	expand_entries $all_installed_modules
+	log_info "Final module list is:"
+	echo "$final_module_list"
+}
+
+action_expand_outdated() {
+	log_info "Set final module list to every installed, outdated module," \
+			 "expanding them."
+	final_module_list=
+	[ ! "$all_outdated_modules" ] && get_all_outdated_modules
+	# shellcheck disable=SC2086
+	expand_entries $all_outdated_modules
 	log_info "Final module list is:"
 	echo "$final_module_list"
 }
