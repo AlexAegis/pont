@@ -205,10 +205,10 @@ get_all_deprecated_modules() {
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
 
-
 get_all_tags() {
 	all_tags=$(find "$DOT_MODULES_HOME"/*/ -maxdepth 1 -mindepth 1 \
-		-name '.tags' -exec cat {} + | grep "^[^#;]" | sort | uniq)
+		-name '.tags' -exec cat {} + | \
+		sed -e 's/ *#.*$//' -e '/^$/d' | sort | uniq)
 }
 
 dequeue() {
@@ -539,19 +539,19 @@ has_tag() {
 in_preset() {
 	# returns every entry in a preset
 	find "$DOT_PRESETS_HOME" -mindepth 1 -name "$1$DOT_PRESET_EXTENSION" \
-		-print0 | xargs -0 sed -e 's/#.*$//' -e '/^$/d'
+		-print0 | xargs -0 sed -e 's/ *#.*$//' -e '/^$/d'
 }
 
 get_clashes() {
 	if [ -f "$DOT_MODULES_HOME/$1/$DOT_CLASHFILE_NAME" ]; then
-		sed -e 's/#.*$//' -e '/^$/d' \
+		sed -e 's/ *#.*$//' -e '/^$/d' \
 			"$DOT_MODULES_HOME/$1/$DOT_CLASHFILE_NAME"
 	fi
 }
 
 get_dependencies() {
 	if [ -f "$DOT_MODULES_HOME/$1/$DOT_DEPENDENCIESFILE_NAME" ]; then
-		sed -e 's/#.*$//' -e '/^$/d' \
+		sed -e 's/ *#.*$//' -e '/^$/d' \
 			"$DOT_MODULES_HOME/$1/$DOT_DEPENDENCIESFILE_NAME"
 	fi
 }
