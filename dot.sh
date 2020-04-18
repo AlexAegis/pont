@@ -151,6 +151,7 @@ yank_target=
 resolved=
 entries_selected=
 final_module_list=
+expand_abstract_only=
 
 # Newline separated list of actions. Used to preserve order of flags
 execution_queue=
@@ -644,8 +645,10 @@ do_expand_entries() {
 					;;
 				*) # modules
 					# shellcheck disable=SC2046
-					do_expand_entries \
-						$(get_dependencies "$(get_entry "$1")")
+					if [ ${expand_abstract_only:-0} = 0 ]; then
+						do_expand_entries \
+							$(get_dependencies "$(get_entry "$1")")
+					fi
 					get_entry "$1"
 					;;
 				esac
@@ -662,6 +665,12 @@ do_expand_entries() {
 
 expand_entries() {
 	final_module_list="$(do_expand_entries "$@")"
+}
+
+expand_abstract_entries() {
+	expand_abstract_only=1
+	final_module_list="$(do_expand_entries "$@")"
+	expand_abstract_only=
 }
 
 init_modules() {
@@ -1048,8 +1057,9 @@ action_default_no_expansion() {
 
 action_expand_none() {
 	log_info "Set final module list only to the selected modules," \
-			 "no expansion."
-	final_module_list=$entries_selected
+			 "no dependency expansion."
+	final_module_list=
+	expand_abstract_entries $entries_selected
 	log_info "Final module list is:"
 	echo "$final_module_list"
 }
