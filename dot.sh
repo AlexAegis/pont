@@ -87,6 +87,7 @@ DOTFILES_HOME=${DOTFILES_HOME:-"$user_home/.config/dotfiles"}
 # TODO: Support multiple folders $IFS separated, quote them
 DOT_MODULES_HOME=${DOT_MODULES_HOME:-"$DOTFILES_HOME/modules"}
 DOT_PRESETS_HOME=${DOT_PRESETS_HOME:-"$DOTFILES_HOME/presets"}
+DOT_TEMPLATE_HOME=${DOT_TEMPLATE_HOME:-"./template"}
 
 # Config
 DOT_LOG_LEVEL=1
@@ -147,6 +148,7 @@ all_deprecated_modules=
 all_tags=
 yank_target=
 resolved=
+expanded_presets=
 entries_selected=
 final_module_list=
 expand_abstract_only=
@@ -311,7 +313,8 @@ scaffold() {
 	# Use the remaining inputs as module folders to scaffold using cpt
 	# If cpt is not available then try install it with cargo first
 	# If no cargo is available then prompt the user to install it
-	log_info "Scaffolding module $1 using cpt"
+	log_info "Scaffolding module $1 using cpt and $DOT_TEMPLATE_HOME \
+as the template"
 }
 
 # Listings
@@ -640,6 +643,12 @@ do_expand_entries() {
 				fi
 				case "$1" in
 				+*) # presets
+					# collect expanded presets in case a yank action needs it
+					if [ -z "$expanded_presets" ]; then
+						expanded_presets="$1"
+					else
+						expanded_presets="$expanded_presets${IFS:-\0}$1"
+					fi
 					# shellcheck disable=SC2046
 					do_expand_entries \
 						$(in_preset "$(get_entry "$1" | cut -c2-)")
@@ -1113,6 +1122,8 @@ action_update_modules() {
 }
 
 do_yank() {
+	mkdir -p "$yank_target"
+	# Copy all modules
 	while :; do
 		if [ "$1" ]; then
 			log_info "Yanking $DOT_MODULES_HOME/$1 to $yank_target/$1"
@@ -1121,6 +1132,11 @@ do_yank() {
 		else
 			break
 		fi
+	done
+	# Copy all used presets
+	for preset in $expanded_presets; do
+		preset_file_name="$(echo "$preset" | cut -d '+' -f 2-).preset"
+		cp "$(find "$DOT_PRESETS_HOME" -name "$preset_file_name")" "$yank_target/$preset_file_name"
 	done
 }
 
