@@ -6,48 +6,27 @@
 #  \__,_|\___/ \__|
 #
 # The dotmodule manager
-
-# TODO: Multirequirements using `:` 0.root.pacman:cargo.sh
-
-# TODO: use make on update and remove too use Make targets, check if exits
-
-# TODO: deprecation alternatives prompt, check nvm and fnm
-
-# TODO: Experiment with `sudo -l` to find out you have sudo access or not
-# TODO: If not, automatically turn on `skip-root` and print some message
-
-# TODO: Clash support. Use .clash file, if two modules clash, ask which to use
-# TODO: If a clashing module is already installed, abort, ask if interactive,
-# TODO: remove other if forced. Ignore deprecated modules
-
-# TODO: clash feature support tags, see if something from that tag is installed
-
-# TODO: track dangling dependencies. When installing leave a file in the module
-# TODO: that will store a snapshot of the dependencies. During uninstall check
-# TODO: If there is a dependency somewhere that is not directly installed.
-# TODO: (Or maybe dont and leave this to dot2)
-
-# TODO: If the module contains a git submodule. Check it out / update it
-
-# TODO: Experiment with paralell execution (sort dependencies into a tree)
-# TODO: Right now every dependency is sorted into a column and executed
-# TODO: sequentially. The new executor would treat everything in one column
-# TODO: and one indentation as modules that can be executed paralelly
-# TODO: then pass everything below as a dependency list to it with one level
-# TODO: of indentation removed
-# TODO: make a test modules directory with modules with logs and sleeps
-# TODO: Also a buffer output is needed to display this
-# TODO: It should keep a buffer as high as many modules are currently being
-# TODO: installed and then do the logging above it like normal
-# TODO: Or have an indented section below each entry with a preview log
-# TODO: or both
-# TODO: investigate if feasible
-# TODO: add flags to disable or enable paralell work
-# TODO: add a .lock file with PID into each module just in case and remove after
-
-# TODO: forced clash on every input module. This is useful when you want to
-# TODO: have a menu to install something in a category. combine with
-# TODO: no-uninstall flags
+#
+# Copyright (c) 2020 Győri Sándor (AlexAegis) <alexaegis@gmail.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 
 C_RESET='\033[0m'
 C_RED='\033[0;31m'
@@ -936,7 +915,8 @@ $sripts_in_module"
 	sripts_to_almost_run=
 	for script in $sripts_in_module; do
 		direct_dependency=$(echo "$script" | cut -d '.' -f 3)
-		if [ "$(command -v "$direct_dependency" 2>/dev/null)" ] ||
+		# TODO: split by `:`, check each
+		if [ "$(is_installed "$direct_dependency")" ] ||
 			[ "$direct_dependency" = "fallback" ]; then
 			sripts_to_almost_run="$sripts_to_almost_run${IFS:-\0}$script"
 		fi
