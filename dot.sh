@@ -1167,10 +1167,9 @@ IFS=' '
 interpret_args $(parse_args "$@")
 
 # if nothing is selected, ask for modules
-[ $DOT_CONFIG_FLAG = 1 ] && ask_entries
-[ $DOT_CONFIG_FLAG != 1 ] && [ ! "$entries_selected" ] \
-	&& [ ! "$execution_queue" ] \
-	&& ask_entries # config checked again to avoid double call on ask_entries
+if [ ${DOT_CONFIG_FLAG:-0} = 1 ] || [ ! "$@" ]; then
+	ask_entries # config checked again to avoid double call on ask_entries
+fi
 
 # if nothing is in the execution queue, assume expand and execute
 [ ! "$execution_queue" ] \
