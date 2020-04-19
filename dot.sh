@@ -7,6 +7,8 @@
 #
 # The dotmodule manager
 
+# TODO: Multirequirements using `:` 0.root.pacman:cargo.sh
+
 # TODO: use make on update and remove too use Make targets, check if exits
 
 # TODO: deprecation alternatives prompt, check nvm and fnm
@@ -14,13 +16,9 @@
 # TODO: Experiment with `sudo -l` to find out you have sudo access or not
 # TODO: If not, automatically turn on `skip-root` and print some message
 
-# TODO: Enable line end comments (just strip #.*$ from every line)
-# TODO: Uninstall by default unstow, if full uninstall then run the uninstall
-# TODO: scripts, and uninstall should also remove the .tarhash file
-
 # TODO: Clash support. Use .clash file, if two modules clash, ask which to use
 # TODO: If a clashing module is already installed, abort, ask if interactive,
-# TODO: remove other if forced
+# TODO: remove other if forced. Ignore deprecated modules
 
 # TODO: clash feature support tags, see if something from that tag is installed
 
@@ -51,11 +49,12 @@
 # TODO: have a menu to install something in a category. combine with
 # TODO: no-uninstall flags
 
-# TODO: Change the evals into something safer
+### Usecases
 
-# TODO: env.user.sh script support. Always read it even if the module in the
-
-# dependency tree is already installed
+## Safe force
+# Install dependencies of module and then force install the module
+# dot -exfx zsh
+# # expand, execute, force (select none), execute
 
 C_RESET='\033[0m'
 C_RED='\033[0;31m'
@@ -108,8 +107,7 @@ DOT_DEFAULT_EXPANSION_ACTION="action_expand_none"
 DOT_CLEAN_SYMLINKS=0
 DOT_FIX_PERMISSIONS=0
 
-
-## Pre calculated environmental variables for modules
+## Precalculated environmental variables for modules
 # Package manager
 pacman=$(is_installed pacman)
 apt=$(is_installed apt)
@@ -293,11 +291,11 @@ log_error() {
 
 show_help() {
 	echo "install <modules>"
-	exit
+	exit 0
 }
 
 show_version() {
-	echo "Version: 0.2.0" && exit
+	echo "Version: 0.9.0" && exit 0
 }
 
 clean_symlinks() {
@@ -382,7 +380,7 @@ action_list_environment() {
 		"void=$void" \
 		"debian=$debian" \
 		"ubuntu=$ubuntu" \
-		"fedora=$fedora" && exit
+		"fedora=$fedora" && exit 0
 }
 
 action_list_modules_to_execute() {
@@ -398,18 +396,22 @@ parse_args() {
 IADPT\
 ELQO\
 CX\
-uxrneaio\
-dbf\
-cRt:s:y:Y:\
-S\
+uxr\
+neaio\
+dwbf\
+cRsSmM\
+t:y:Y:\
+\
 " -l "help,version,log,log-level,verbose,quiet,\
 list-installed,list-modules,list-deprecated,list-presets,list-tags,\
 list-environment,list-install,list-queue,list-outdated,\
 toggle-clean-symlinks,toggle-fix-permissions,\
-update,install,remove,no-expand,expand,all,all-installed,outdated,\
-dry,no-base,force,\
-config,root,no-root,skip-root,target,cpt,scaffold,yank,yank-expanded\
-no-scripts,skip-scripts\
+update,execute,install,remove,\
+expand-none,expand-selected,expand-all,expand-installed,expand-outdated,\
+dry,wet,skip-base,force,\
+config,root,skip-root,scripts,skip-scripts,make,skip-make,\
+target:,scaffold:,cpt:,yank:,yank-expanded:,\
+\
 " -- "$@" || exit 1
 }
 
@@ -447,30 +449,31 @@ interpret_args() {
 				DOT_CLEAN_SYMLINKS=$((1-DOT_CLEAN_SYMLINKS)) ;;
 			-X | --toggle-fix-permissions)
 				DOT_FIX_PERMISSIONS=$((1-DOT_FIX_PERMISSIONS)) ;;
-			-u | --update) enqueue "action_default_no_expansion" \
+			-u | --update) enqueue "action_expand_default_if_not_yet" \
 				"action_update_modules" ;;
 			-x | --execute | --install) enqueue \
-				"action_default_no_expansion" "action_execute_modules" ;;
+				"action_expand_default_if_not_yet" "action_execute_modules" ;;
 			-r | --remove) # behaves differently when called multiple times
 				remove_count=$((${remove_count:-0} + 1))
 				[ ${remove_count:-0} = 1 ] && \
-					enqueue "action_default_no_expansion" \
+					enqueue "action_expand_default_if_not_yet" \
 							"action_remove_modules" ;;
-			-n | --no-expand) enqueue "action_expand_none" ;;
-			-e | --expand) enqueue "action_expand_selected" ;;
-			-a | --all) enqueue "action_expand_all" ;;
-			-i | --all-installed) enqueue "action_expand_installed" ;;
-			-o | --outdated) enqueue "action_expand_outdated" ;;
+			-n | --expand-none) enqueue "action_expand_none" ;;
+			-e | --expand-selected) enqueue "action_expand_selected" ;;
+			-a | --expand-all) enqueue "action_expand_all" ;;
+			-i | --expand-installed) enqueue "action_expand_installed" ;;
+			-o | --expand-outdated) enqueue "action_expand_outdated" ;;
 			-d | --dry) DOT_DRY_FLAG=1 ;;
-			-b | --no-base) DOT_NO_BASE_FLAG=1 ;;
+			-w | --wet) DOT_DRY_FLAG=0 ;;
+			-b | --skip-base) DOT_NO_BASE_FLAG=1 ;;
 			-f | --force) DOT_FORCE_FLAG=1; enqueue "action_expand_none" ;;
-			-c | --config | --custom) DOT_CONFIG_FLAG=1 ;;
+			-c | --config) DOT_CONFIG_FLAG=1 ;;
 			--root) DOT_ROOT_FLAG=1 ;;
-			-R | --no-root | --skip-root) DOT_ROOT_FLAG=0 ;;
+			-R | --skip-root) DOT_ROOT_FLAG=0 ;;
 			-s | --scripts) DOT_SCRIPTS_ENABLED=1 ;;
-			-S | --no-scripts | --skip-scripts) DOT_SCRIPTS_ENABLED=0 ;;
+			-S | --skip-scripts) DOT_SCRIPTS_ENABLED=0 ;;
 			-m | --make) DOT_MAKE_ENABLED=1 ;;
-			-M | --no-make | --skip-make) DOT_MAKE_ENABLED=0 ;;
+			-M | --skip-make) DOT_MAKE_ENABLED=0 ;;
 			-t | --target) # package installation target
 				if [ -d "$2" ]; then
 					DOT_TARGET="$2"
@@ -479,13 +482,13 @@ interpret_args() {
 				fi
 				shift
 				;;
-			--scaffold) # Ask for everything
+			--scaffold | --cpt) # Ask for everything
 				shift
 				scaffold "$@"
 				exit 0
 				;;
 			-y | --yank)
-				enqueue "action_default_no_expansion" "action_yank"
+				enqueue "action_expand_default_if_not_yet" "action_yank"
 				if [ -d "$2" ]; then
 					yank_target="$2"
 				else
@@ -573,10 +576,13 @@ execute_scripts_for_module() {
 		if [ ${DOT_DRY_FLAG:-0} = 0 ] && \
 			[ ${DOT_SCRIPTS_ENABLED:-1} = 1 ]; then
 			log_trace "Running $script..."
-			privilige=$(echo "$script" | cut -d '.' -f 2 | sed 's/-.*//')
 
-			if [ "$privilige" = "root" ] ||
-				[ "$privilige" = "sudo" ]; then
+			privilege='user'
+			[ "$(echo "$script" | grep -o '\.' | wc -w)" -gt 1 ] && \
+				privilege=$(echo "$script" | cut -d '.' -f 2 | sed 's/-.*//')
+
+			if [ "$privilege" = "root" ] ||
+				[ "$privilege" = "sudo" ]; then
 				if [ "${DOT_ROOT_FLAG:-1}" = 1 ]; then
 					(
 						sudo "$DOT_MODULES_HOME/$1/$script"
@@ -678,8 +684,22 @@ init_modules() {
 	while :; do
 		if [ "$1" ]; then
 			init_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
-				-regex "^.*/init\..*\.sh$" | sed 's|.*/||' | sort)
+				-regex "^.*/i.*\.sh$" | sed 's|.*/||' | sort)
 			execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
+			shift
+		else
+			break
+		fi
+	done
+}
+
+source_modules_envs() {
+	log_info "Sourcing modules envs $*"
+	while :; do
+		if [ "$1" ]; then
+			env_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
+				-regex "^.*/e.*\.sh$" | sed 's|.*/||' | sort)
+			execute_scripts_for_module "$1" "$env_sripts_in_module" "1"
 			shift
 		else
 			break
@@ -691,8 +711,10 @@ update_modules() {
 	log_info "Updating modules $*"
 	while :; do
 		if [ "$1" ]; then
+			# Source env
+			source_modules_envs "$1"
 			update_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
-				-regex "^.*/update\..*\.sh$" | sed 's|.*/||' | sort)
+				-regex "^.*/u.*\.sh$" | sed 's|.*/||' | sort)
 			execute_scripts_for_module "$1" "$update_sripts_in_module"
 			shift
 		else
@@ -705,11 +727,13 @@ remove_modules() {
 	log_trace "Removing modules $*"
 	while :; do
 		if [ "$1" ]; then
+			# Source env
+			source_modules_envs "$1"
 			# Only run the remove scripts with -rr, a single r just unstows
 			if [ "$remove_count" -ge 2 ]; then
 				log_info "Hard remove $1"
 				remove_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-				-type f -regex "^.*/remove\..*\.sh$" | sed 's|.*/||' | sort)
+				-type f -regex "^.*/r.*\.sh$" | sed 's|.*/||' | sort)
 				execute_scripts_for_module "$1" "$remove_sripts_in_module"
 			else
 				log_info "Soft remove $1"
@@ -836,7 +860,7 @@ install_module() {
 	sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
 		-type f -regex "^.*/[0-9\]\..*\.sh$" | sed 's|.*/||' | sort)
 
-	[ ${DOT_LOG_LEVEL:-1} = 0 ] && echo "Scripts in module for $1 are:
+	log_trace "Scripts in module for $1 are:
 $sripts_in_module"
 	sripts_to_almost_run=
 	for script in $sripts_in_module; do
@@ -925,6 +949,10 @@ execute_modules() {
 					"$new_hash"
 				fi
 			fi
+
+			# Source env, regardless, so the environment of the dependencies
+			# are available
+			source_modules_envs "$1"
 
 			if [ "${DOT_FORCE_FLAG:-0}" = 1 ] \
 				|| [ "$old_hash" != "$new_hash" ]; then
@@ -1050,7 +1078,7 @@ action_expand_outdated() {
 	echo "$final_module_list"
 }
 
-action_default_no_expansion() {
+action_expand_default_if_not_yet() {
 	# If no expansion happened at this point, execute the default one
 	[ ! "$final_module_list" ] && "$DOT_DEFAULT_EXPANSION_ACTION"
 }
