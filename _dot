@@ -72,7 +72,7 @@ function _dot {
 	   '(-b --skip-base)'{-b,--skip-base}'[Skip the base module when expanding selection (Only useful before the -e flag).]' \
 	   '(-f --force)'{-f,--force}'[Ignores hashfiles. To avoid accidentally installing large dependency trees, this automatically turns on --expand-none. Expansion can be changed after.]' \
 	   '(-c --config)'{-c,--config}'[Instead of the selection in the argument list, select entries in a TUI with whiptail.]' \
-	   '--root'{--root}'[Enables root privileged script execution. On by default.]' \
+	   '--root[Enables root privileged script execution. On by default.]' \
 	   '(-R --skip-root)'{-R,--skip-root}'[Disables root privileged script execution.]' \
 	   '(-s --scripts)'{-s,--scripts}'[Enables script execution. On by default.]' \
 	   '(-S --skip-scripts)'{-S,--skip-scripts}'[Disables script execution. Its like dry execution but with stowing enabled.]' \
@@ -81,7 +81,7 @@ function _dot {
 	   '(-t --target)'{-t,--target}'[Its value will specify DOT_TARGET for this execution.]' \
 	   '(--scaffold --cpt)'{--scaffold,--cpt}'[Instead of executing modules, the selection now will used to scaffold modules based on a template folder at DOT_TEMPLATE]' \
 	   '(-y --yank)'{-y,--yank}'[will yank the selection (with none expansion by default) to the target folder. Useful for copying modules along with their dependencies. (Used presets are also copied!)]' \
-	   '(-Y --yank-expanded)'{-y,--yank}'[will yank the expandedselection (same as -ey) to the target folder.]' \
+	   '(-Y --yank-expanded)'{-y,--yank}'[will yank the expanded selection (same as -ey) to the target folder.]' \
        "*:: :{ _dot_all }"
 }
 
