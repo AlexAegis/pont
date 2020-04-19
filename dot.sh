@@ -265,17 +265,18 @@ log_error() {
 
 show_help() {
 	echo "Dot $(show_version)
--h, --help                    -- Print information on usage and flags then exit
+-h, --help                    -- Print information on usage and flags then
+                                 exit
 -V, --version                 -- Print script version then exit
 -l <LOGLEVEL>,
 --log <LOGLEVEL>,
 --log-level <LOGLEVEL>,       -- set log level, possible values are:
-        0, trace, TRACE
-        1, info, INFO
-        2, warning, WARNING, success, SUCCESS
-        3, error, ERROR
-        4, none, NONE
-           each option in a line mean the same thing
+                                 0, trace, TRACE
+                                 1, info, INFO
+                                 2, warning, WARNING, success, SUCCESS
+                                 3, error, ERROR
+                                 4, none, NONE
+                                	each option in a line mean the same thing
 -v, --verbose                 -- log level 0 (trace)
 -q, --quiet                   -- log level 3 (error)
 -I, --list-installed          -- List all installed modules then exit
@@ -286,53 +287,92 @@ show_help() {
 -E, --list-environment        -- List the config environment then exit
 -L, --list-install            -- List the resolved final module list then exit
 -Q, --list-queue              -- List the execution queue then exit
--O, --list-outdated           -- List all outdated (installed but has hash mismatch) modules then exit
--C, --toggle-clean-symlinks   -- Removes broken symlinks in the target directory. (By default it turns on the feautre, but if it was turned on by the environment it turns it off.)
--X, --toggle-fix-permissions  -- Adds user execute permissions to all module scripts before running them.
--u, --update                  -- Run all scrips starting with u in the selected modules.
--x, --execute, --install      -- Run init scripts, stow configs, then run scripts starting with a number and the Makefile in all the selected modules.
--r, --remove                  -- Unstows every stow package in the selected modules. If this flag is added twice it will also run all scrips starting with r in the selected modules.
--n, --expand-none             -- Expands only the abstract entries in the direct selection. No dependencies are resolved
--e, --expand-seleted          -- Expands the original selection (the argument list) down to its dependencies recursively. Use this for regular installations.
--a, --expand-all              -- Expands every module regardless of the current selection.
--i, --expand-installed        -- Expands every installed module regardless of the current selection. Useful for batch running update and backup scripts
--o, --expand-outdated         -- Expands every installed module regardless of the current selection thats saved hash is no longer matching a freshly calculated one. Useful for batch refreshing modules after modifying them
--d, --dry                     -- Disables modifications. No stowing, no script execution. Useful for testing flag combinations.
--w, --wet                     -- Enabled modifications. Stowing, Script execution. On by default.
--b, --skip-base               -- Skip the base module when expanding selection (Only useful before the -e flag).
--f, --force                   -- Ignores hashfiles. To avoid accidentally installing large dependency trees, this automatically turns on --expand-none. Expansion can be changed after.
--c --config                   -- Instead of the selection in the argument list, select entries in a TUI with whiptail.
---root                        -- Enables root privileged script execution. On by default.
+-O, --list-outdated           -- List all outdated (installed but has hash
+                                 mismatch) modules then exit
+-C, --toggle-clean-symlinks   -- Removes broken symlinks in the target
+                                 directory. (By default it turns on the
+                                 feautre, but if it was turned on by
+                                 the environment it turns it off.)
+-X, --toggle-fix-permissions  -- Adds user execute permissions to all module
+                                 scripts before running them.
+-u, --update                  -- Run all scrips starting with u in the
+                                 selected modules.
+-x, --execute, --install      -- Run init scripts, stow configs, then run
+                                 scripts starting with a number and the
+                                 Makefile in all the selected modules.
+-r, --remove                  -- Unstows every stow package in the selected
+                                 modules. If this flag is added twice it will
+                                 also run all scrips starting with r in the
+                                 selected modules.
+-n, --expand-none             -- Expands only the abstract entries in the
+                                 selection. No dependencies are resolved.
+-e, --expand-seleted          -- Expands the original selection (the
+                                 argument list) down to its dependencies
+                                 recursively. Use this for regular
+                                 installations.
+-a, --expand-all              -- Expands every module regardless of the
+                                 current selection.
+-i, --expand-installed        -- Expands every installed module regardless
+                                 of the current selection. Useful for batch
+                                 running update and backup scripts.
+-o, --expand-outdated         -- Expands every installed module regardless
+                                 of the current selection thats saved hash
+                                 is no longer matching a freshly calculated
+                                 one. Useful for batch refreshing modules
+                                 after modifying them.
+-d, --dry                     -- Disables modifications. No stowing, no script
+                                 execution. Useful for testing flag
+                                 combinations.
+-w, --wet                     -- Enabled modifications. Stowing, Script
+                                 execution. On by default.
+-b, --skip-base               -- Skip the base module when expanding selection
+                                 (Only useful before the -e flag).
+-f, --force                   -- Ignores hashfiles. To avoid accidentally
+                                 installing large dependency trees, this
+                                 automatically turns on --expand-none.
+                                 Expansion can be changed after.
+-c --config                   -- Instead of the selection in the argument
+                                 list, select entries in a TUI with whiptail.
+--root                        -- Enables root privileged script execution.
+                                 On by default.
 -R, --skip-root               -- Disables root privileged script execution.
 -s, --scripts                 -- Enables script execution. On by default.
--S, --skip-scripts            -- Disables script execution. Its like dry execution but with stowing enabled.
+-S, --skip-scripts            -- Disables script execution. Its like dry
+                                 execution but with stowing enabled.
 -m, --make                    -- Enables Makefile execution. On by default.
 -M, --skip-make               -- Disables Makefile execution.
--t <DIR>, --target <DIR>      -- Its value will specify DOT_TARGET for this execution.
---scaffold, --cpt             -- Instead of executing modules, the selection now will used to scaffold modules based on a template folder at DOT_TEMPLATE
--y <DIR>, --yank <DIR>        -- will yank the selection (with none expansion by default) to the target folder. Useful for copying modules along with their dependencies. (Used presets are also copied!)
--Y <DIR>, --yank-expanded <DIR> -- will yank the expanded selection (same as -ey) to the target folder.
+-t <DIR>, --target <DIR>      -- Its value will specify DOT_TARGET for this
+                                 execution.
+--scaffold, --cpt             -- Instead of executing modules, the selection
+                                 now will used to scaffold modules based on a
+                                 template folder at DOT_TEMPLATE
+-y <DIR>, --yank <DIR>        -- will yank the selection (with none expansion
+                                 by default) to the target folder. Useful for
+                                 copying modules along with their
+                                 dependencies. (Used presets are also copied!)
+-Y <DIR>, --yank-expanded <DIR> -- will yank the expanded selection
+                                   (same as -ey) to the target folder.
 
 Some scenarios:
 
 - Update all installed modules
 
-	dot -iu
+    dot -iu
 
-	# Expand installed modules, update them
+    # Expand installed modules, update them
 
 - Reinstall all modified modules after a editing a lot of them
 
-	dot -ox
+    dot -ox
 
-	# Expand outdated modules, execute them
+    # Expand outdated modules, execute them
 
 - Safe force. Install dependencies of the selection on demand
   and then force install the selection
 
     dot -exfx zsh
 
-	# expand, execute, force (select none), execute
+    # expand, execute, force (select none), execute
 "
 	exit 0
 }
@@ -866,7 +906,7 @@ stow_package() {
 			do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
 				sed 's|^$|/|')" \
 				"$(/bin/sh -c "echo \$$(basename "$1" | rev | \
-				    cut -d '.' -f 2- | rev)" | \
+					cut -d '.' -f 2- | rev)" | \
 					sed -e "s|^\$$|$DOT_TARGET|" \
 					-e "s|^[^/]|$DOT_TARGET/\0|")" \
 				"$(basename "$1")"
@@ -1178,7 +1218,8 @@ do_yank() {
 	# Copy all used presets
 	for preset in $expanded_presets; do
 		preset_file_name="$(echo "$preset" | cut -d '+' -f 2-).preset"
-		cp "$(find "$DOT_PRESETS_HOME" -name "$preset_file_name")" "$yank_target/$preset_file_name"
+		cp "$(find "$DOT_PRESETS_HOME" -name "$preset_file_name")" \
+			"$yank_target/$preset_file_name"
 	done
 }
 
