@@ -769,11 +769,14 @@ expand_abstract_entries() {
 	expand_abstract_only=
 }
 
+
+
 init_modules() {
 	log_info "Initializing modules $*"
 	while :; do
 		if [ "$1" ]; then
-			init_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
+			init_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+				-mindepth 1 -maxdepth 1 -type f \
 				-regex "^.*/i.*\.sh$" | sed 's|.*/||' | sort)
 			execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
 			shift
@@ -787,7 +790,8 @@ source_modules_envs() {
 	log_info "Sourcing modules envs $*"
 	while :; do
 		if [ "$1" ]; then
-			env_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
+			env_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+				-mindepth 1 -maxdepth 1 -type f \
 				-regex "^.*/e.*\.sh$" | sed 's|.*/||' | sort)
 			execute_scripts_for_module "$1" "$env_sripts_in_module" "1"
 			shift
@@ -803,7 +807,8 @@ update_modules() {
 		if [ "$1" ]; then
 			# Source env
 			source_modules_envs "$1"
-			update_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -type f \
+			update_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+				-mindepth 1 -maxdepth 1 -type f \
 				-regex "^.*/u.*\.sh$" | sed 's|.*/||' | sort)
 			execute_scripts_for_module "$1" "$update_sripts_in_module"
 			shift
@@ -823,7 +828,8 @@ remove_modules() {
 			if [ "$remove_count" -ge 2 ]; then
 				log_info "Hard remove $1"
 				remove_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-				-type f -regex "^.*/r.*\.sh$" | sed 's|.*/||' | sort)
+					-mindepth 1 -maxdepth 1 -type f \
+					-regex "^.*/r.*\.sh$" | sed 's|.*/||' | sort)
 				execute_scripts_for_module "$1" "$remove_sripts_in_module"
 			else
 				log_info "Soft remove $1"
