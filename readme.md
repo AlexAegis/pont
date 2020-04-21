@@ -1,7 +1,6 @@
-# [dot.sh](./dot.sh)
+# [dot](./dot.sh)
 
-> [dot.sh](https://github.com/alexaegis/dot) and my
-> [dotfiles](https://github.com/alexaegis/dotfiles) as a live example
+> My [dotfiles](https://github.com/alexaegis/dotfiles) as a live example
 
 ## What is dot
 
