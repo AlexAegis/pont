@@ -5,3 +5,8 @@
 
 # When installing and two clashing modules are present then ask which one to
 # chose. If started with --no-interactive then just abort and print the clash.
+
+# When installing and resolving the selection, check the final module list
+# for clashes among itself. If there is any, print an error and ask for input
+# Then when its executing. Each time a module with a clashlist is executed.
+# Hard remove every installed, clashing module.
