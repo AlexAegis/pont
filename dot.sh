@@ -1272,7 +1272,7 @@ IFS=' '
 interpret_args $(parse_args "$@")
 
 # if nothing is selected, ask for modules
-if [ ${DOT_CONFIG_FLAG:-0} = 1 ] || [ ! "$@" ]; then
+if [ ${DOT_CONFIG_FLAG:-0} = 1 ] || [ $# -eq 0 ]; then
 	ask_entries # config checked again to avoid double call on ask_entries
 fi
 
