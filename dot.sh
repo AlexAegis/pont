@@ -835,17 +835,7 @@ remove_modules() {
 				log_info "Soft remove $1"
 			fi
 
-			# unstow
-			if [ -e "$DOT_MODULES_HOME/$1/.$1" ]; then
-				if [ "$SUDO_USER" ]; then
-					sudo -E -u "$SUDO_USER" \
-						stow -D -d "$DOT_MODULES_HOME/$1/" \
-						-t "$user_home" ".$1"
-				else
-					stow -D -d "$DOT_MODULES_HOME/$1/" \
-						-t "$user_home" ".$1"
-				fi
-			fi
+			unstow_modules "$1"
 
 			# remove hashfile to mark as uninstalled
 			[ -e "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" ] &&
@@ -862,6 +852,7 @@ do_stow() {
 	# $1: the packages parent directory
 	# $2: target directory
 	# $3: package name
+	# $4: stowmode  "stow" | "unstow"
 
 	[ ${DOT_LOG_LEVEL:-1} = 0 ] && echo "Stowing package $3 to $2 from $1"
 
@@ -896,17 +887,22 @@ do_stow() {
 		clean_symlinks "$2"
 		if [ "$SUDO_USER" ]; then
 			sudo -E -u "$SUDO_USER" stow -D -d "$1" -t "$2" "$3"
-			sudo -E -u "$SUDO_USER" stow -S -d "$1" -t "$2" "$3"
+			[ "$stow_mode" = "stow" ] && \
+				sudo -E -u "$SUDO_USER" stow -S -d "$1" -t "$2" "$3"
 		else
 			# https://github.com/aspiers/stow/issues/69
 			stow -D -d "$1" -t "$2" "$3"
-			stow -S -d "$1" -t "$2" "$3"
+			[ "$stow_mode" = "stow" ] && \
+				stow -S -d "$1" -t "$2" "$3"
 		fi
 	fi
 }
 
 stow_package() {
-	# recieves a list of directories of packages inside modules
+	# recieves a stowmode "stow" | "unstow"
+	# then a list of directories of packages inside modules
+	stow_mode="$1"
+	shift
 	while :; do
 		if [ -d "$1" ]; then
 			do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
@@ -915,7 +911,8 @@ stow_package() {
 					cut -d '.' -f 2- | rev)" | \
 					sed -e "s|^\$$|$DOT_TARGET|" \
 					-e "s|^[^/]|$DOT_TARGET/\0|")" \
-				"$(basename "$1")"
+				"$(basename "$1")" \
+				"$stow_mode"
 			shift
 		else
 			break
@@ -924,10 +921,22 @@ stow_package() {
 
 }
 
-stow_module() {
+stow_modules() {
 	while :; do
 		if [ "$1" ]; then
-			stow_package "$DOT_MODULES_HOME"/"$1"/*"$1" \
+			stow_package "stow" "$DOT_MODULES_HOME"/"$1"/*"$1" \
+							"$DOT_MODULES_HOME"/"$1"/."$1"
+			shift
+		else
+			break
+		fi
+	done
+}
+
+unstow_modules() {
+	while :; do
+		if [ "$1" ]; then
+			stow_package "unstow" "$DOT_MODULES_HOME"/"$1"/*"$1" \
 							"$DOT_MODULES_HOME"/"$1"/."$1"
 			shift
 		else
@@ -1069,7 +1078,7 @@ execute_modules() {
 
 				init_modules "$1"
 
-				stow_module "$1"
+				stow_modules "$1"
 
 				# Make isn't a separate step because there only
 				# should be one single install step so that the hashes
