@@ -191,44 +191,35 @@ dequeue() {
 		return
 	fi
 	while :; do
-		if [ "$1" ]; then
-			execution_queue=$(echo "$execution_queue" | grep -v "$1")
-			shift
-		else
-			break
-		fi
+		[ "$1" ] || break
+		execution_queue=$(echo "$execution_queue" | grep -v "$1")
+		shift
 	done
 }
 
 enqueue() {
 	log_trace "Enqueuing $*"
 	while :; do
-		if [ "$1" ]; then
-			if [ "$execution_queue" ]; then
-				execution_queue="${execution_queue}${IFS:-\0}${1}"
-			else
-				execution_queue="${1}"
-			fi
-			shift
+		[ "$1" ] || break
+		if [ "$execution_queue" ]; then
+			execution_queue="${execution_queue}${IFS:-\0}${1}"
 		else
-			break
+			execution_queue="${1}"
 		fi
+		shift
 	done
 }
 
 enqueue_front() {
 	log_trace "Enqueuing to the front $*"
 	while :; do
-		if [ "$1" ]; then
-			if [ "$execution_queue" ]; then
-				execution_queue="${1}${IFS:-\0}${execution_queue}"
-			else
-				execution_queue="${1}"
-			fi
-			shift
+		[ "$1" ] || break
+		if [ "$execution_queue" ]; then
+			execution_queue="${1}${IFS:-\0}${execution_queue}"
 		else
-			break
+			execution_queue="${1}"
 		fi
+		shift
 	done
 }
 
@@ -503,6 +494,7 @@ interpret_args() {
 	IFS='
 '
 	while :; do
+		[ "$1" ] || break
 		case $1 in
 			-h | -\? | --help) show_help ;;
 			-V | --version) show_version ;;
@@ -656,6 +648,7 @@ execute_scripts_for_module() {
 	# 1: module name
 	# 2: scripts to run
 	# 3: sourcing setting, if set, user privileged scripts will be sourced
+	cd "$DOT_MODULES_HOME/$1" || exit 1
 	for script in $2; do
 		if [ ${DOT_DRY_FLAG:-0} = 0 ] && \
 			[ ${DOT_SCRIPTS_ENABLED:-1} = 1 ]; then
@@ -700,62 +693,58 @@ execute_scripts_for_module() {
 
 do_expand_entries() {
 	while :; do
-		if [ "$1" ]; then
-			# Extracting condition, if there is
-			condition="$(get_condition "$1")"
+		[ "$1" ] || break
+		# Extracting condition, if there is
+		condition="$(get_condition "$1")"
 
-			log_trace "Trying to expand $(get_entry "$1")..."
+		log_trace "Trying to expand $(get_entry "$1")..."
 
-			[ "$condition" ] && log_trace "...with condition $condition..."
+		[ "$condition" ] && log_trace "...with condition $condition..."
 
-			if ! eval "$condition"; then
-				log_info "Condition ($condition) for $1" \
-					"did not met, skipping"
-				shift
-				continue
-			fi
-
-			log_trace "Already resolved entries are: $resolved"
-			if [ "$(echo "$resolved" | grep -x "$1")" = "" ]; then
-				if [ -z "$resolved" ]; then
-					resolved="$1"
-				else
-					resolved="$resolved${IFS:-\0}$1"
-				fi
-				case "$1" in
-				+*) # presets
-					# collect expanded presets in case a yank action needs it
-					if [ -z "$expanded_presets" ]; then
-						expanded_presets="$1"
-					else
-						expanded_presets="$expanded_presets${IFS:-\0}$1"
-					fi
-					# shellcheck disable=SC2046
-					do_expand_entries \
-						$(in_preset "$(get_entry "$1" | cut -c2-)")
-					;;
-				:*) # tags
-					# shellcheck disable=SC2046
-					do_expand_entries \
-						$(has_tag "$(get_entry "$1" | cut -c2-)")
-					;;
-				*) # modules
-					# shellcheck disable=SC2046
-					if [ ${expand_abstract_only:-0} = 0 ]; then
-						do_expand_entries \
-							$(get_dependencies "$(get_entry "$1")")
-					fi
-					get_entry "$1"
-					;;
-				esac
-				log_trace "...done resolving $1"
-			else
-				log_trace "...already resolved $1"
-			fi
+		if ! eval "$condition"; then
+			log_info "Condition ($condition) for $1 did not met, skipping"
 			shift
-		else
-			break
+			continue
 		fi
+
+		log_trace "Already resolved entries are: $resolved"
+		if [ "$(echo "$resolved" | grep -x "$1")" = "" ]; then
+			if [ -z "$resolved" ]; then
+				resolved="$1"
+			else
+				resolved="$resolved${IFS:-\0}$1"
+			fi
+			case "$1" in
+			+*) # presets
+				# collect expanded presets in case a yank action needs it
+				if [ -z "$expanded_presets" ]; then
+					expanded_presets="$1"
+				else
+					expanded_presets="$expanded_presets${IFS:-\0}$1"
+				fi
+				# shellcheck disable=SC2046
+				do_expand_entries \
+					$(in_preset "$(get_entry "$1" | cut -c2-)")
+				;;
+			:*) # tags
+				# shellcheck disable=SC2046
+				do_expand_entries \
+					$(has_tag "$(get_entry "$1" | cut -c2-)")
+				;;
+			*) # modules
+				# shellcheck disable=SC2046
+				if [ "${expand_abstract_only:-0}" = 0 ]; then
+					do_expand_entries \
+						$(get_dependencies "$(get_entry "$1")")
+				fi
+				get_entry "$1"
+				;;
+			esac
+			log_trace "...done resolving $1"
+		else
+			log_trace "...already resolved $1"
+		fi
+		shift
 	done
 }
 
@@ -774,77 +763,65 @@ expand_abstract_entries() {
 init_modules() {
 	log_info "Initializing modules $*"
 	while :; do
-		if [ "$1" ]; then
-			init_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-				-mindepth 1 -maxdepth 1 -type f \
-				-regex "^.*/i.*\.sh$" | sed 's|.*/||' | sort)
-			execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
-			shift
-		else
-			break
-		fi
+		[ "$1" ] || break
+		init_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+			-mindepth 1 -maxdepth 1 -type f \
+			-regex "^.*/i.*\.sh$" | sed 's|.*/||' | sort)
+		execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
+		shift
 	done
 }
 
 source_modules_envs() {
 	log_info "Sourcing modules envs $*"
 	while :; do
-		if [ "$1" ]; then
-			env_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-				-mindepth 1 -maxdepth 1 -type f \
-				-regex "^.*/e.*\.sh$" | sed 's|.*/||' | sort)
-			execute_scripts_for_module "$1" "$env_sripts_in_module" "1"
-			shift
-		else
-			break
-		fi
+		[ "$1" ] || break
+		env_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+			-mindepth 1 -maxdepth 1 -type f \
+			-regex "^.*/e.*\.sh$" | sed 's|.*/||' | sort)
+		execute_scripts_for_module "$1" "$env_sripts_in_module" "1"
+		shift
 	done
 }
 
 update_modules() {
 	log_info "Updating modules $*"
 	while :; do
-		if [ "$1" ]; then
-			# Source env
-			source_modules_envs "$1"
-			update_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-				-mindepth 1 -maxdepth 1 -type f \
-				-regex "^.*/u.*\.sh$" | sed 's|.*/||' | sort)
-			execute_scripts_for_module "$1" "$update_sripts_in_module"
-			shift
-		else
-			break
-		fi
+		[ "$1" ] || break
+		# Source env
+		source_modules_envs "$1"
+		update_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+			-mindepth 1 -maxdepth 1 -type f \
+			-regex "^.*/u.*\.sh$" | sed 's|.*/||' | sort)
+		execute_scripts_for_module "$1" "$update_sripts_in_module"
+		shift
 	done
 }
 
 remove_modules() {
 	log_trace "Removing modules $*"
 	while :; do
-		if [ "$1" ]; then
-			# Source env
-			source_modules_envs "$1"
-			# Only run the remove scripts with -rr, a single r just unstows
-			if [ "$remove_count" -ge 2 ]; then
-				log_info "Hard remove $1"
-				remove_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-					-mindepth 1 -maxdepth 1 -type f \
-					-regex "^.*/r.*\.sh$" | sed 's|.*/||' | sort)
-				execute_scripts_for_module "$1" "$remove_sripts_in_module"
-			else
-				log_info "Soft remove $1"
-			fi
-
-			unstow_modules "$1"
-
-			# remove hashfile to mark as uninstalled
-			[ -e "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" ] &&
-				rm "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
-
-			shift
+		[ "$1" ] || break
+		# Source env
+		source_modules_envs "$1"
+		# Only run the remove scripts with -rr, a single r just unstows
+		if [ "$remove_count" -ge 2 ]; then
+			log_info "Hard remove $1"
+			remove_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+				-mindepth 1 -maxdepth 1 -type f \
+				-regex "^.*/r.*\.sh$" | sed 's|.*/||' | sort)
+			execute_scripts_for_module "$1" "$remove_sripts_in_module"
 		else
-			break
+			log_info "Soft remove $1"
 		fi
+
+		unstow_modules "$1"
+
+		# remove hashfile to mark as uninstalled
+		[ -e "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" ] &&
+			rm "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
+
+		shift
 	done
 }
 
@@ -904,44 +881,35 @@ stow_package() {
 	stow_mode="$1"
 	shift
 	while :; do
-		if [ -d "$1" ]; then
-			do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
-				sed 's|^$|/|')" \
-				"$(/bin/sh -c "echo \$$(basename "$1" | rev | \
-					cut -d '.' -f 2- | rev)" | \
-					sed -e "s|^\$$|$DOT_TARGET|" \
-					-e "s|^[^/]|$DOT_TARGET/\0|")" \
-				"$(basename "$1")" \
-				"$stow_mode"
-			shift
-		else
-			break
-		fi
+		[ "$1" ] || break
+		do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
+			sed 's|^$|/|')" \
+			"$(/bin/sh -c "echo \$$(basename "$1" | rev | \
+				cut -d '.' -f 2- | rev)" | \
+				sed -e "s|^\$$|$DOT_TARGET|" \
+				-e "s|^[^/]|$DOT_TARGET/\0|")" \
+			"$(basename "$1")" \
+			"$stow_mode"
+		shift
 	done
 
 }
 
 stow_modules() {
 	while :; do
-		if [ "$1" ]; then
-			stow_package "stow" "$DOT_MODULES_HOME"/"$1"/*"$1" \
-							"$DOT_MODULES_HOME"/"$1"/."$1"
-			shift
-		else
-			break
-		fi
+		[ "$1" ] || break
+		stow_package "stow" "$DOT_MODULES_HOME"/"$1"/*"$1" \
+						"$DOT_MODULES_HOME"/"$1"/."$1"
+		shift
 	done
 }
 
 unstow_modules() {
 	while :; do
-		if [ "$1" ]; then
-			stow_package "unstow" "$DOT_MODULES_HOME"/"$1"/*"$1" \
-							"$DOT_MODULES_HOME"/"$1"/."$1"
-			shift
-		else
-			break
-		fi
+		[ "$1" ] || break
+		stow_package "unstow" "$DOT_MODULES_HOME"/"$1"/*"$1" \
+						"$DOT_MODULES_HOME"/"$1"/."$1"
+		shift
 	done
 }
 
@@ -1023,87 +991,75 @@ hash_module() {
 
 execute_modules() {
 	while :; do
-		if [ "$1" ]; then
-			result=0
-			log_trace "Checking if module exists: $DOT_MODULES_HOME/$1"
-			if [ ! -d "$DOT_MODULES_HOME/$1" ]; then
-				log_error "Module $1 not found. Skipping"
-				return 1
-			fi
-
-			# cd to dotmodule just in case a dotmodule
-			# is not suited for installation outside of it
-			cd "$DOT_MODULES_HOME/$1" || return 1
-
-			log_info "Installing $1"
-
-			# Only calculate the hashes if we going to use it
-			if [ "${DOT_FORCE_FLAG:-0}" = 0 ]; then
-				old_hash=$(cat "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
-					2>/dev/null)
-				new_hash=$(tar --absolute-names \
-					--exclude="$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
-					-c "$DOT_MODULES_HOME/$1" | sha1sum)
-
-				if [ "$old_hash" = "$new_hash" ]; then
-					log_trace "${C_GREEN}hash match" \
-					"$old_hash" \
-					"$new_hash"
-				else
-					log_trace "${C_RED}hash mismatch" \
-					"$old_hash" \
-					"$new_hash"
-				fi
-			fi
-
-			# Source env, regardless, so the environment of the dependencies
-			# are available
-			source_modules_envs "$1"
-
-			if [ "${DOT_FORCE_FLAG:-0}" = 1 ] \
-				|| [ "$old_hash" != "$new_hash" ]; then
-
-				if [ "${DOT_FORCE_FLAG:-0}" != 1 ] && is_deprecated "$1";
-					then
-					log_warning "$1 is deprecated"
-					shift
-					continue
-				fi
-
-				if [ "${DOT_DRY_FLAG:-0}" = 1 ]; then
-					log_trace "Dotmodule $1 would be installed"
-				else
-					log_trace "Applying dotmodule $1"
-				fi
-
-				init_modules "$1"
-
-				stow_modules "$1"
-
-				# Make isn't a separate step because there only
-				# should be one single install step so that the hashes
-				# and the result can be determined in a single step
-				make_module "$1"
-
-				install_module "$1"
-
-				if [ "$result" = 0 ]; then
-					# Calculate fresh hash on success
-					hash_module "$1"
-				else
-					log_error "Installation failed $1"
-					[ -e "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" ] &&
-						rm "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
-				fi
-
-			else
-				log_info "$1 is already installed and no changes" \
-					" are detected"
-			fi
-			shift
-		else
-			break
+		[ "$1" ] || break
+		result=0
+		log_trace "Checking if module exists: $DOT_MODULES_HOME/$1"
+		if [ ! -d "$DOT_MODULES_HOME/$1" ]; then
+			log_error "Module $1 not found. Skipping"
+			return 1
 		fi
+
+		log_info "Installing $1"
+
+		# Only calculate the hashes if we going to use it
+		if [ "${DOT_FORCE_FLAG:-0}" = 0 ]; then
+			old_hash=$(cat "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
+				2>/dev/null)
+			new_hash=$(tar --absolute-names \
+				--exclude="$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
+				-c "$DOT_MODULES_HOME/$1" | sha1sum)
+
+			if [ "$old_hash" = "$new_hash" ]; then
+				log_trace "${C_GREEN}hash match $old_hash $new_hash"
+			else
+				log_trace "${C_RED}hash mismatch $old_hash $new_hash"
+			fi
+		fi
+
+		# Source env, regardless, so the environment of the dependencies
+		# are available
+		source_modules_envs "$1"
+
+		if [ "${DOT_FORCE_FLAG:-0}" = 1 ] \
+			|| [ "$old_hash" != "$new_hash" ]; then
+
+			if [ "${DOT_FORCE_FLAG:-0}" != 1 ] && is_deprecated "$1";
+				then
+				log_warning "$1 is deprecated"
+				shift
+				continue
+			fi
+
+			if [ "${DOT_DRY_FLAG:-0}" = 1 ]; then
+				log_trace "Dotmodule $1 would be installed"
+			else
+				log_trace "Applying dotmodule $1"
+			fi
+
+			init_modules "$1"
+
+			stow_modules "$1"
+
+			# Make isn't a separate step because there only
+			# should be one single install step so that the hashes
+			# and the result can be determined in a single step
+			make_module "$1"
+
+			install_module "$1"
+
+			if [ "$result" = 0 ]; then
+				# Calculate fresh hash on success
+				hash_module "$1"
+			else
+				log_error "Installation failed $1"
+				[ -e "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" ] &&
+					rm "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
+			fi
+
+		else
+			log_info "$1 is already installed and no changes are detected"
+		fi
+		shift
 	done
 }
 
@@ -1135,8 +1091,7 @@ action_clean_symlinks() {
 
 
 action_expand_selected() {
-	log_info "Set final module list to every selected module," \
-		 " expanding them."
+	log_info "Set final module list to every selected and expanded module"
 	final_module_list=
 	# shellcheck disable=SC2086
 	if [ "${DOT_NO_BASE_FLAG:-0}" != 1 ]; then
@@ -1163,8 +1118,7 @@ action_expand_all() {
 }
 
 action_expand_installed() {
-	log_info "Set final module list to every installed module," \
-			 "expanding them."
+	log_info "Set final module list to every installed and expanded module."
 	final_module_list=
 	[ ! "$all_installed_modules" ] && get_all_installed_modules
 	# shellcheck disable=SC2086
@@ -1222,13 +1176,10 @@ do_yank() {
 	mkdir -p "$yank_target"
 	# Copy all modules
 	while :; do
-		if [ "$1" ]; then
-			log_info "Yanking $DOT_MODULES_HOME/$1 to $yank_target/$1"
-			cp -r "$DOT_MODULES_HOME/$1" "$yank_target/$1"
-			shift
-		else
-			break
-		fi
+		[ "$1" ] || break
+		log_info "Yanking $DOT_MODULES_HOME/$1 to $yank_target/$1"
+		cp -r "$DOT_MODULES_HOME/$1" "$yank_target/$1"
+		shift
 	done
 	# Copy all used presets
 	for preset in $expanded_presets; do
