@@ -765,8 +765,8 @@ init_modules() {
 	while :; do
 		[ "$1" ] || break
 		init_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-			-mindepth 1 -maxdepth 1 -type f \
-			-regex "^.*/i.*\.sh$" | sed 's|.*/||' | sort)
+			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
+			| grep '^i.*\..*\..*$' | sort)
 		execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
 		shift
 	done
@@ -777,8 +777,9 @@ source_modules_envs() {
 	while :; do
 		[ "$1" ] || break
 		env_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-			-mindepth 1 -maxdepth 1 -type f \
-			-regex "^.*/e.*\.sh$" | sed 's|.*/||' | sort)
+			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
+			| grep '^e.*\..*\..*$' | sort)
+		log_trace "Environmental scripts in $1 are $env_sripts_in_module"
 		execute_scripts_for_module "$1" "$env_sripts_in_module" "1"
 		shift
 	done
@@ -791,8 +792,8 @@ update_modules() {
 		# Source env
 		source_modules_envs "$1"
 		update_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-			-mindepth 1 -maxdepth 1 -type f \
-			-regex "^.*/u.*\.sh$" | sed 's|.*/||' | sort)
+			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
+			| grep '^u.*\..*\..*$' | sort)
 		execute_scripts_for_module "$1" "$update_sripts_in_module"
 		shift
 	done
@@ -808,8 +809,8 @@ remove_modules() {
 		if [ "$remove_count" -ge 2 ]; then
 			log_info "Hard remove $1"
 			remove_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
-				-mindepth 1 -maxdepth 1 -type f \
-				-regex "^.*/r.*\.sh$" | sed 's|.*/||' | sort)
+				-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
+				| grep '^e.*\..*\..*$' | sort)
 			execute_scripts_for_module "$1" "$remove_sripts_in_module"
 		else
 			log_info "Soft remove $1"
@@ -938,7 +939,7 @@ make_module() {
 
 install_module() {
 	sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
-		-type f -regex "^.*/[0-9\]\..*\.sh$" | sed 's|.*/||' | sort)
+		-type f | sed 's|.*/||' | grep '^[0-9].*\..*\..*$'  | sort)
 
 	log_trace "Scripts in module for $1 are:
 $sripts_in_module"
