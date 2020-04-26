@@ -879,9 +879,11 @@ stow_package() {
 	# recieves a stowmode "stow" | "unstow"
 	# then a list of directories of packages inside modules
 	stow_mode="$1"
+	log_trace "Stowing packages $*"
 	shift
 	while :; do
 		[ "$1" ] || break
+		log_trace "Stowing $1"
 		do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
 			sed 's|^$|/|')" \
 			"$(/bin/sh -c "echo \$$(basename "$1" | rev | \
@@ -896,19 +898,24 @@ stow_package() {
 }
 
 stow_modules() {
+	log_trace "Stow modules $*"
 	while :; do
 		[ "$1" ] || break
-		stow_package "stow" "$DOT_MODULES_HOME"/"$1"/*"$1" \
-						"$DOT_MODULES_HOME"/"$1"/."$1"
+		# shellcheck disable=SC2046
+		# TODO: Mixed splitting, find outputs new line splits
+		stow_package "stow" $(find "$DOT_MODULES_HOME/$1" \
+			-mindepth 1 -maxdepth 1 -type d -iname "*.$1")
 		shift
 	done
 }
 
 unstow_modules() {
+	log_trace "Unstow modules $*"
 	while :; do
 		[ "$1" ] || break
-		stow_package "unstow" "$DOT_MODULES_HOME"/"$1"/*"$1" \
-						"$DOT_MODULES_HOME"/"$1"/."$1"
+		# shellcheck disable=SC2046
+		stow_package "unstow" $(find "$DOT_MODULES_HOME/$1" \
+			-mindepth 1 -maxdepth 1 -type d -iname "*.$1")
 		shift
 	done
 }
@@ -1190,6 +1197,7 @@ do_yank() {
 }
 
 action_yank() {
+	# shellcheck disable=SC2086
 	do_yank $final_module_list
 }
 
