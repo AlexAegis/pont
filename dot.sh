@@ -660,7 +660,7 @@ execute_scripts_for_module() {
 
 			if [ "$privilege" = "root" ] ||
 				[ "$privilege" = "sudo" ]; then
-				echo "rooooooooooooooot $1 $script $CARGO_HOME $PATH"
+				echo "roooooooooooooot $1 $script $CARGO_HOME $PATH"
 				if [ "${DOT_ROOT_FLAG:-1}" = 1 ]; then
 
 						sudo -E "$DOT_MODULES_HOME/$1/$script"
