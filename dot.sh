@@ -660,24 +660,34 @@ execute_scripts_for_module() {
 
 			if [ "$privilege" = "root" ] ||
 				[ "$privilege" = "sudo" ]; then
+				echo "rooooooooooooooot $1 $script $CARGO_HOME $PATH"
 				if [ "${DOT_ROOT_FLAG:-1}" = 1 ]; then
-					(
-						sudo "$DOT_MODULES_HOME/$1/$script"
-					)
+
+						sudo -E "$DOT_MODULES_HOME/$1/$script"
+
 				else
 					log_info "Skipping $script because root execution" \
 						"is disabled"
 				fi
 			else
 				if [ "$SUDO_USER" ]; then
+				echo "--------++++++++++++++++++++++++++ $1 $script $PATH"
 					(
-						sudo -u "$SUDO_USER" "$DOT_MODULES_HOME/$1/$script"
+						sudo -E -u "$SUDO_USER" "$DOT_MODULES_HOME/$1/$script"
 					)
 				else
+				echo yoyo
+				echo coco
 					if [ "$3" ]; then
 						# shellcheck disable=SC1090
+						echo "asdqwfqeferqe343t4y356u6i56i58i578i7 $1 $script $PATH"
+						set -a
 						. "$DOT_MODULES_HOME/$1/$script"
+						export PATH="$CARGO_HOME/bin:$PATH"
+
+						set +a
 					else
+						echo coco WAAAAAAAAAAAAAAAAAAAAAAT $1 $script
 						(
 							"$DOT_MODULES_HOME/$1/$script"
 						)
