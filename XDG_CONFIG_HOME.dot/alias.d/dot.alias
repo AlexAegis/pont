@@ -1,4 +1,5 @@
 #!/bin/sh
 
+alias cdot='cd $DOTFILES_HOME'
 alias dotup="dot -iu" # Update all installed
 alias dotre="dot -ox" # Re-execute outdated ones
