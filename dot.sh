@@ -111,6 +111,8 @@ fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 # shellcheck disable=SC1091
 [ -e "./.dotrc" ] && . "./.dotrc"
 
+set +a
+
 # Inner variables that are not allowed to be changed using dotrc
 all_modules=
 all_presets=
@@ -660,34 +662,28 @@ execute_scripts_for_module() {
 
 			if [ "$privilege" = "root" ] ||
 				[ "$privilege" = "sudo" ]; then
-				echo "rooooooooooooooot $1 $script $CARGO_HOME $PATH"
 				if [ "${DOT_ROOT_FLAG:-1}" = 1 ]; then
-
-						sudo -E "$DOT_MODULES_HOME/$1/$script"
-
+					(
+						sudo --preserve-env="PATH" -E \
+							"$DOT_MODULES_HOME/$1/$script"
+					)
 				else
 					log_info "Skipping $script because root execution" \
 						"is disabled"
 				fi
 			else
 				if [ "$SUDO_USER" ]; then
-				echo "--------++++++++++++++++++++++++++ $1 $script $PATH"
 					(
-						sudo -E -u "$SUDO_USER" "$DOT_MODULES_HOME/$1/$script"
+						sudo --preserve-env="PATH" -E \
+							-u "$SUDO_USER" "$DOT_MODULES_HOME/$1/$script"
 					)
 				else
-				echo yoyo
-				echo coco
 					if [ "$3" ]; then
 						# shellcheck disable=SC1090
-						echo "asdqwfqeferqe343t4y356u6i56i58i578i7 $1 $script $PATH"
 						set -a
 						. "$DOT_MODULES_HOME/$1/$script"
-						export PATH="$CARGO_HOME/bin:$PATH"
-
 						set +a
 					else
-						echo coco WAAAAAAAAAAAAAAAAAAAAAAT $1 $script
 						(
 							"$DOT_MODULES_HOME/$1/$script"
 						)
@@ -706,7 +702,7 @@ do_expand_entries() {
 		[ "$1" ] || break
 		# Extracting condition, if there is
 		condition="$(get_condition "$1")"
-
+		# TODO: .condition files and $HEADLESS variable
 		log_trace "Trying to expand $(get_entry "$1")..."
 
 		[ "$condition" ] && log_trace "...with condition $condition..."
@@ -767,8 +763,6 @@ expand_abstract_entries() {
 	final_module_list="$(do_expand_entries "$@")"
 	expand_abstract_only=
 }
-
-
 
 init_modules() {
 	log_info "Initializing modules $*"
@@ -874,9 +868,9 @@ do_stow() {
 		# Module target symlinks are always cleaned
 		clean_symlinks "$2"
 		if [ "$SUDO_USER" ]; then
-			sudo -E -u "$SUDO_USER" stow -D -d "$1" -t "$2" "$3"
+			sudo --preserve-env="PATH" -E -u "$SUDO_USER" stow -D -d "$1" -t "$2" "$3"
 			[ "$stow_mode" = "stow" ] && \
-				sudo -E -u "$SUDO_USER" stow -S -d "$1" -t "$2" "$3"
+				sudo --preserve-env="PATH" -E -u "$SUDO_USER" stow -S -d "$1" -t "$2" "$3"
 		else
 			# https://github.com/aspiers/stow/issues/69
 			stow -D -d "$1" -t "$2" "$3"
@@ -940,7 +934,7 @@ make_module() {
 		# It's already cd'd in.
 		# Makefiles are always executed using user rights
 		if [ "$SUDO_USER" ]; then
-			sudo -E -u "$SUDO_USER" make
+			sudo --preserve-env="PATH" -E -u "$SUDO_USER" make
 		else
 			make
 		fi
@@ -948,6 +942,8 @@ make_module() {
 }
 
 install_module() {
+	# TODO: Let fallback scripts run when others on the group fail for
+	# TODO: example because of fzf on ubuntu 18
 	sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
 		-type f | sed 's|.*/||' | grep '^[0-9].*\..*\..*$'  | sort)
 
@@ -1000,7 +996,7 @@ hash_module() {
 		log_success "Successfully installed $1"
 
 		if [ "$SUDO_USER" ]; then
-			sudo -E -u "$SUDO_USER" do_hash_module "$1"
+			sudo --preserve-env="PATH" -E -u "$SUDO_USER" do_hash_module "$1"
 		else
 			do_hash_module "$1"
 		fi
