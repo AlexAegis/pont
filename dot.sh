@@ -844,7 +844,7 @@ do_stow() {
 
 	[ ${DOT_LOG_LEVEL:-1} = 0 ] && echo "Stowing package $3 to $2 from $1"
 
-	if [ ! "$(is_installed stow)" ]; then
+	if ! is_installed stow; then
 		log_error "stow is not installed!"
 		exit 1
 	fi
@@ -934,7 +934,7 @@ unstow_modules() {
 make_module() {
 	if [ ${DOT_MAKE_ENABLED:-1} = 1 ] \
 		&& [ -e "$DOT_MODULES_HOME/$1/Makefile" ]; then
-		if [ ! "$(is_installed "make")" ]; then
+		if ! is_installed "make"; then
 			log_error "Make not available"; exit 1
 		fi
 		# It's already cd'd in.
@@ -960,7 +960,6 @@ $sripts_in_module"
 		direct_dependency=$(echo "$script" | cut -d '.' -f 3)
 		if is_installed "$direct_dependency" ||
 			[ "$direct_dependency" = "fallback" ]; then
-			echo lets run $script
 			sripts_to_almost_run="$sripts_to_almost_run${IFS:-\0}$script"
 		fi
 	done
@@ -1215,7 +1214,7 @@ action_yank() {
 }
 
 ask_entries() {
-	[ ! "$(is_installed whiptail)" ] && log_error "No whiptail installed" \
+	! is_installed whiptail && log_error "No whiptail installed" \
 		&& exit 1
 
 	[ ! "$all_modules" ] && get_all_modules
