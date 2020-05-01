@@ -39,7 +39,11 @@ C_CYAN='\033[0;36m'
 set -a
 
 is_installed() {
-	command -v "$1" 2>/dev/null
+	# explicit check of wsl and systemd pairings
+	if [ "$1" = "systemctl" ] && [ "$wsl" ]; then
+		return 1
+	fi
+	command -v "$1" 2>/dev/null 1>/dev/null
 }
 
 # Environment
@@ -81,7 +85,7 @@ DOT_CLEAN_SYMLINKS=0
 DOT_FIX_PERMISSIONS=0
 
 ## Precalculated environmental variables for modules
-wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null; \
+wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version 2>/dev/null 1>/dev/null; \
 	then echo 1; fi)
 headless=$wsl # wsl is always headless, others should be configured in dotrc
 # Package manager
@@ -91,7 +95,7 @@ xbps=$(is_installed xbps)
 # Init system
 sysctl=$(is_installed sysctl)
 systemctl=$(is_installed systemctl)
-systemd=$(if [ "$systemctl" ] && [ -z "$wsl" ]; then echo 1; fi)
+systemd=$systemctl # alias
 # Distribution
 # TODO: Only valid on systemd distros
 distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | tr -d '="')
@@ -954,9 +958,9 @@ $sripts_in_module"
 	sripts_to_almost_run=
 	for script in $sripts_in_module; do
 		direct_dependency=$(echo "$script" | cut -d '.' -f 3)
-		# TODO: split by `:`, check each
-		if [ "$(is_installed "$direct_dependency")" ] ||
+		if is_installed "$direct_dependency" ||
 			[ "$direct_dependency" = "fallback" ]; then
+			echo lets run $script
 			sripts_to_almost_run="$sripts_to_almost_run${IFS:-\0}$script"
 		fi
 	done
