@@ -1,5 +1,9 @@
 # Todos
 
+TODO: Requirement/condition something file to disable module conditionally
+
+TODO: Single dotmodule file for dependencies / clashes / etc
+
 TODO: Multirequirements using `:` 0.root.pacman:cargo.sh
 
 TODO: use make on update and remove too use Make targets, check if exits

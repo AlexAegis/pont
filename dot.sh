@@ -657,7 +657,10 @@ execute_scripts_for_module() {
 	# 2: scripts to run
 	# 3: sourcing setting, if set, user privileged scripts will be sourced
 	cd "$DOT_MODULES_HOME/$1" || exit 1
+	group_result=0
+	successful_scripts=0
 	for script in $2; do
+		result=0
 		if [ ${DOT_DRY_FLAG:-0} = 0 ] && \
 			[ ${DOT_SCRIPTS_ENABLED:-1} = 1 ]; then
 			log_trace "Running $script..."
@@ -696,7 +699,11 @@ execute_scripts_for_module() {
 					fi
 				fi
 			fi
-			result=$((result + $?))
+			result=$?
+			group_result=$((group_result + result))
+			if [ $result = 0 ]; then
+				successful_scripts=$((successful_scripts + 1))
+			fi
 		else
 			log_trace "Skipping $script..."
 		fi
@@ -948,41 +955,38 @@ make_module() {
 }
 
 install_module() {
-	# TODO: Let fallback scripts run when others on the group fail for
-	# TODO: example because of fzf on ubuntu 18
-	sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
-		-type f | sed 's|.*/||' | grep '^[0-9].*\..*\..*$'  | sort)
-
+	sripts_in_group=$(find "$DOT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
+		-type f | sed 's|.*/||' | grep "^[0-9].*\..*\..*$" | sort)
 	log_trace "Scripts in module for $1 are:
-$sripts_in_module"
-	sripts_to_almost_run=
-	for script in $sripts_in_module; do
-		direct_dependency=$(echo "$script" | cut -d '.' -f 3)
-		if is_installed "$direct_dependency" ||
-			[ "$direct_dependency" = "fallback" ]; then
-			sripts_to_almost_run="$sripts_to_almost_run${IFS:-\0}$script"
-		fi
-	done
-	sripts_to_run=
-	for script in $sripts_to_almost_run; do
-		index=$(echo "$script" | cut -d '.' -f 1 |
-			sed 's/-.*//')
-		direct_dependency=$(echo "$script" | cut -d '.' -f 3)
-		# Only keep fallbacks if they are alone in their index
-		if [ "$direct_dependency" = "fallback" ]; then
-			if [ "$(echo "$sripts_to_almost_run" |
-				grep -c "$index.*")" = 1 ]; then
-				sripts_to_run="$sripts_to_run${IFS:-\0}$script"
+$sripts_in_group"
+	groups_in_module=$(echo "$sripts_in_group" | sed 's/\..*//g' | uniq)
+	for group in $groups_in_module; do
+		group_scripts=$(echo "$sripts_in_group" | grep "${group}." )
+	 	group_scripts_to_run=
+		for script in $group_scripts; do
+			direct_dependency=$(echo "$script" | cut -d '.' -f 3)
+			if is_installed "$direct_dependency" ||
+ 				[ "$direct_dependency" = "fallback" ]; then
+				group_scripts_to_run="$group_scripts_to_run${IFS:-\0}$script"
 			fi
-		else
-			sripts_to_run="$sripts_to_run${IFS:-\0}$script"
-		fi
-	done
-	log_trace "Scripts to run for $1 are:
-$sripts_to_run"
+		done
+		group_scripts_without_fallback=$(echo "$group_scripts_to_run" |
+			 grep -v 'fallback')
 
-	# Run the resulting script list
-	execute_scripts_for_module "$1" "$sripts_to_run"
+		execute_scripts_for_module "$1" "$group_scripts_without_fallback"
+
+		if [ $successful_scripts = 0 ]; then
+			group_fallback_scripts=$(echo "$group_scripts_to_run" |
+			 grep 'fallback')
+			log_info "Installing group $group for $1 was not successful,\
+trying fallbacks:
+$group_fallback_scripts"
+
+			execute_scripts_for_module "$1" "$group_fallback_scripts"
+		fi
+
+		total_result=$((total_result + group_result))
+	done
 }
 
 do_hash() {
@@ -1011,7 +1015,7 @@ hash_module() {
 execute_modules() {
 	while :; do
 		[ "$1" ] || break
-		result=0
+		total_result=0
 		log_trace "Checking if module exists: $DOT_MODULES_HOME/$1"
 		if [ ! -d "$DOT_MODULES_HOME/$1" ]; then
 			log_error "Module $1 not found. Skipping"
@@ -1066,7 +1070,7 @@ execute_modules() {
 
 			install_module "$1"
 
-			if [ "$result" = 0 ]; then
+			if [ "$total_result" = 0 ]; then
 				# Calculate fresh hash on success
 				hash_module "$1"
 			else
