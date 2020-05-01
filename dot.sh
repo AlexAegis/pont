@@ -81,6 +81,9 @@ DOT_CLEAN_SYMLINKS=0
 DOT_FIX_PERMISSIONS=0
 
 ## Precalculated environmental variables for modules
+wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version &> /dev/null; \
+	then echo 1; fi)
+headless=$wsl # wsl is always headless, others should be configured in dotrc
 # Package manager
 pacman=$(is_installed pacman)
 apt=$(is_installed apt)
@@ -88,8 +91,7 @@ xbps=$(is_installed xbps)
 # Init system
 sysctl=$(is_installed sysctl)
 systemctl=$(is_installed systemctl)
-# TODO: Check if its available, on WSL it's not, even though systemctl is
-systemd=$systemctl
+systemd=$(if [ "$systemctl" ] && [ -z "$wsl" ]; then echo 1; fi)
 # Distribution
 # TODO: Only valid on systemd distros
 distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | tr -d '="')
