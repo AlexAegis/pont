@@ -975,10 +975,10 @@ $sripts_in_group"
 
 		execute_scripts_for_module "$1" "$group_scripts_without_fallback"
 
-		if [ $successful_scripts = 0 ]; then
-			group_fallback_scripts=$(echo "$group_scripts_to_run" |
+		group_fallback_scripts=$(echo "$group_scripts_to_run" |
 			 grep 'fallback')
-			log_info "Installing group $group for $1 was not successful,\
+		if [ $successful_scripts = 0 ] && [ "$group_fallback_scripts" ]; then
+			log_info "Installing group $group for $1 was not successful, \
 trying fallbacks:
 $group_fallback_scripts"
 
