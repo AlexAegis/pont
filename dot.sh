@@ -89,12 +89,12 @@ wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version 2>/dev/null 1>/dev/null; \
 	then echo 1; fi)
 headless=$wsl # wsl is always headless, others should be configured in dotrc
 # Package manager
-pacman=$(is_installed pacman)
-apt=$(is_installed apt)
-xbps=$(is_installed xbps)
+pacman=$(if is_installed pacman; then echo 1; fi)
+apt=$(if is_installed apt; then echo 1; fi)
+xbps=$(if is_installed xbps; then echo 1; fi)
 # Init system
-sysctl=$(is_installed sysctl)
-systemctl=$(is_installed systemctl)
+sysctl=$(if is_installed sysctl; then echo 1; fi)
+systemctl=$(if is_installed systemctl; then echo 1; fi)
 systemd=$systemctl # alias
 # Distribution
 # TODO: Only valid on systemd distros
@@ -452,6 +452,8 @@ action_list_environment() {
 		"DOT_CLASHFILE_NAME=$DOT_CLASHFILE_NAME" \
 		"DOT_TAGSFILE_NAME=$DOT_TAGSFILE_NAME" \
 		"DOT_DEFAULT_EXPANSION_ACTION=$DOT_DEFAULT_EXPANSION_ACTION" \
+		"wsl=$wsl" \
+		"headless=$headless" \
 		"pacman=$pacman" \
 		"apt=$apt" \
 		"xbps=$xbps" \
@@ -688,8 +690,8 @@ execute_scripts_for_module() {
 					)
 				else
 					if [ "$3" ]; then
-						# shellcheck disable=SC1090
 						set -a
+						# shellcheck disable=SC1090
 						. "$DOT_MODULES_HOME/$1/$script"
 						set +a
 					else
@@ -849,7 +851,7 @@ do_stow() {
 	# $3: package name
 	# $4: stowmode  "stow" | "unstow"
 
-	[ ${DOT_LOG_LEVEL:-1} = 0 ] && echo "Stowing package $3 to $2 from $1"
+	log_trace "Stowing package $3 to $2 from $1"
 
 	if ! is_installed stow; then
 		log_error "stow is not installed!"
@@ -901,11 +903,22 @@ stow_package() {
 	shift
 	while :; do
 		[ "$1" ] || break
-		log_trace "Stowing $1"
+
+		if [ "$(basename "$1" | cut -d '.' -f 3)" ]; then
+			stow_condition="$(basename "$1" | cut -d '.' -f 2)"
+			if [ "${stow_condition#\$}" = "$stow_condition" ]; then
+				log_trace "Stow condition $stow_condition is a command"
+				is_installed "$stow_condition" || { shift; continue; }
+			else
+				log_trace "Stow condition $stow_condition is a variable"
+				[ "$(eval "echo $stow_condition")" ] || { shift; continue; }
+			fi
+		fi
+
+		log_trace "Do stowing $1"
 		do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
 			sed 's|^$|/|')" \
-			"$(/bin/sh -c "echo \$$(basename "$1" | rev | \
-				cut -d '.' -f 2- | rev)" | \
+			"$(/bin/sh -c "echo \$$(basename "$1" | cut -d '.' -f 1)" | \
 				sed -e "s|^\$$|$DOT_TARGET|" \
 				-e "s|^[^/]|$DOT_TARGET/\0|")" \
 			"$(basename "$1")" \
@@ -964,14 +977,30 @@ $sripts_in_group"
 		group_scripts=$(echo "$sripts_in_group" | grep "${group}." )
 	 	group_scripts_to_run=
 		for script in $group_scripts; do
-			direct_dependency=$(echo "$script" | cut -d '.' -f 3)
-			if is_installed "$direct_dependency" ||
- 				[ "$direct_dependency" = "fallback" ]; then
+			# at least 4 section long, so there is a condition
+			if [ "$(echo "$script" | cut -d '.' -f 4)" ]; then
+				script_condition="$(echo "$script" | cut -d '.' -f 3)"
+				if [ "${script_condition#\$}" = "$script_condition" ]; then
+					log_trace "condition $script_condition is a command"
+					is_installed "$script_condition" && \
+						group_scripts_to_run="$group_scripts_to_run\
+${IFS:-\0}$script"
+				else
+					log_trace "condition $script_condition is a variable"
+					[ "$(eval "echo $script_condition")" ] && \
+						group_scripts_to_run="$group_scripts_to_run\
+${IFS:-\0}$script"
+				fi
+			else
+				# else it has no condition
 				group_scripts_to_run="$group_scripts_to_run${IFS:-\0}$script"
 			fi
 		done
 		group_scripts_without_fallback=$(echo "$group_scripts_to_run" |
 			 grep -v 'fallback')
+
+		log_trace "scripts to execute after conditions
+$group_scripts_without_fallback"
 
 		execute_scripts_for_module "$1" "$group_scripts_without_fallback"
 
