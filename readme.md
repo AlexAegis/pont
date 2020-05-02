@@ -277,12 +277,14 @@ skipped.
 > permamently in a `dotrc`, and only use the `stow`ing mechanism of `dot`.
 > The variable controlling this is `root` and is `1` by default.
 
-### Third segment, dependency
+### Third segment, condition
 
 > 0.root.**pacman**.sh
 
-While modules can have module dependencies, scripts can also have executable
-dependencies. Whatever is in the third segment, it will be checked that
+While modules can have module dependencies, scripts can also have conditions
+which can be executable dependencies and variable dependencies, if prefixed
+with `$`. If it is, and that variable is set and not empty, it will be
+executed. If it's not prefixed with `$`, it will be checked that
 `command -v` returns something for it or not. If yes, it will be executed.
 
 > Currently you can only specify 1 dependency on 1 script.
@@ -290,6 +292,10 @@ dependencies. Whatever is in the third segment, it will be checked that
 My common usecase for this is checking package managers. So I can have
 a separate install script for `pacman` systems, `apt` systems and `xbps`
 systems. And each will only execute on their respective platforms.
+
+For variables, it's for things that cant be checked by a simple presence of
+an executable. Like if I want to run a script only on `wsl`, or `arch` I can
+name my script like `1.user.$wsl.sh`.
 
 #### Fallback
 
@@ -463,6 +469,18 @@ ubuntu
 fedora
 ```
 
+#### Conditional modules
+
+Sometimes a module doesn't makes sense in an environment, but is used by
+many others as a non-essential dependency. In a headless environment like
+`wsl`, fonts are like this. It makes no sense to install fonts in `wsl`. But
+some of your modules might end up depending on them for convinience.
+
+Instead of marking each dependency with a condition, the module itself can be.
+For this, create a file name `.condition` in the modules root. It's content
+will simply be `eval`d before executing anything in the module. So not even
+`init` will run if `.condition` is false.
+
 ### Tags
 
 > .tags
@@ -496,6 +514,11 @@ a stow package.
 
 > So in a module named `zsh`, the `.zsh` directory is a stowable package.
 
+Just like scripts, stow package names are too divided by dots into segments.
+The last one as mentioned is for marking a directory as a stow package.
+
+### First segment, target
+
 By default, stow packages will be stowed to `DOT_TARGET` (can be overriden
 in a `dotrc` file) which is just `HOME` by default.
 
@@ -508,6 +531,12 @@ This path then will be used as the final target to stow to.
 > This variable can be set in the `init` script too if you wan't to be module
 > specific. These scripts are run before stowing and everything they define
 > is available during the installation of the module.
+
+### Second segment, condition
+
+Just like packages, the second segment can be prefixed with `$`. In this case
+dot checks if that variable is set or not. If it's not prefixed, it will
+check with `command -v` if that it's a valid executable.
 
 ## Presets
 

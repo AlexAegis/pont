@@ -1,7 +1,5 @@
 # Todos
 
-TODO: Requirement/condition something file to disable module conditionally
-
 TODO: Single dotmodule file for dependencies / clashes / etc
 
 TODO: Multirequirements using `:` 0.root.pacman:cargo.sh

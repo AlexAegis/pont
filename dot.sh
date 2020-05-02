@@ -78,6 +78,7 @@ DOT_PRESET_EXTENSION=".preset"
 DOT_HASHFILE_NAME=".tarhash"
 DOT_DEPRECATIONFILE_NAME=".deprecated"
 DOT_DEPENDENCIESFILE_NAME=".dependencies"
+DOT_CONDITIONFILE_NAME=".condition"
 DOT_CLASHFILE_NAME=".clash"
 DOT_TAGSFILE_NAME=".tags"
 DOT_DEFAULT_EXPANSION_ACTION="action_expand_none"
@@ -1048,7 +1049,17 @@ execute_modules() {
 		log_trace "Checking if module exists: $DOT_MODULES_HOME/$1"
 		if [ ! -d "$DOT_MODULES_HOME/$1" ]; then
 			log_error "Module $1 not found. Skipping"
-			return 1
+			shift
+			continue
+		fi
+
+		if [ -e "$DOT_MODULES_HOME/$1/$DOT_CONDITIONFILE_NAME" ] && \
+			! eval "$(cat "$DOT_MODULES_HOME/$1/$DOT_CONDITIONFILE_NAME")"
+		then
+			log_warning "Condition on $1 failed. Skipping
+$(cat "$DOT_MODULES_HOME/$1/$DOT_CONDITIONFILE_NAME")"
+			shift
+			continue
 		fi
 
 		log_info "Installing $1"
