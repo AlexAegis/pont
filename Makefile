@@ -2,7 +2,7 @@
 # To run all tests: `make test`
 
 MAKEFLAGS += -k # keep running on failure
-MAKEFLAGS += -j4 # run on 4 threads
+# MAKEFLAGS += -j4 # run on 4 threads, would cause problems on coverage
 
 SHELL := /bin/dash
 
@@ -15,7 +15,7 @@ list_tests:
 	@echo $(all_tests)
 
 %.test: %.test.sh
-	@$(SHELL) $@.sh && \
+	@COVERAGE='kcov coverage ' $(SHELL) $@.sh && \
 	echo "Test $@.sh successful!" || \
 	"Test $@.sh failed!"
 

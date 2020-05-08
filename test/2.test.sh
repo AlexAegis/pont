@@ -1,4 +1,7 @@
 #!/bin/sh
 
+pwd
+. ./test/.env
+echo $DOT_MODULES_HOME
 echo "Run tests2"
-exit 0
+$COVERAGE ./dot.sh multi

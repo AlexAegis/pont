@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+ls -al
 
-echo "Run tests"
-exit 0
+echo "Run tests $COVERAGE"
+$COVERAGE ./dot.sh -M
