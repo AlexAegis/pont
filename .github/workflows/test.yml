@@ -1,0 +1,23 @@
+name: Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+      - name: Install stow and dependencies
+        run: |
+          # node:12.6-buster-slim doesn't have sudo, but root by default.
+          SUDO_AVAILABLE=$(if command -v sudo 2> /dev/null; then echo 1; fi)
+          ${SUDO_AVAILABLE:+sudo} apt-get update
+          ${SUDO_AVAILABLE:+sudo} apt-get install -y make stow
+      - name: Test
+        run: make test
