@@ -574,10 +574,6 @@ Available presets can be listed and `sort`ed using the `-lp` or
 dot -lp
 ```
 
-## To be done
-
-Every TODO in the script
-
 ## Far plans
 
 Once it's done, I might do a Rust rewrite for easier implementation of

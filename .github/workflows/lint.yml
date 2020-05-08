@@ -1,0 +1,26 @@
+name: lint
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+      - name: apt update and install make
+        run: apt update && apt install -y make wget tar xz-utils
+      - name: install latest shellcheck
+        run: |
+          scversion="stable"
+          wget -qO- "https://github.com/koalaman/shellcheck/releases/download/${scversion?}/shellcheck-${scversion?}.linux.x86_64.tar.xz" | tar -xJv
+          cp "shellcheck-${scversion}/shellcheck" /usr/bin/
+      - name: base
+        run: shellcheck --version
+      - name: Make lint
+        run: /bin/sh -c 'make lint'
