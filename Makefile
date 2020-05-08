@@ -7,32 +7,32 @@ MAKEFLAGS += -j4 # run on 4 threads
 SHELL := /bin/dash
 
 all_tests := $(basename $(wildcard test/*.test.sh))
-all_sc_formats := $(addsuffix .sc, sh dash bash ksh)
+all_lint_formats := $(addsuffix .lint, sh dash bash ksh)
 
-.PHONY: test all %.test lint clean
+.PHONY: test all %.test lint %.lint clean
 
 list_tests:
 	@echo $(all_tests)
-
-list_all_sc_formats:
-	@echo $(all_sc_formats)
-
-test_all: $(all_tests)
-
-lint_all: $(all_sc_formats)
-
-%.sc:
-	@shellcheck -s $(basename $@) dot.sh && \
-		echo "Lint $(basename $@) successful!" || \
-		"Lint $@ failed!"
 
 %.test: %.test.sh
 	@$(SHELL) $@.sh && \
 	echo "Test $@.sh successful!" || \
 	"Test $@.sh failed!"
 
+test_all: $(all_tests)
+
 test: test_all
 	@echo "Success, all tests passed."
+
+list_all_lint_formats:
+	@echo $(all_lint_formats)
+
+%.lint:
+	@shellcheck -s $(basename $@) dot.sh && \
+		echo "Lint $(basename $@) successful!" || \
+		"Lint $@ failed!"
+
+lint_all: $(all_lint_formats)
 
 lint: lint_all
 	@echo "Success, all lints passed."
