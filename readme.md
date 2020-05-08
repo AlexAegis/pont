@@ -1,5 +1,7 @@
 # [dot](./dot.sh)
 
+[![Test](https://github.com/AlexAegis/dot/workflows/Test/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ATest) [![Lint](https://github.com/AlexAegis/dot/workflows/Lint/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ALint)
+
 > My [dotfiles](https://github.com/alexaegis/dotfiles) as a live example
 
 ## What is dot
