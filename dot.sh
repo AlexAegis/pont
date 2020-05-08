@@ -884,9 +884,11 @@ do_stow() {
 		# Module target symlinks are always cleaned
 		clean_symlinks "$2"
 		if [ "$SUDO_USER" ]; then
-			sudo --preserve-env="PATH" -E -u "$SUDO_USER" stow -D -d "$1" -t "$2" "$3"
+			sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
+				stow -D -d "$1" -t "$2" "$3"
 			[ "$stow_mode" = "stow" ] && \
-				sudo --preserve-env="PATH" -E -u "$SUDO_USER" stow -S -d "$1" -t "$2" "$3"
+				sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
+					stow -S -d "$1" -t "$2" "$3"
 		else
 			# https://github.com/aspiers/stow/issues/69
 			stow -D -d "$1" -t "$2" "$3"
@@ -956,7 +958,7 @@ make_module() {
 	if [ ${DOT_MAKE_ENABLED:-1} = 1 ] \
 		&& [ -e "$DOT_MODULES_HOME/$1/Makefile" ]; then
 		if ! is_installed "make"; then
-			log_error "Make not available"; exit 1
+			log_error "Make not available"; return 1
 		fi
 		# It's already cd'd in.
 		# Makefiles are always executed using user rights
