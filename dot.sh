@@ -195,18 +195,19 @@ get_all_tags() {
 		sed -e 's/ *#.*$//' -e '/^$/d' | sort | uniq)
 }
 
-dequeue() {
-	# remove last or remove the supplied items
-	if [ ! "$1" ]; then
-		execution_queue=$(echo "$execution_queue" | sed '$ d')
-		return
-	fi
-	while :; do
-		[ "$1" ] || break
-		execution_queue=$(echo "$execution_queue" | grep -v "$1")
-		shift
-	done
-}
+# Unused, left here for reference
+# dequeue() {
+# 	# remove last or remove the supplied items
+# 	if [ ! "$1" ]; then
+# 		execution_queue=$(echo "$execution_queue" | sed '$ d')
+# 		return
+# 	fi
+# 	while :; do
+# 		[ "$1" ] || break
+# 		execution_queue=$(echo "$execution_queue" | grep -v "$1")
+# 		shift
+# 	done
+# }
 
 enqueue() {
 	log_trace "Enqueuing $*"
