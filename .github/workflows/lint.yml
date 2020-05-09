@@ -15,6 +15,7 @@ jobs:
           fetch-depth: 1
       - name: Check if sudo is available
         run: |
+          echo ::set-env name=WEEK::$(date +%V)
           echo ::set-env name=SUDO_AVAIL::$(if command -v sudo \
             2> /dev/null; then echo 1; fi)
       - name: Cache shellcheck
@@ -22,9 +23,9 @@ jobs:
         uses: actions/cache@v1
         with:
           path: shellcheck-stable
-          key: ${{ runner.os }}-shellcheck
+          key: ${{ runner.os }}-shellcheck-${WEEK}
       - name: Download shellcheck and dependencies
-        if: steps.cache-shellcheck.outputs.cache-hit != 'true'
+        if: steps.cache-shellcheck-${WEEK}.outputs.cache-hit != 'true'
         run: |
           ${SUDO_AVAIL:+sudo} apt-get update
           ${SUDO_AVAIL:+sudo} apt-get install -y make wget tar xz-utils
