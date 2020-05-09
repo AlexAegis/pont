@@ -2,7 +2,8 @@
 # To run all tests: `make test`
 
 MAKEFLAGS += -k # keep running on failure
-MAKEFLAGS += -j1 # run on 4 threads, would cause problems on coverage
+MAKEFLAGS += -j1 # explicitly run on a single thread,
+# more would cause problems on coverage report merging
 
 SHELL := /bin/dash
 COVERAGE_PARAMS:='kcov --include-pattern=dot.sh --exclude-pattern=coverage coverage'
