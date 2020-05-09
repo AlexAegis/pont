@@ -441,6 +441,13 @@ entries that are already executed and moves on.
 > turned back on) you only get the list of modules that are gonna be
 > executed
 
+##### Base modules
+
+Modules listed in the `DOT_BASE_MODULES` variable (space separated) are always
+treated as selected. This can be used to define global dependencies.
+Base modules are placed at the beginning of selected modules, so they are
+executed earlier.
+
 #### Conditional dependencies
 
 Dependencies can be conditional. After the dependency statement you can put
