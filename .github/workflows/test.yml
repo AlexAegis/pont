@@ -19,10 +19,12 @@ jobs:
         with:
           path: kcov-master
           key: ${{ runner.os }}-kcov-master
-      - name: Update repositories
+      - name: Check if sudo is available
         run: |
           echo ::set-env name=SUDO_AVAIL::$(if command -v sudo \
             2> /dev/null; then echo 1; fi)
+      - name: Update repositories
+        run: |
           ${SUDO_AVAIL:+sudo} apt-get update
       - name: Install stow and dependencies
         run: |
