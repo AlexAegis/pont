@@ -28,14 +28,16 @@ jobs:
           ${SUDO_AVAIL:+sudo} apt-get update
       - name: Install stow and dependencies
         run: |
-          ${SUDO_AVAIL:+sudo} apt-get install -y make stow sudo wget curl \
-            libcurl4-openssl-dev binutils-dev
-      - name: Install kcov dependencies
+          ${SUDO_AVAIL:+sudo} apt-get install -y make stow sudo wget curl
+      - name: Install kcov install dependencies
+        run: |
+          ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
+            binutils-dev libiberty-dev
+      - name: Install kcov compile dependencies
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y python3 tar xz-utils \
-            cmake zlib1g-dev libssl-dev \
-            libdw-dev libiberty-dev build-essential
+            cmake zlib1g-dev libssl-dev libdw-dev build-essential
       - name: Build Kcov
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
