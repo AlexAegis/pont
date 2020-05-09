@@ -31,7 +31,7 @@ jobs:
           path: shellcheck-stable
           key: ${{ runner.os }}-shellcheck-${WEEK}
       - name: Install shellcheck download only dependencies
-         if: steps.cache-shellcheck.outputs.cache-hit != 'true'
+        if: steps.cache-shellcheck.outputs.cache-hit != 'true'
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y wget tar xz-utils
       - name: Download shellcheck and dependencies
