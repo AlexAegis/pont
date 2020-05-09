@@ -1,7 +1,4 @@
 #!/bin/sh
-
-echo "After all $DOT_HASHFILE_NAME"
-
 # shellcheck disable=SC1091
 . test/.env
 
