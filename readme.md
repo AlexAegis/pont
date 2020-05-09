@@ -1,5 +1,6 @@
 # [dot](./dot.sh)
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/637b2b8de50b4a9f8ed5ebd4b57a1dfc)](https://app.codacy.com/manual/AlexAegis/dot?utm_source=github.com&utm_medium=referral&utm_content=AlexAegis/dot&utm_campaign=Badge_Grade_Dashboard)
 [![Test](https://github.com/AlexAegis/dot/workflows/Test/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ATest) [![Lint](https://github.com/AlexAegis/dot/workflows/Lint/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ALint)
 
 > Check my [dotfiles](https://github.com/alexaegis/dotfiles) as a live example
