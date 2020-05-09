@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 # shellcheck disable=SC1091
 . ./test/.env
 # This test tries to install the "symlinks" module which have multiple

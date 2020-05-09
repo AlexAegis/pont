@@ -141,6 +141,8 @@ DOTFILES_HOME=${DOTFILES_HOME:-"$HOME/.dotfiles"}
 DOT_MODULES_FOLDER=${DOT_MODULES_FOLDER:-"$DOTFILES_HOME/modules"}
 # Presets will be searched from here, recursively
 DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
+# Modules to always include regardless of selection
+DOT_BASE_MODULES="base sys"
 ```
 
 ```sh
@@ -179,20 +181,40 @@ Modules that are already installed can be forced to be reinstalled using the
 
 ### Listing installed modules
 
-Installed modules can be listed and `sort`ed using the `-li` or
-`--list-installed` flags. These flags makes `dot` immediately exit.
+Installed modules can be listed and `sort`ed using the `-I` or
+`--list-installed` flags. These flags makes `dot` exit immediately.
 
 ```sh
-dot -li
+dot -I
 ```
 
 ### Listing available modules
 
-Available modules can be listed and `sort`ed using the `-lm` or
-`--list-modules` flags. These flags makes `dot` immediately exit.
+Available modules can be listed and `sort`ed using the `-A` or
+`--list-modules` flags. These flags make `dot` exit immediately.
 
 ```sh
-dot -lm
+dot -A
+```
+
+### Listing deprecated modules
+
+Deprecated modules (Explicitly marked as deprecated) can be listed and
+`sort`ed using the `-D` or `--list-deprecated` flags.
+These flags make `dot` exit immediately.
+
+```sh
+dot -D
+```
+
+### Listing outdated modules
+
+Outdated modules (Modules with changed hash since their last installation)
+can be listed and `sort`ed using the `-O` or `--list-outdated` flags.
+These flags make `dot` exit immediately.
+
+```sh
+dot -O
 ```
 
 ## Content of a module

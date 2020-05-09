@@ -69,7 +69,7 @@ function _dot {
 	   '(-o --expand-outdated)'{-o,--expand-outdated}'[Expands every installed module regardless of the current selection thats saved hash is no longer matching a freshly calculated one. Useful for batch refreshing modules after modifying them]' \
 	   '(-d --dry)'{-d,--dry}'[Disables modifications. No stowing, no script execution. Useful for testing flag combinations.]' \
 	   '(-w --wet)'{-w,--wet}'[Enabled modifications. Stowing, Script execution. On by default.]' \
-	   '(-b --skip-base)'{-b,--skip-base}'[Skip the base module when expanding selection (Only useful before the -e flag).]' \
+	   '(-b --skip-base)'{-b,--skip-base}'[Skip the base modules when expanding selection (Only useful before the -e flag).]' \
 	   '(-f --force)'{-f,--force}'[Ignores hashfiles. To avoid accidentally installing large dependency trees, this automatically turns on --expand-none. Expansion can be changed after.]' \
 	   '(-c --config)'{-c,--config}'[Instead of the selection in the argument list, select entries in a TUI with whiptail.]' \
 	   '--root[Enables root privileged script execution. On by default.]' \

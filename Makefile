@@ -18,14 +18,12 @@ list_tests:
 
 %.test: %.test.sh
 	@IFS=' ' COVERAGE=$(COV_COM) $(SHELL) $@.sh && \
-	echo "Test $@.sh successful!" || \
-	"Test $@.sh failed!"
+	{ echo "Test $@.sh successful!"; test/cleanup.sh; exit 0; } || \
+	{ echo "Test $@.sh failed!"; test/cleanup.sh; exit 1; }
 
 test_all: $(all_tests)
 
 test: test_all
-	@pwd
-	@$(SHELL) test/cleanup.sh
 	@echo "Success, all tests passed."
 
 list_all_lint_formats:

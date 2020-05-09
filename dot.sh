@@ -86,27 +86,29 @@ DOT_CLEAN_SYMLINKS=0
 DOT_FIX_PERMISSIONS=0
 
 ## Precalculated environmental variables for modules
-wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version 2>/dev/null 1>/dev/null; \
-	then echo 1; fi)
-headless=$wsl # wsl is always headless, others should be configured in dotrc
+export wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version \
+	2>/dev/null 1>/dev/null; then echo 1; fi)
+# wsl is always headless, others should be configured in dotrc
+export headless=$wsl
 # Package manager
-pacman=$(if is_installed pacman; then echo 1; fi)
-apt=$(if is_installed apt; then echo 1; fi)
-xbps=$(if is_installed xbps; then echo 1; fi)
+export pacman=$(if is_installed pacman; then echo 1; fi)
+export apt=$(if is_installed apt; then echo 1; fi)
+export xbps=$(if is_installed xbps; then echo 1; fi)
 # Init system
-sysctl=$(if is_installed sysctl; then echo 1; fi)
-systemctl=$(if is_installed systemctl; then echo 1; fi)
-systemd=$systemctl # alias
+export sysctl=$(if is_installed sysctl; then echo 1; fi)
+export systemctl=$(if is_installed systemctl; then echo 1; fi)
+export systemd=$systemctl # alias
 # Distribution
 # TODO: Only valid on systemd distros
-distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | tr -d '="')
+export distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | \
+	tr -d '="')
 # It uses if and not && because when using && a new line would
 # return on false evaluation. `If` captures the output of test
-arch=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
-void=$(if [ "$distribution" = 'Void Linux' ]; then echo 1; fi)
-debian=$(if [ "$distribution" = 'Debian GNU/Linux' ]; then echo 1; fi)
-ubuntu=$(if [ "$distribution" = 'Ubuntu' ]; then echo 1; fi)
-fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
+export arch=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
+export void=$(if [ "$distribution" = 'Void Linux' ]; then echo 1; fi)
+export debian=$(if [ "$distribution" = 'Debian GNU/Linux' ]; then echo 1; fi)
+export ubuntu=$(if [ "$distribution" = 'Ubuntu' ]; then echo 1; fi)
+export fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 
 # Config file sourcing
 # shellcheck disable=SC1090
@@ -326,7 +328,7 @@ show_help() {
                                  combinations.
 -w, --wet                     -- Enabled modifications. Stowing, Script
                                  execution. On by default.
--b, --skip-base               -- Skip the base module when expanding selection
+-b, --skip-base               -- Skip the base modules when expanding selection
                                  (Only useful before the -e flag).
 -f, --force                   -- Ignores hashfiles. To avoid accidentally
                                  installing large dependency trees, this
@@ -866,7 +868,7 @@ do_stow() {
 	$3"
 		exit 1
 	fi
-	if [ ! -d "$2" ]; then
+	if [ "$2" ] && [ ! -d "$2" ]; then
 		log_warning "target directory does not exist, creating!
 	$1
 	$2
@@ -896,6 +898,7 @@ do_stow() {
 			[ "$stow_mode" = "stow" ] && \
 				stow -S -d "$1" -t "$2" "$3"
 		fi
+		log_trace "Stowed $1"
 	fi
 }
 
@@ -1159,16 +1162,18 @@ action_clean_symlinks() {
 action_expand_selected() {
 	log_info "Set final module list to every selected and expanded module"
 	final_module_list=
-	# shellcheck disable=SC2086
-	if [ "${DOT_NO_BASE_FLAG:-0}" != 1 ]; then
-		if [ "$entries_selected" ]; then
-			entries_selected="base${IFS:-\0}$entries_selected"
-		else
-			entries_selected="base"
-		fi
+
+	if [ "$DOT_NO_BASE_FLAG" != 1 ]; then
+		old_ifs=$IFS
+		IFS=' '
+		for base_module in $DOT_BASE_MODULES; do
+			IFS=$old_ifs
+			entries_selected="${base_module}${IFS:-\0}${entries_selected}"
+		done
+		IFS=$old_ifs
 	fi
 
-	expand_entries "base" $entries_selected
+	expand_entries $entries_selected
 	log_info "Final module list is:"
 	echo "$final_module_list"
 }

@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 # shellcheck disable=SC1091
 . ./test/.env
 # This test tries to install the "conditional_symlinks" module in which
@@ -9,6 +10,7 @@ $COVERAGE ./dot.sh -q conditional_symlinks
 
 # Assertions
 sync
-[ -e "$DOT_TARGET/dolinkme" ] || { echo "Allowed conditional not linked"; exit 1; }
+[ -e "$DOT_TARGET/dolinkme" ] ||
+	{ echo "Allowed conditional not linked"; exit 1; }
 [ ! -e "$DOT_TARGET/dontlinkme" ] ||
  	{ echo "Disallowed conditional linked"; exit 1; }
