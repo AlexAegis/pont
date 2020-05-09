@@ -6,7 +6,7 @@ MAKEFLAGS += -j1 # explicitly run on a single thread,
 # more would cause problems on coverage report merging
 
 SHELL := /bin/dash
-COVERAGE_PARAMS:='kcov --include-pattern=dot.sh --exclude-pattern=coverage coverage'
+COV_COM:='kcov --include-pattern=dot.sh --exclude-pattern=coverage coverage'
 
 all_tests := $(basename $(wildcard test/*.test.sh))
 all_lint_formats := $(addsuffix .lint, sh dash bash ksh)
@@ -17,7 +17,7 @@ list_tests:
 	@echo $(all_tests)
 
 %.test: %.test.sh
-	@IFS=' ' COVERAGE=$(COVERAGE_PARAMS) $(SHELL) $@.sh && \
+	@IFS=' ' COVERAGE=$(COV_COM) $(SHELL) $@.sh && \
 	echo "Test $@.sh successful!" || \
 	"Test $@.sh failed!"
 
@@ -32,9 +32,12 @@ list_all_lint_formats:
 	@echo $(all_lint_formats)
 
 %.lint:
-	@shellcheck -s $(basename $@) dot.sh && \
-		echo "Lint $(basename $@) successful!" || \
-		"Lint $@ failed!"
+	@git ls-tree -r master --name-only | \
+		grep -e '\.sh$$' -e '\.bash$$' -e '\.ksh$$' -e '\.bashrc$$' -e \
+		'\.bash_profile$$' -e '\.bash_login$$' -e '\.bash_logout$$' | \
+		xargs shellcheck && \
+		echo "Lint $(basename $@) successful" || \
+		echo "Lint $@ failed"
 
 lint_all: $(all_lint_formats)
 
