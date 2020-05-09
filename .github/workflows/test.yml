@@ -13,22 +13,23 @@ jobs:
       - uses: actions/checkout@master
         with:
           fetch-depth: 1
-      - name: Cache Kcov
-        id: cache-kcov
-        uses: actions/cache@v1
-        with:
-          path: kcov-master
-          key: ${{ runner.os }}-kcov-master
-      - name: Check if sudo is available
+      - name: Environment
         run: |
+          echo ::set-env name=WEEK::$(date +%V)
           echo ::set-env name=SUDO_AVAIL::$(if command -v sudo \
             2> /dev/null; then echo 1; fi)
       - name: Update repositories
         run: |
           ${SUDO_AVAIL:+sudo} apt-get update
-      - name: Install stow and dependencies
+      - name: Install dependencies
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y make stow sudo wget curl
+      - name: Cache kcov
+        id: cache-kcov
+        uses: actions/cache@v1
+        with:
+          path: kcov-master
+          key: ${{ runner.os }}-kcov-master-${WEEK}
       - name: Install kcov install dependencies
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
@@ -38,7 +39,7 @@ jobs:
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y python3 tar xz-utils \
             cmake zlib1g-dev libssl-dev build-essential
-      - name: Build Kcov
+      - name: Build kcov
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
@@ -48,12 +49,10 @@ jobs:
           cd build
           cmake ..
           make
-          cd ../..
       - name: Install Kcov
         run: |
           cd kcov-master/build
           sudo make install
-          cd ../..
       - name: Test
         run: make test
       - name: Upload coverage result to codecov
