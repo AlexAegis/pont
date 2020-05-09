@@ -32,12 +32,12 @@ jobs:
       - name: Install kcov install dependencies
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
-            binutils-dev libiberty-dev
-      - name: Install kcov compile dependencies
+            binutils-dev libiberty-dev libdw-dev
+      - name: Install kcov compile only dependencies
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y python3 tar xz-utils \
-            cmake zlib1g-dev libssl-dev libdw-dev build-essential
+            cmake zlib1g-dev libssl-dev build-essential
       - name: Build Kcov
         if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
