@@ -61,13 +61,8 @@ jobs:
         with:
           path: codecov-reporter.sh
           key: ${{ runner.os }}-kcov-master-${WEEK}
-      - name: Download codecov reporter
-        if: steps.cache-codecov.outputs.cache-hit != 'true'
-        run: |
-          curl -s https://codecov.io/bash > codecov-reporter.sh
-          chmod u+x codecov-reporter.sh
       - name: Upload coverage result to codecov
-        run: codecov-reporter.sh
+        run: bash <(curl -s https://codecov.io/bash)
       - name: Upload coverage result to codacy
         run: |
           export CODACY_PROJECT_TOKEN=${{ secrets.CODACY_PROJECT_TOKEN }}
