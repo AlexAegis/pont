@@ -16,3 +16,4 @@ _deps
 *.log
 
 coverage
+test/target

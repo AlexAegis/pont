@@ -2,7 +2,7 @@
 # To run all tests: `make test`
 
 MAKEFLAGS += -k # keep running on failure
-# MAKEFLAGS += -j4 # run on 4 threads, would cause problems on coverage
+MAKEFLAGS += -j1 # run on 4 threads, would cause problems on coverage
 
 SHELL := /bin/dash
 

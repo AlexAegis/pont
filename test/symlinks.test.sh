@@ -8,6 +8,7 @@
 "$COVERAGE" "$COVERAGE_TARGET" ./dot.sh -q symlinks
 
 # Assertions
+sync
 echo "$DOT_TARGET/base"
 [ -e "$DOT_TARGET/symlinksfile" ] ||
 	{ echo "Base not linked"; exit 1; }
