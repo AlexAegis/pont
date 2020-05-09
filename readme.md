@@ -1,6 +1,6 @@
 # [dot](./dot.sh)
 
-[![Test](https://github.com/AlexAegis/dot/workflows/Test/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ATest) [![Lint](https://github.com/AlexAegis/dot/workflows/Lint/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ALint) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/64033c40165747fa8abe7d5a6d706a65)](https://www.codacy.com/manual/AlexAegis/dot?utm_source=github.com&utm_medium=referral&utm_content=AlexAegis/dot&utm_campaign=Badge_Grade)
+[![Test](https://github.com/AlexAegis/dot/workflows/Test/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ATest) [![Lint](https://github.com/AlexAegis/dot/workflows/Lint/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ALint) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/64033c40165747fa8abe7d5a6d706a65)](https://www.codacy.com/manual/AlexAegis/dot?utm_source=github.com&utm_medium=referral&utm_content=AlexAegis/dot&utm_campaign=Badge_Grade) [![codecov](https://codecov.io/gh/AlexAegis/dot/branch/master/graph/badge.svg)](https://codecov.io/gh/AlexAegis/dot)
 
 > Check my [dotfiles](https://github.com/alexaegis/dotfiles) as a live example
 
