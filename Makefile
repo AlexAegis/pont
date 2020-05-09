@@ -15,13 +15,15 @@ list_tests:
 	@echo $(all_tests)
 
 %.test: %.test.sh
-	@COVERAGE='kcov coverage ' $(SHELL) $@.sh && \
+	@COVERAGE='kcov' COVERAGE_TARGET='coverage' $(SHELL) $@.sh && \
 	echo "Test $@.sh successful!" || \
 	"Test $@.sh failed!"
 
 test_all: $(all_tests)
 
 test: test_all
+	@pwd
+	@$(SHELL) test/cleanup.sh
 	@echo "Success, all tests passed."
 
 list_all_lint_formats:

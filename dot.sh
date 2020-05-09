@@ -59,6 +59,8 @@ XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 # Environmental config
 ## This where the packages will be stowed to. Can also be set with -t
 DOT_TARGET=${DOT_TARGET:-"$user_home"}
+echo "DOT_TARGET22 $DOT_TARGET"
+echo "DOT_TARGET22dwqdqw $DOT_TARGET"
 DOTFILES_HOME=${DOTFILES_HOME:-"$user_home/.config/dotfiles"}
 # TODO: Support multiple folders $IFS separated, quote them
 DOT_MODULES_HOME=${DOT_MODULES_HOME:-"$DOTFILES_HOME/modules"}
@@ -866,11 +868,11 @@ do_stow() {
 		exit 1
 	fi
 	if [ ! -d "$2" ]; then
-		log_error "target directory does not exist!
+		log_warning "target directory does not exist, creating!
 	$1
 	$2
 	$3"
-		exit 1
+		mkdir -p "$2"
 	fi
 	if [ ! "$3" ]; then
 		log_error "no package name!
