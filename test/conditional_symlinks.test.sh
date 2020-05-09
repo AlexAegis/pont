@@ -6,7 +6,7 @@
 # DO_LINK is set and another that should not be linked because DO_NOT_LINK
 # is empty
 
-"$COVERAGE" "$COVERAGE_TARGET" ./dot.sh conditional_symlinks
+"$COVERAGE" "$COVERAGE_TARGET" ./dot.sh -q conditional_symlinks
 
 # Assertions
 sync
