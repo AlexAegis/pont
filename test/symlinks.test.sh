@@ -5,7 +5,7 @@
 # linkable packages inside, two of which use relative paths and will be linked
 # to DOT_TARGET without mentioning it. One that's an absolute path, and one
 # that has no variable target, and will default to DOT_TARGET.
-"$COVERAGE" "$COVERAGE_TARGET" ./dot.sh -q symlinks
+$COVERAGE ./dot.sh -q symlinks
 
 # Assertions
 sync

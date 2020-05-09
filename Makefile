@@ -5,6 +5,7 @@ MAKEFLAGS += -k # keep running on failure
 MAKEFLAGS += -j1 # run on 4 threads, would cause problems on coverage
 
 SHELL := /bin/dash
+COVERAGE_PARAMS:='kcov --include-pattern=dot.sh --exclude-pattern=coverage coverage'
 
 all_tests := $(basename $(wildcard test/*.test.sh))
 all_lint_formats := $(addsuffix .lint, sh dash bash ksh)
@@ -15,7 +16,7 @@ list_tests:
 	@echo $(all_tests)
 
 %.test: %.test.sh
-	@COVERAGE='kcov' COVERAGE_TARGET='coverage' $(SHELL) $@.sh && \
+	@IFS=' ' COVERAGE=$(COVERAGE_PARAMS) $(SHELL) $@.sh && \
 	echo "Test $@.sh successful!" || \
 	"Test $@.sh failed!"
 

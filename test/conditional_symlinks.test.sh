@@ -5,8 +5,7 @@
 # there are two modules, one that should be linked because the variable
 # DO_LINK is set and another that should not be linked because DO_NOT_LINK
 # is empty
-
-"$COVERAGE" "$COVERAGE_TARGET" ./dot.sh -q conditional_symlinks
+$COVERAGE ./dot.sh -q conditional_symlinks
 
 # Assertions
 sync

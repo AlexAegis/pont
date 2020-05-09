@@ -28,8 +28,8 @@ dot +arch
 And then it will install every single thing I specified there without
 assistance. In order.
 
-_"But that could be done by having a single set of applications in an install
-script, and all my config in a repository"_
+But that could be done by having a single set of applications in an install
+script, and all my config in a repository, right?
 
 Yes, but what if you use multiple setups at once? Or you'd like to configure
 just only a few things on a remote server? Why would you add your X config to
@@ -349,8 +349,6 @@ packages. Like `~/.config/`, `~/.local/bin` or `~/.config/systemd/user`.
 > conditions because it does not know of the original package that put that
 > folded symlink there in the first place.
 
-[stow-un]: https://www.gnu.org/software/stow/manual/stow.html#Tree-unfolding
-
 ### Flagged scripts
 
 There can also be some special scripts that are not executed during
@@ -583,3 +581,5 @@ paralell execution while respecting the dependency tree.
 Which could be done in a script too but having all of the outputs and logs
 managed would be hard. The dotmodule "specification" won't really change,
 but it can expand.
+
+[stow-un]: https://www.gnu.org/software/stow/manual/stow.html#Tree-unfolding
