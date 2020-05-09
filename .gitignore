@@ -17,3 +17,6 @@ _deps
 
 coverage
 test/target
+
+codecov-reporter.sh
+codacy-reporter.sh
