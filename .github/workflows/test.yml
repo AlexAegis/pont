@@ -18,7 +18,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: kcov-master
-          key: ${{ runner.os }}-kcov
+          key: ${{ runner.os }}-kcov-master
       - name: Install stow and dependencies
         run: |
           # node:12.6-buster-slim doesn't have sudo.
