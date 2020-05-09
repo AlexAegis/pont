@@ -13,6 +13,12 @@ jobs:
       - uses: actions/checkout@master
         with:
           fetch-depth: 1
+      - name: Cache Kcov
+        id: cache-kcov
+        uses: actions/cache@v1
+        with:
+          path: kcov-master/build
+          key: ${{ runner.os }}-kcov
       - name: Install stow and dependencies
         run: |
           # node:12.6-buster-slim doesn't have sudo, but root by default.
@@ -21,7 +27,8 @@ jobs:
           ${SUDO_AVAILABLE:+sudo} apt-get install -y make stow sudo wget curl \
             python3 tar xz-utils cmake build-essential zlib1g-dev libssl-dev \
             binutils-dev libcurl4-openssl-dev libdw-dev libiberty-dev
-      - name: Install kcov
+      - name: Build Kcov
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
           tar xzf master.tar.gz
@@ -32,7 +39,6 @@ jobs:
           make
           sudo make install
           cd ../..
-          rm -rf kcov-master
       - name: Test
         run: make test
       - name: Upload coverage result
