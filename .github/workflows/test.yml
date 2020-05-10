@@ -22,8 +22,6 @@ jobs:
           ${SUDO_AVAIL:+sudo} apt-get update
       - name: Install dependencies
         run: |
-          sudo ls -al /home/runner/work/dot
-          sudo rm -rf /home/runner/work/dot
           ${SUDO_AVAIL:+sudo} apt-get install -y make stow sudo wget curl
       - name: Cache kcov
         id: cache-kcov
@@ -33,6 +31,8 @@ jobs:
           key: ${{ runner.os }}-kcov
       - name: Install kcov install dependencies
         run: |
+          sudo ls -al /home/runner/work/dot
+          sudo rm -rf /home/runner/work/dot
           ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
             binutils-dev libiberty-dev libdw-dev
       - name: Install kcov compile only dependencies
