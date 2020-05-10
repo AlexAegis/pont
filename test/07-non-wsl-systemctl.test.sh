@@ -4,7 +4,7 @@ set -e
 . ./test/env.sh
 # This test tries to install the `systemd` module on a systemd system
 # being a systemd system is enforced by mocking the is_installed function
-# in the .dotrc file
+# in the .pontrc file
 # shellcheck disable=SC2016
 echo '
 is_installed() {
@@ -13,9 +13,9 @@ is_installed() {
 	fi
 	command -v "$1" 2>/dev/null 1>/dev/null
 }
-' > .dotrc
-result=$($COVERAGE ./dot.sh -q systemd)
-rm .dotrc
+' > .pontrc
+result=$($COVERAGE ./pont.sh -q systemd)
+rm .pontrc
 # Assertions
 sync
 [ "$result" = "systemd script" ] ||

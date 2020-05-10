@@ -4,9 +4,9 @@ set -e
 . ./test/env.sh
 # This test tries to install the `permissions` module.
 # faking wsl
-echo "export wsl=1" > .dotrc
-result=$($COVERAGE ./dot.sh -q systemd)
-rm .dotrc
+echo "export wsl=1" > .pontrc
+result=$($COVERAGE ./pont.sh -q systemd)
+rm .pontrc
 # Assertions
 sync
 [ "$result" = "" ] ||

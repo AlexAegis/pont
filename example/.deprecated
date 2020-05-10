@@ -1,6 +1,6 @@
-# If this file is present then the module is going to be ignored by dot and a
-# warning will be thrown when trying to install it. (Installation still can be
-# forced)
+# If this file is present then the module is going to be ignored by `pont` and
+# a warning will be thrown when trying to install it. (Installation still can
+# be forced)
 
 # Here you can also list alternatives, then this file will be interpreted
 # as 'deprecated in favour of...'

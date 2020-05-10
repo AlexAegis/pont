@@ -1,11 +1,17 @@
 #!/bin/sh
-#      _       _
-#   __| | ___ | |_
-#  / _` |/ _ \| __|
-# | (_| | (_) | |_
-#  \__,_|\___/ \__|
+#                                  /$$
+#                                 | $$
+#   /$$$$$$   /$$$$$$  /$$$$$$$  /$$$$$$
+#  /$$__  $$ /$$__  $$| $$__  $$|_  $$_/
+# | $$  \ $$| $$  \ $$| $$  \ $$  | $$
+# | $$  | $$| $$  | $$| $$  | $$  | $$ /$$
+# | $$$$$$$/|  $$$$$$/| $$  | $$  |  $$$$/
+# | $$____/  \______/ |__/  |__/   \___/
+# | $$
+# | $$
+# |__/
 #
-# The dotmodule manager
+#                - The dotmodule manager
 #
 # Copyright (c) 2020 Győri Sándor (AlexAegis) <alexaegis@gmail.com>
 #
@@ -58,38 +64,38 @@ XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 
 # Environmental config
 ## This where the packages will be stowed to. Can also be set with -t
-DOT_TARGET=${DOT_TARGET:-"$user_home"}
+PONT_TARGET=${PONT_TARGET:-"$user_home"}
 DOTFILES_HOME=${DOTFILES_HOME:-"$user_home/.config/dotfiles"}
 # TODO: Support multiple folders $IFS separated, quote them
-DOT_MODULES_HOME=${DOT_MODULES_HOME:-"$DOTFILES_HOME/modules"}
-DOT_PRESETS_HOME=${DOT_PRESETS_HOME:-"$DOTFILES_HOME/presets"}
-DOT_TEMPLATE_HOME=${DOT_TEMPLATE_HOME:-"./template"}
+PONT_MODULES_HOME=${PONT_MODULES_HOME:-"$DOTFILES_HOME/modules"}
+PONT_PRESETS_HOME=${PONT_PRESETS_HOME:-"$DOTFILES_HOME/presets"}
+PONT_TEMPLATE_HOME=${PONT_TEMPLATE_HOME:-"$DOTFILES_HOME/template"}
 
 # Config
-DOT_LOG_LEVEL=1
-DOT_CONFIG_FLAG=0
-DOT_DRY_FLAG=0
-DOT_FORCE_FLAG=0
-DOT_NO_BASE_FLAG=0
-DOT_ROOT_FLAG=1
-DOT_SCRIPTS_ENABLED=1
-DOT_MAKE_ENABLED=1
-DOT_PRESET_EXTENSION=".preset"
-DOT_HASHFILE_NAME=".tarhash"
-DOT_DEPRECATIONFILE_NAME=".deprecated"
-DOT_DEPENDENCIESFILE_NAME=".dependencies"
-DOT_CONDITIONFILE_NAME=".condition"
-DOT_CLASHFILE_NAME=".clash"
-DOT_TAGSFILE_NAME=".tags"
-DOT_DEFAULT_EXPANSION_ACTION="action_expand_none"
-DOT_CLEAN_SYMLINKS=0
-DOT_FIX_PERMISSIONS=0
+PONT_LOG_LEVEL=1
+PONT_CONFIG_FLAG=0
+PONT_DRY_FLAG=0
+PONT_FORCE_FLAG=0
+PONT_NO_BASE_FLAG=0
+PONT_ROOT_FLAG=1
+PONT_SCRIPTS_ENABLED=1
+PONT_MAKE_ENABLED=1
+PONT_PRESET_EXTENSION=".preset"
+PONT_HASHFILE_NAME=".tarhash"
+PONT_DEPRECATIONFILE_NAME=".deprecated"
+PONT_DEPENDENCIESFILE_NAME=".dependencies"
+PONT_CONDITIONFILE_NAME=".condition"
+PONT_CLASHFILE_NAME=".clash"
+PONT_TAGSFILE_NAME=".tags"
+PONT_DEFAULT_EXPANSION_ACTION="action_expand_none"
+PONT_CLEAN_SYMLINKS=0
+PONT_FIX_PERMISSIONS=0
 
 ## Precalculated environmental variables for modules
 wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version \
 	2>/dev/null 1>/dev/null; then echo 1; fi)
 export wsl
-# wsl is always headless, others should be configured in dotrc
+# wsl is always headless, others should be configured in pontrc
 headless=$wsl
 export headless
 # Package manager
@@ -126,17 +132,17 @@ export fedora
 
 # Config file sourcing
 # shellcheck disable=SC1090
-[ -e "$XDG_CONFIG_HOME/dot/dotrc" ] && . "$XDG_CONFIG_HOME/dot/dotrc"
+[ -e "$XDG_CONFIG_HOME/pont/pontrc" ] && . "$XDG_CONFIG_HOME/pont/pontrc"
 # shellcheck disable=SC1090
-[ -e "$XDG_CONFIG_HOME/dotrc" ] && . "$XDG_CONFIG_HOME/dotrc"
+[ -e "$XDG_CONFIG_HOME/pontrc" ] && . "$XDG_CONFIG_HOME/pontrc"
 # shellcheck disable=SC1090
-[ -e "$user_home/.dotrc" ] && . "$user_home/.dotrc"
+[ -e "$user_home/.pontrc" ] && . "$user_home/.pontrc"
 # shellcheck disable=SC1091
-[ -e "./.dotrc" ] && . "./.dotrc"
+[ -e "./.pontrc" ] && . "./.pontrc"
 
 set +a
 
-# Inner variables that are not allowed to be changed using dotrc
+# Inner variables that are not allowed to be changed using pontrc
 all_modules=
 all_presets=
 all_installed_modules=
@@ -156,7 +162,7 @@ execution_queue=
 ## Internal functions
 
 is_deprecated() {
-	[ -e "$DOT_MODULES_HOME/$1/$DOT_DEPRECATIONFILE_NAME" ]
+	[ -e "$PONT_MODULES_HOME/$1/$PONT_DEPRECATIONFILE_NAME" ]
 }
 
 module_exists() {
@@ -165,28 +171,28 @@ module_exists() {
 }
 
 get_all_modules() {
-	all_modules=$(find "$DOT_MODULES_HOME/" -maxdepth 1 -mindepth 1 \
+	all_modules=$(find "$PONT_MODULES_HOME/" -maxdepth 1 -mindepth 1 \
 		-printf "%f\n" | sort)
 }
 
 get_all_presets() {
-	all_presets=$(find "$DOT_PRESETS_HOME/" -mindepth 1 \
+	all_presets=$(find "$PONT_PRESETS_HOME/" -mindepth 1 \
 		-name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
 }
 
 get_all_installed_modules() {
 	#shellcheck disable=SC2016
 	all_installed_modules=$(grep -lm 1 -- "" \
-		"$DOT_MODULES_HOME"/**/$DOT_HASHFILE_NAME | \
+		"$PONT_MODULES_HOME"/**/$PONT_HASHFILE_NAME | \
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
 
 echo_all_outdated_modules() {
 	[ ! "$all_modules" ] && get_all_modules
 	for mod in $all_modules; do
-		if [ -e "$DOT_MODULES_HOME/$mod/$DOT_HASHFILE_NAME" ]; then
+		if [ -e "$PONT_MODULES_HOME/$mod/$PONT_HASHFILE_NAME" ]; then
 			fresh_hash="$(do_hash "$mod")"
-			old_hash="$(cat "$DOT_MODULES_HOME/$mod/$DOT_HASHFILE_NAME")"
+			old_hash="$(cat "$PONT_MODULES_HOME/$mod/$PONT_HASHFILE_NAME")"
 			[ "$fresh_hash" != "$old_hash" ] && echo "$mod"
 		fi
 	done
@@ -199,12 +205,12 @@ get_all_outdated_modules() {
 get_all_deprecated_modules() {
 	#shellcheck disable=SC2016
 	all_deprecated_modules=$(grep -lm 1 -- "" \
-		"$DOT_MODULES_HOME"/**/$DOT_DEPRECATIONFILE_NAME | \
+		"$PONT_MODULES_HOME"/**/$PONT_DEPRECATIONFILE_NAME | \
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
 
 get_all_tags() {
-	all_tags=$(find "$DOT_MODULES_HOME"/*/ -maxdepth 1 -mindepth 1 \
+	all_tags=$(find "$PONT_MODULES_HOME"/*/ -maxdepth 1 -mindepth 1 \
 		-name '.tags' -exec cat {} + | \
 		sed -e 's/ *#.*$//' -e '/^$/d' | sort | uniq)
 }
@@ -252,31 +258,31 @@ enqueue_front() {
 # Logging, the default log level is 1 meaning only trace logs are omitted
 log_trace() {
 	# Visible at and under log level 0
-	[ "${DOT_LOG_LEVEL:-1}" -le 0 ] && \
+	[ "${PONT_LOG_LEVEL:-1}" -le 0 ] && \
 		echo "${C_CYAN}[  Trace  ]: $*${C_RESET}" >&2
 }
 
 log_info() {
 	# Visible at and under log level 1
-	[ "${DOT_LOG_LEVEL:-1}" -le 1 ] && \
+	[ "${PONT_LOG_LEVEL:-1}" -le 1 ] && \
 		echo "${C_BLUE}[  Info   ]: $*${C_RESET}" >&2
 }
 
 log_warning() {
 	# Visible at and under log level 2
-	[ "${DOT_LOG_LEVEL:-1}" -le 2 ] && \
+	[ "${PONT_LOG_LEVEL:-1}" -le 2 ] && \
 		echo "${C_YELLOW}[ Warning ]: $*${C_RESET}" >&2
 }
 
 log_success() {
 	# Visible at and under log level 2, same as warning but green
-	[ "${DOT_LOG_LEVEL:-1}" -le 2 ] && \
+	[ "${PONT_LOG_LEVEL:-1}" -le 2 ] && \
 		echo "${C_GREEN}[ Success ]: $*${C_RESET}" >&2
 }
 
 log_error() {
 	# Visible at and under log level 3
-	[ "${DOT_LOG_LEVEL:-1}" -le 3 ] && \
+	[ "${PONT_LOG_LEVEL:-1}" -le 3 ] && \
 		echo "${C_RED}[  Error  ]: $*${C_RESET}" >&2
 }
 
@@ -358,11 +364,11 @@ show_help() {
                                  execution but with stowing enabled.
 -m, --make                    -- Enables Makefile execution. On by default.
 -M, --skip-make               -- Disables Makefile execution.
--t <DIR>, --target <DIR>      -- Its value will specify DOT_TARGET for this
+-t <DIR>, --target <DIR>      -- Its value will specify PONT_TARGET for this
                                  execution.
 --scaffold, --cpt             -- Instead of executing modules, the selection
                                  now will used to scaffold modules based on a
-                                 template folder at DOT_TEMPLATE
+                                 template folder at PONT_TEMPLATE_HOME
 -y <DIR>, --yank <DIR>        -- will yank the selection (with none expansion
                                  by default) to the target folder. Useful for
                                  copying modules along with their
@@ -374,20 +380,20 @@ Some scenarios:
 
 - Update all installed modules
 
-    dot -iu
+    pont -iu
 
     # Expand installed modules, update them
 
 - Reinstall all modified modules after a editing a lot of them
 
-    dot -ox
+    pont -ox
 
     # Expand outdated modules, execute them
 
 - Safe force. Install dependencies of the selection on demand
   and then force install the selection
 
-    dot -exfx zsh
+    pont -exfx zsh
 
     # expand, execute, force (select none), execute
 "
@@ -395,7 +401,7 @@ Some scenarios:
 }
 
 show_version() {
-	echo "Dot version: 0.9.0" && exit 0
+	echo "pont version: 0.9.0" && exit 0
 }
 
 clean_symlinks() {
@@ -407,11 +413,11 @@ clean_symlinks() {
 
 scaffold() {
 	# TODO scaffold
-	# cpt template and dot --scaffold command to create from template
+	# cpt template and pont --scaffold command to create from template
 	# Use the remaining inputs as module folders to scaffold using cpt
 	# If cpt is not available then try install it with cargo first
 	# If no cargo is available then prompt the user to install it
-	log_info "Scaffolding module $1 using cpt and $DOT_TEMPLATE_HOME \
+	log_info "Scaffolding module $1 using cpt and $PONT_TEMPLATE_HOME \
 as the template"
 }
 
@@ -460,16 +466,16 @@ action_list_outdated() {
 
 action_list_environment() {
 	log_info "All configurable variables:"
-	echo "DOT_DRY_FLAG=${DOT_DRY_FLAG:-0}" \
-		"DOT_FORCE_FLAG=${DOT_FORCE_FLAG:-0}" \
-		"DOT_ROOT_FLAG=${DOT_ROOT_FLAG:-1}" \
-		"DOT_CONFIG_FLAG=${DOT_CONFIG_FLAG:-0}" \
-		"DOT_PRESET_EXTENSION=$DOT_PRESET_EXTENSION" \
-		"DOT_HASHFILE_NAME=$DOT_HASHFILE_NAME" \
-		"DOT_DEPENDENCIESFILE_NAME=$DOT_DEPENDENCIESFILE_NAME" \
-		"DOT_CLASHFILE_NAME=$DOT_CLASHFILE_NAME" \
-		"DOT_TAGSFILE_NAME=$DOT_TAGSFILE_NAME" \
-		"DOT_DEFAULT_EXPANSION_ACTION=$DOT_DEFAULT_EXPANSION_ACTION" \
+	echo "PONT_DRY_FLAG=${PONT_DRY_FLAG:-0}" \
+		"PONT_FORCE_FLAG=${PONT_FORCE_FLAG:-0}" \
+		"PONT_ROOT_FLAG=${PONT_ROOT_FLAG:-1}" \
+		"PONT_CONFIG_FLAG=${PONT_CONFIG_FLAG:-0}" \
+		"PONT_PRESET_EXTENSION=$PONT_PRESET_EXTENSION" \
+		"PONT_HASHFILE_NAME=$PONT_HASHFILE_NAME" \
+		"PONT_DEPENDENCIESFILE_NAME=$PONT_DEPENDENCIESFILE_NAME" \
+		"PONT_CLASHFILE_NAME=$PONT_CLASHFILE_NAME" \
+		"PONT_TAGSFILE_NAME=$PONT_TAGSFILE_NAME" \
+		"PONT_DEFAULT_EXPANSION_ACTION=$PONT_DEFAULT_EXPANSION_ACTION" \
 		"wsl=$wsl" \
 		"headless=$headless" \
 		"pacman=$pacman" \
@@ -528,18 +534,18 @@ interpret_args() {
 			-V | --version) show_version ;;
 			-l | --log | --log-level)
 				case $2 in
-					'trace' | 'TRACE' | '0') DOT_LOG_LEVEL='0' ;;
-					'info' | 'INFO' | '1') DOT_LOG_LEVEL='1' ;;
-					'warning' | 'WARNING' | '2') DOT_LOG_LEVEL='2' ;;
-					'success' | 'SUCCESS') DOT_LOG_LEVEL='2' ;;
-					'error' | 'ERROR' | '3') DOT_LOG_LEVEL='3' ;;
-					'none' | 'NONE' | '4') DOT_LOG_LEVEL='4' ;;
+					'trace' | 'TRACE' | '0') PONT_LOG_LEVEL='0' ;;
+					'info' | 'INFO' | '1') PONT_LOG_LEVEL='1' ;;
+					'warning' | 'WARNING' | '2') PONT_LOG_LEVEL='2' ;;
+					'success' | 'SUCCESS') PONT_LOG_LEVEL='2' ;;
+					'error' | 'ERROR' | '3') PONT_LOG_LEVEL='3' ;;
+					'none' | 'NONE' | '4') PONT_LOG_LEVEL='4' ;;
 					*) log_error "Invalid loglevel: $2"; exit 1 ;;
 				esac
 				shift
 				;;
-			-v | --verbose)	DOT_LOG_LEVEL=0 ;; # Log level trace
-			-q | --quiet) DOT_LOG_LEVEL=3 ;; # Log level error
+			-v | --verbose)	PONT_LOG_LEVEL=0 ;; # Log level trace
+			-q | --quiet) PONT_LOG_LEVEL=3 ;; # Log level error
 			-I | --list-installed) action_list_installed_modules; exit 0 ;;
 			-A | --list-modules) action_list_modules; exit 0 ;;
 			-D | --list-deprecated) action_list_deprecated; exit 0 ;;
@@ -550,9 +556,9 @@ interpret_args() {
 			-Q | --list-queue) action_list_execution_queue; exit 0 ;;
 			-O | --list-outdated) action_list_outdated; exit 0 ;;
 			-C | --toggle-clean-symlinks)
-				DOT_CLEAN_SYMLINKS=$((1-DOT_CLEAN_SYMLINKS)) ;;
+				PONT_CLEAN_SYMLINKS=$((1-PONT_CLEAN_SYMLINKS)) ;;
 			-X | --toggle-fix-permissions)
-				DOT_FIX_PERMISSIONS=$((1-DOT_FIX_PERMISSIONS)) ;;
+				PONT_FIX_PERMISSIONS=$((1-PONT_FIX_PERMISSIONS)) ;;
 			-u | --update) enqueue "action_expand_default_if_not_yet" \
 				"action_update_modules" ;;
 			-x | --execute | --install) enqueue \
@@ -567,20 +573,20 @@ interpret_args() {
 			-a | --expand-all) enqueue "action_expand_all" ;;
 			-i | --expand-installed) enqueue "action_expand_installed" ;;
 			-o | --expand-outdated) enqueue "action_expand_outdated" ;;
-			-d | --dry) DOT_DRY_FLAG=1 ;;
-			-w | --wet) DOT_DRY_FLAG=0 ;;
-			-b | --skip-base) DOT_NO_BASE_FLAG=1 ;;
-			-f | --force) DOT_FORCE_FLAG=1; enqueue "action_expand_none" ;;
-			-c | --config) DOT_CONFIG_FLAG=1 ;;
-			--root) DOT_ROOT_FLAG=1 ;;
-			-R | --skip-root) DOT_ROOT_FLAG=0 ;;
-			-s | --scripts) DOT_SCRIPTS_ENABLED=1 ;;
-			-S | --skip-scripts) DOT_SCRIPTS_ENABLED=0 ;;
-			-m | --make) DOT_MAKE_ENABLED=1 ;;
-			-M | --skip-make) DOT_MAKE_ENABLED=0 ;;
+			-d | --dry) PONT_DRY_FLAG=1 ;;
+			-w | --wet) PONT_DRY_FLAG=0 ;;
+			-b | --skip-base) PONT_NO_BASE_FLAG=1 ;;
+			-f | --force) PONT_FORCE_FLAG=1; enqueue "action_expand_none" ;;
+			-c | --config) PONT_CONFIG_FLAG=1 ;;
+			--root) PONT_ROOT_FLAG=1 ;;
+			-R | --skip-root) PONT_ROOT_FLAG=0 ;;
+			-s | --scripts) PONT_SCRIPTS_ENABLED=1 ;;
+			-S | --skip-scripts) PONT_SCRIPTS_ENABLED=0 ;;
+			-m | --make) PONT_MAKE_ENABLED=1 ;;
+			-M | --skip-make) PONT_MAKE_ENABLED=0 ;;
 			-t | --target) # package installation target
 				if [ -d "$2" ]; then
-					DOT_TARGET="$2"
+					PONT_TARGET="$2"
 				else
 					log_error "Invalid target: $2"; exit 1
 				fi
@@ -640,27 +646,27 @@ has_tag() {
 	# Returns every dotmodule that contains any of the tags
 	# shellcheck disable=SC2016
 	grep -lRxEm 1 -- "$1 ?#?.*" \
-		"$DOT_MODULES_HOME"/*/"$DOT_TAGSFILE_NAME" |
+		"$PONT_MODULES_HOME"/*/"$PONT_TAGSFILE_NAME" |
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g'
 }
 
 in_preset() {
 	# returns every entry in a preset
-	find "$DOT_PRESETS_HOME" -mindepth 1 -name "$1$DOT_PRESET_EXTENSION" \
+	find "$PONT_PRESETS_HOME" -mindepth 1 -name "$1$PONT_PRESET_EXTENSION" \
 		-print0 | xargs -0 sed -e 's/ *#.*$//' -e '/^$/d'
 }
 
 get_clashes() {
-	if [ -f "$DOT_MODULES_HOME/$1/$DOT_CLASHFILE_NAME" ]; then
+	if [ -f "$PONT_MODULES_HOME/$1/$PONT_CLASHFILE_NAME" ]; then
 		sed -e 's/ *#.*$//' -e '/^$/d' \
-			"$DOT_MODULES_HOME/$1/$DOT_CLASHFILE_NAME"
+			"$PONT_MODULES_HOME/$1/$PONT_CLASHFILE_NAME"
 	fi
 }
 
 get_dependencies() {
-	if [ -f "$DOT_MODULES_HOME/$1/$DOT_DEPENDENCIESFILE_NAME" ]; then
+	if [ -f "$PONT_MODULES_HOME/$1/$PONT_DEPENDENCIESFILE_NAME" ]; then
 		sed -e 's/ *#.*$//' -e '/^$/d' \
-			"$DOT_MODULES_HOME/$1/$DOT_DEPENDENCIESFILE_NAME"
+			"$PONT_MODULES_HOME/$1/$PONT_DEPENDENCIESFILE_NAME"
 	fi
 }
 
@@ -676,13 +682,13 @@ execute_scripts_for_module() {
 	# 1: module name
 	# 2: scripts to run
 	# 3: sourcing setting, if set, user privileged scripts will be sourced
-	cd "$DOT_MODULES_HOME/$1" || exit 1
+	cd "$PONT_MODULES_HOME/$1" || exit 1
 	group_result=0
 	successful_scripts=0
 	for script in $2; do
 		result=0
-		if [ ${DOT_DRY_FLAG:-0} = 0 ] && \
-			[ ${DOT_SCRIPTS_ENABLED:-1} = 1 ]; then
+		if [ ${PONT_DRY_FLAG:-0} = 0 ] && \
+			[ ${PONT_SCRIPTS_ENABLED:-1} = 1 ]; then
 			log_trace "Running $script..."
 
 			privilege='user'
@@ -691,10 +697,10 @@ execute_scripts_for_module() {
 
 			if [ "$privilege" = "root" ] ||
 				[ "$privilege" = "sudo" ]; then
-				if [ "${DOT_ROOT_FLAG:-1}" = 1 ]; then
+				if [ "${PONT_ROOT_FLAG:-1}" = 1 ]; then
 					(
 						sudo --preserve-env="PATH" -E \
-							"$DOT_MODULES_HOME/$1/$script"
+							"$PONT_MODULES_HOME/$1/$script"
 					)
 				else
 					log_info "Skipping $script because root execution" \
@@ -704,17 +710,17 @@ execute_scripts_for_module() {
 				if [ "$SUDO_USER" ]; then
 					(
 						sudo --preserve-env="PATH" -E \
-							-u "$SUDO_USER" "$DOT_MODULES_HOME/$1/$script"
+							-u "$SUDO_USER" "$PONT_MODULES_HOME/$1/$script"
 					)
 				else
 					if [ "$3" ]; then
 						set -a
 						# shellcheck disable=SC1090
-						. "$DOT_MODULES_HOME/$1/$script"
+						. "$PONT_MODULES_HOME/$1/$script"
 						set +a
 					else
 						(
-							"$DOT_MODULES_HOME/$1/$script"
+							"$PONT_MODULES_HOME/$1/$script"
 						)
 					fi
 				fi
@@ -801,7 +807,7 @@ init_modules() {
 	log_info "Initializing modules $*"
 	while :; do
 		[ "$1" ] || break
-		init_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+		init_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 			| grep '^i.*\..*\..*$' | sort)
 		execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
@@ -813,7 +819,7 @@ source_modules_envs() {
 	log_info "Sourcing modules envs $*"
 	while :; do
 		[ "$1" ] || break
-		env_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+		env_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 			| grep '^e.*\..*\..*$' | sort)
 		log_trace "Environmental scripts in $1 are $env_sripts_in_module"
@@ -828,7 +834,7 @@ update_modules() {
 		[ "$1" ] || break
 		# Source env
 		source_modules_envs "$1"
-		update_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+		update_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 			| grep '^u.*\..*\..*$' | sort)
 		execute_scripts_for_module "$1" "$update_sripts_in_module"
@@ -845,7 +851,7 @@ remove_modules() {
 		# Only run the remove scripts with -rr, a single r just unstows
 		if [ "$remove_count" -ge 2 ]; then
 			log_info "Hard remove $1"
-			remove_sripts_in_module=$(find "$DOT_MODULES_HOME/$1/" \
+			remove_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 				-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 				| grep '^e.*\..*\..*$' | sort)
 			execute_scripts_for_module "$1" "$remove_sripts_in_module"
@@ -856,8 +862,8 @@ remove_modules() {
 		unstow_modules "$1"
 
 		# remove hashfile to mark as uninstalled
-		[ -e "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" ] &&
-			rm "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
+		[ -e "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" ] &&
+			rm "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME"
 
 		shift
 	done
@@ -897,7 +903,7 @@ do_stow() {
 		exit 1
 	fi
 
-	if [ ${DOT_DRY_FLAG:-0} != 1 ]; then
+	if [ ${PONT_DRY_FLAG:-0} != 1 ]; then
 		# Module target symlinks are always cleaned
 		clean_symlinks "$2"
 		if [ "$SUDO_USER" ]; then
@@ -940,8 +946,8 @@ stow_package() {
 		do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
 			sed 's|^$|/|')" \
 			"$(/bin/sh -c "echo \$$(basename "$1" | cut -d '.' -f 1)" | \
-				sed -e "s|^\$$|$DOT_TARGET|" \
-				-e "s|^[^/]|$DOT_TARGET/\0|")" \
+				sed -e "s|^\$$|$PONT_TARGET|" \
+				-e "s|^[^/]|$PONT_TARGET/\0|")" \
 			"$(basename "$1")" \
 			"$stow_mode"
 		shift
@@ -955,7 +961,7 @@ stow_modules() {
 		[ "$1" ] || break
 		# shellcheck disable=SC2046
 		# TODO: Mixed splitting, find outputs new line splits
-		stow_package "stow" $(find "$DOT_MODULES_HOME/$1" \
+		stow_package "stow" $(find "$PONT_MODULES_HOME/$1" \
 			-mindepth 1 -maxdepth 1 -type d -iname "*.$1")
 		shift
 	done
@@ -966,15 +972,15 @@ unstow_modules() {
 	while :; do
 		[ "$1" ] || break
 		# shellcheck disable=SC2046
-		stow_package "unstow" $(find "$DOT_MODULES_HOME/$1" \
+		stow_package "unstow" $(find "$PONT_MODULES_HOME/$1" \
 			-mindepth 1 -maxdepth 1 -type d -iname "*.$1")
 		shift
 	done
 }
 
 make_module() {
-	if [ ${DOT_MAKE_ENABLED:-1} = 1 ] \
-		&& [ -e "$DOT_MODULES_HOME/$1/Makefile" ]; then
+	if [ ${PONT_MAKE_ENABLED:-1} = 1 ] \
+		&& [ -e "$PONT_MODULES_HOME/$1/Makefile" ]; then
 		if ! is_installed "make"; then
 			log_error "Make not available"; return 1
 		fi
@@ -989,7 +995,7 @@ make_module() {
 }
 
 install_module() {
-	sripts_in_group=$(find "$DOT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
+	sripts_in_group=$(find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
 		-type f | sed 's|.*/||' | grep "^[0-9].*\..*\..*$" | sort)
 	log_trace "Scripts in module for $1 are:
 $sripts_in_group"
@@ -1041,17 +1047,17 @@ $group_fallback_scripts"
 
 do_hash() {
 	tar --absolute-names \
-		--exclude="$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
-		-c "$DOT_MODULES_HOME/$1" |
+		--exclude="$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
+		-c "$PONT_MODULES_HOME/$1" |
 		sha1sum
 }
 
 do_hash_module() {
-	do_hash "$1" >"$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
+	do_hash "$1" >"$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME"
 }
 
 hash_module() {
-	if [ ${DOT_DRY_FLAG:-0} = 0 ]; then
+	if [ ${PONT_DRY_FLAG:-0} = 0 ]; then
 		log_success "Successfully installed $1"
 
 		if [ "$SUDO_USER" ]; then
@@ -1066,18 +1072,18 @@ execute_modules() {
 	while :; do
 		[ "$1" ] || break
 		total_result=0
-		log_trace "Checking if module exists: $DOT_MODULES_HOME/$1"
-		if [ ! -d "$DOT_MODULES_HOME/$1" ]; then
+		log_trace "Checking if module exists: $PONT_MODULES_HOME/$1"
+		if [ ! -d "$PONT_MODULES_HOME/$1" ]; then
 			log_error "Module $1 not found. Skipping"
 			shift
 			continue
 		fi
 
-		if [ -e "$DOT_MODULES_HOME/$1/$DOT_CONDITIONFILE_NAME" ] && \
-			! eval "$(cat "$DOT_MODULES_HOME/$1/$DOT_CONDITIONFILE_NAME")"
+		if [ -e "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME" ] && \
+			! eval "$(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 		then
 			log_warning "Condition on $1 failed. Skipping
-$(cat "$DOT_MODULES_HOME/$1/$DOT_CONDITIONFILE_NAME")"
+$(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 			shift
 			continue
 		fi
@@ -1085,12 +1091,12 @@ $(cat "$DOT_MODULES_HOME/$1/$DOT_CONDITIONFILE_NAME")"
 		log_info "Installing $1"
 
 		# Only calculate the hashes if we going to use it
-		if [ "${DOT_FORCE_FLAG:-0}" = 0 ]; then
-			old_hash=$(cat "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
+		if [ "${PONT_FORCE_FLAG:-0}" = 0 ]; then
+			old_hash=$(cat "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
 				2>/dev/null)
 			new_hash=$(tar --absolute-names \
-				--exclude="$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" \
-				-c "$DOT_MODULES_HOME/$1" | sha1sum)
+				--exclude="$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
+				-c "$PONT_MODULES_HOME/$1" | sha1sum)
 
 			if [ "$old_hash" = "$new_hash" ]; then
 				log_trace "${C_GREEN}hash match $old_hash $new_hash"
@@ -1103,17 +1109,17 @@ $(cat "$DOT_MODULES_HOME/$1/$DOT_CONDITIONFILE_NAME")"
 		# are available
 		source_modules_envs "$1"
 
-		if [ "${DOT_FORCE_FLAG:-0}" = 1 ] \
+		if [ "${PONT_FORCE_FLAG:-0}" = 1 ] \
 			|| [ "$old_hash" != "$new_hash" ]; then
 
-			if [ "${DOT_FORCE_FLAG:-0}" != 1 ] && is_deprecated "$1";
+			if [ "${PONT_FORCE_FLAG:-0}" != 1 ] && is_deprecated "$1";
 				then
 				log_warning "$1 is deprecated"
 				shift
 				continue
 			fi
 
-			if [ "${DOT_DRY_FLAG:-0}" = 1 ]; then
+			if [ "${PONT_DRY_FLAG:-0}" = 1 ]; then
 				log_trace "Dotmodule $1 would be installed"
 			else
 				log_trace "Applying dotmodule $1"
@@ -1135,8 +1141,8 @@ $(cat "$DOT_MODULES_HOME/$1/$DOT_CONDITIONFILE_NAME")"
 				hash_module "$1"
 			else
 				log_error "Installation failed $1"
-				[ -e "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME" ] &&
-					rm "$DOT_MODULES_HOME/$1/$DOT_HASHFILE_NAME"
+				[ -e "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" ] &&
+					rm "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME"
 			fi
 
 		else
@@ -1162,13 +1168,13 @@ action_fix_permissions() {
 			sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
 	)
 
-	eval "find $DOT_MODULES_HOME -type f \( $submodules \) \
+	eval "find $PONT_MODULES_HOME -type f \( $submodules \) \
 -regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod u+x {} \;"
 }
 
 action_clean_symlinks() {
-	# Remove incorrect symlinks in DOT_TARGET
-	clean_symlinks "$DOT_TARGET"
+	# Remove incorrect symlinks in PONT_TARGET
+	clean_symlinks "$PONT_TARGET"
 }
 
 
@@ -1177,10 +1183,10 @@ action_expand_selected() {
 	log_info "Set final module list to every selected and expanded module"
 	final_module_list=
 
-	if [ "$DOT_NO_BASE_FLAG" != 1 ]; then
+	if [ "$PONT_NO_BASE_FLAG" != 1 ]; then
 		old_ifs=$IFS
 		IFS=' '
-		for base_module in $DOT_BASE_MODULES; do
+		for base_module in $PONT_BASE_MODULES; do
 			IFS=$old_ifs
 			entries_selected="${base_module}${IFS:-\0}${entries_selected}"
 		done
@@ -1225,7 +1231,7 @@ $final_module_list"
 
 action_expand_default_if_not_yet() {
 	# If no expansion happened at this point, execute the default one
-	[ ! "$final_module_list" ] && "$DOT_DEFAULT_EXPANSION_ACTION"
+	[ ! "$final_module_list" ] && "$PONT_DEFAULT_EXPANSION_ACTION"
 }
 
 action_expand_none() {
@@ -1263,14 +1269,14 @@ do_yank() {
 	# Copy all modules
 	while :; do
 		[ "$1" ] || break
-		log_info "Yanking $DOT_MODULES_HOME/$1 to $yank_target/$1"
-		cp -r "$DOT_MODULES_HOME/$1" "$yank_target/$1"
+		log_info "Yanking $PONT_MODULES_HOME/$1 to $yank_target/$1"
+		cp -r "$PONT_MODULES_HOME/$1" "$yank_target/$1"
 		shift
 	done
 	# Copy all used presets
 	for preset in $expanded_presets; do
 		preset_file_name="$(echo "$preset" | cut -d '+' -f 2-).preset"
-		cp "$(find "$DOT_PRESETS_HOME" -name "$preset_file_name")" \
+		cp "$(find "$PONT_PRESETS_HOME" -name "$preset_file_name")" \
 			"$yank_target/$preset_file_name"
 	done
 }
@@ -1319,7 +1325,7 @@ IFS=' '
 interpret_args $(parse_args "$@")
 
 # if nothing is selected, ask for modules
-if [ ${DOT_CONFIG_FLAG:-0} = 1 ] || [ $# -eq 0 ]; then
+if [ ${PONT_CONFIG_FLAG:-0} = 1 ] || [ $# -eq 0 ]; then
 	ask_entries # config checked again to avoid double call on ask_entries
 fi
 
@@ -1330,10 +1336,10 @@ fi
 log_trace "Execution queue:
 $execution_queue"
 
-[ $DOT_FIX_PERMISSIONS = 1 ] && action_fix_permissions
+[ $PONT_FIX_PERMISSIONS = 1 ] && action_fix_permissions
 # shellcheck disable=SC2086
 execute_queue $execution_queue
 
-[ $DOT_CLEAN_SYMLINKS = 1 ] && action_clean_symlinks
+[ $PONT_CLEAN_SYMLINKS = 1 ] && action_clean_symlinks
 
 set +a

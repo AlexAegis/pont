@@ -7,13 +7,13 @@ quickly scaffold you a module with your commonly used files
 
 Rust and cargo installed
 
-If cargo is available and cpt is not, dot will attempt to install it
+If cargo is available and cpt is not, `pont` will attempt to install it
 on scaffolding
 
 ## Usage
 
 ```sh
-dot --scaffold <modules...>
+pont --scaffold <modules...>
 ```
 
 This will copy this folder as many times as many arguments you gave to it

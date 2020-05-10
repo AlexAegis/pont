@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # When installing with pacman always include the --needed and --noconfirm flags
-# so dot can work uninterruptedly
+# so `pont` can work uninterruptedly
 pacman -Syu --needed --noconfirm PACKAGE
 
 # When installing with yay you shoud never use sudo.

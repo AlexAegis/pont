@@ -1,14 +1,14 @@
-# [dot](./dot.sh)
+# [pont](./pont.sh)
 
-[![Test](https://github.com/AlexAegis/dot/workflows/Test/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ATest) [![Lint](https://github.com/AlexAegis/dot/workflows/Lint/badge.svg)](https://github.com/AlexAegis/dot/actions?query=workflow%3ALint) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/64033c40165747fa8abe7d5a6d706a65)](https://www.codacy.com/manual/AlexAegis/dot?utm_source=github.com&utm_medium=referral&utm_content=AlexAegis/dot&utm_campaign=Badge_Grade) [![codecov](https://codecov.io/gh/AlexAegis/dot/branch/master/graph/badge.svg)](https://codecov.io/gh/AlexAegis/dot)
+[![Test](https://github.com/AlexAegis/pont/workflows/Test/badge.svg)](https://github.com/AlexAegis/pont/actions?query=workflow%3ATest) [![Lint](https://github.com/AlexAegis/pont/workflows/Lint/badge.svg)](https://github.com/AlexAegis/pont/actions?query=workflow%3ALint) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/64033c40165747fa8abe7d5a6d706a65)](https://www.codacy.com/manual/AlexAegis/pont?utm_source=github.com&utm_medium=referral&utm_content=AlexAegis/pont&utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/64033c40165747fa8abe7d5a6d706a65)](https://www.codacy.com/manual/AlexAegis/pont?utm_source=github.com&utm_medium=referral&utm_content=AlexAegis/pont&utm_campaign=Badge_Coverage) [![codecov](https://codecov.io/gh/AlexAegis/pont/branch/master/graph/badge.svg)](https://codecov.io/gh/AlexAegis/pont)
 
 > Check my [dotfiles](https://github.com/alexaegis/dotfiles) as a live example
 
-## What is dot
+## What is `pont`
 
 It's a single shell script designed to install programs and personal configs
-in bulk in a highly configurable and environmentally aware way using as simple
-techniques as possible.
+in bulk with minimal config. Depending on your setup, it's capable of
+bootstrapping a fresh system.
 
 The programs and configurations are stored in `dotmodules` which is just a
 directory with scripts and folders named in a conventional manner. The names
@@ -22,7 +22,7 @@ arch install after downloading my dotfiles repository I can just issue this
 command:
 
 ```sh
-dot +arch
+pont +arch
 ```
 
 And then it will install every single thing I specified there without
@@ -53,37 +53,42 @@ A modular design allows this.
 
 ![xkcd - Automation](https://imgs.xkcd.com/comics/automation.png)
 
+## Why the name
+
+This project was originally named `dot` but there is a `graphviz` utility
+by that name already. Another candidate was
+`dotman` but there are dozens of `dotman` repositories already.
+
+But `pont` was free and it means `dot` in Hungarian.
+
 ## Prerequisites
 
 A mostly [POSIX](https://en.wikipedia.org/wiki/POSIX) shell on
-`/bin/sh` to run `dot` itself. It was developed on `dash` and it does not
+`/bin/sh` to run `pont` itself. It was developed on `dash` and it does not
 utilize local variables.
 
-A key component of `dot` is `stow` which handles the symlinks between the
-modules and the target, but it's not needed to run `dot` itself and execute
-modules that do not require linking. Meaning on a fresh install `dot` can set
+A key component of `pont` is `stow` which handles the symlinks between the
+modules and the target, but it's not needed to run `pont` itself and execute
+modules that do not require linking. Meaning on a fresh install `pont` can set
 this dependency up for you if you have a module that deals with this and do
 not utilize linking.
 
 ## Installation
 
-This repository can be used to download and install dot. It can also act
+This repository can be used to download and install `pont`. It can also act
 as a dotmodule itself. You can inclide this repository as a submodule to your
 dotfiles repo.
 
-```sh
-git clone --recurse-submodules -j8 \
-  http://www.github.com/AlexAegis/dotfiles ~/.config/dotfiles
-```
+TODO: Make online installation script, let it download itself.
 
-### Using dot itself
+### Using `pont` itself
 
 If you have this repository as a submodule among your modules, you can install
-it with itself. The only script `dot` will detect is
-[`0.sudo.sh`](./0.sudo.sh) which does the linking as mentioned.
+it with itself. It's linking it to `~/.local/bin/pont` and if it has `root`
+privileges then `/usr/local/bin/pont` too, with the manpage.
 
 ```sh
-~/.dotfiles/modules/dot/dot.sh dot
+~/.dotfiles/modules/pont/pont.sh pont
 ```
 
 ### As a zsh plugin
@@ -91,13 +96,13 @@ it with itself. The only script `dot` will detect is
 This repository also contains `zsh` autocompletions
 
 If you're using [Antibody](https://github.com/getantibody/antibody) then add
-this entry to your plugin file to get `dot` autocompletions:
+this entry to your plugin file to get `pont` autocompletions:
 
 ```sh
-alexaegis/dot
+alexaegis/pont
 ```
 
-> The zsh plugin does not put `dot` to the path as using both solution would
+> The zsh plugin does not put `pont` to the path as using both solution would
 > cause confusion
 
 Autocompletions will list all presets, tags and modules when triggered. When
@@ -110,18 +115,18 @@ Whether you chose to put it on your path or not, using it is the same.
 ### Configuration
 
 It does not require any configuration, but most things can be configured
-through a `dotrc` file which is read from every common configuration directory
+through a `pontrc` file which is read from every common configuration directory
 in this order:
 
 ```sh
-${XDG_CONFIG_HOME:-"$HOME/.config"}/dot/dotrc
-${XDG_CONFIG_HOME:-"$HOME/.config"}/dotrc
-$HOME/.dotrc
-./.dotrc
+${XDG_CONFIG_HOME:-"$HOME/.config"}/pont/pontrc
+${XDG_CONFIG_HOME:-"$HOME/.config"}/pontrc
+$HOME/.pontrc
+./.pontrc
 ```
 
 The configuration file is a standard shell script and will be simply sourced
-in `dot` after the defaults have been set but before the flags have been set
+in `pont` after the defaults have been set but before the flags have been set
 from the command line. Meaning you can override the defaults.
 To see what you can set, check the script, search for the sourcing of the
 config file. Everything above that is overridable.
@@ -129,11 +134,11 @@ config file. Everything above that is overridable.
 #### Examples
 
 These ones can be only configured through the files, or by hand, when
-executing dot like `DOT_TARGET="./target" dot <module1> <module2>...`
+executing `pont` like `PONT_TARGET="./target" pont <module1> <module2>...`
 
 ```sh
 # The default target of module packages
-DOT_TARGET=${DOT_TARGET:-"$HOME"}
+PONT_TARGET=${PONT_TARGET:-"$HOME"}
 # Your dotfiles location. Not directly utilized, only through the next two
 DOTFILES_HOME=${DOTFILES_HOME:-"$HOME/.dotfiles"}
 # I suggest keeping these relative to DOTFILES_HOME
@@ -146,11 +151,11 @@ DOT_BASE_MODULES="base sys"
 ```
 
 ```sh
-# Will always remove broken symlinks after execution in DOT_TARGET
-DOT_CLEAN_SYMLINKS=1
+# Will always remove broken symlinks after execution in PONT_TARGET
+PONT_CLEAN_SYMLINKS=1
 # Makes it always execute `chmod u+x` on '.*.(sh|zsh|bash|fish|dash)' files in
 # the modules. I use it so when making scripts I don't have to deal with it.
-DOT_FIX_PERMISSIONS=1
+PONT_FIX_PERMISSIONS=1
 ```
 
 ### Installing dotmodules
@@ -158,7 +163,7 @@ DOT_FIX_PERMISSIONS=1
 You can optionally set flags, then as much modules/presets/tags as you want.
 
 ```sh
-dot [-flags] modules...
+pont [-flags] modules...
 ```
 
 ## Dotmodules
@@ -170,7 +175,7 @@ dot [-flags] modules...
 When installing a dotmodule successfully, a `.tarhash` file will be created
 in the modules directory. (Should be .gitignored). This containes a hash
 calculated from the content of the module at the time of install. This enables
-dot to skip any module that is **already install** and
+`pont` to skip any module that is **already install** and
 **has not changed since**. This is especially important when installing
 modules with large dependency trees.
 
@@ -182,39 +187,39 @@ Modules that are already installed can be forced to be reinstalled using the
 ### Listing installed modules
 
 Installed modules can be listed and `sort`ed using the `-I` or
-`--list-installed` flags. These flags makes `dot` exit immediately.
+`--list-installed` flags. These flags makes `pont` exit immediately.
 
 ```sh
-dot -I
+pont -I
 ```
 
 ### Listing available modules
 
 Available modules can be listed and `sort`ed using the `-A` or
-`--list-modules` flags. These flags make `dot` exit immediately.
+`--list-modules` flags. These flags make `pont` exit immediately.
 
 ```sh
-dot -A
+pont -A
 ```
 
 ### Listing deprecated modules
 
 Deprecated modules (Explicitly marked as deprecated) can be listed and
 `sort`ed using the `-D` or `--list-deprecated` flags.
-These flags make `dot` exit immediately.
+These flags make `pont` exit immediately.
 
 ```sh
-dot -D
+pont -D
 ```
 
 ### Listing outdated modules
 
 Outdated modules (Modules with changed hash since their last installation)
 can be listed and `sort`ed using the `-O` or `--list-outdated` flags.
-These flags make `dot` exit immediately.
+These flags make `pont` exit immediately.
 
 ```sh
-dot -O
+pont -O
 ```
 
 ## Content of a module
@@ -243,7 +248,7 @@ or having to add `PPA`s on debian systems etc etc.
 
 So instead of making an overcomplicated solution I let the modules decide
 how to install something. This gives great control since you're the one making
-the script, `dot` just executes them.
+the script, `pont` just executes them.
 
 > I may make an easy install for simple cases but this solution will stay
 > as it can be used for anything, not just installation
@@ -253,8 +258,11 @@ configuration file into `/etc`
 
 ### The scripts names decide how and when they will run
 
-Their names can be separated into 3 segments, separated by 4 dots. Everything
-after the 3rd dot is unused.
+Their names can be separated into up to 4 segments, separated by 3 periods.
+Everything after the 3rd period is unused. At least 3 segments (two periods in
+the filename) is needed for `pont` to recognize it as a runnable script. So
+you can add other, non-managed scripts in the module folder when needed. But
+you can also just put them into a separate folder.
 
 > \* If you skip the dependency segment then the extension will be read as
 > the dependency, but since it's `sh` anyway it will always be true.
@@ -278,7 +286,7 @@ is the privilege and it can be two things:
 - user
 - root
 
-No matter whether you run `dot` with sudo or not, if it has to run a `user`
+No matter whether you run `pont` with sudo or not, if it has to run a `user`
 script it will always `sudo` back to `$SUDO_USER` (If it has to) and it will
 always `sudo` into `root` (While keeping your environment) if it's running
 `root` scripts.
@@ -291,14 +299,14 @@ and not `root`.**
 > to write your password in a few times.
 
 In every script, you can also be sure that `.` means the root of that module
-as `dot` will `cd` into the module before executing anything.
+as `pont` will `cd` into the module before executing anything.
 
 Using the `-nr` or `--no-root` flags, scripts with `sudo` privileges can be
 skipped.
 
 > If you are on a system where you don't have `root` access, but the programs
 > are installed and you only need your configurations, you can set this flag
-> permamently in a `dotrc`, and only use the `stow`ing mechanism of `dot`.
+> permamently in a `pontrc`, and only use the `stow`ing mechanism of `pont`.
 > The variable controlling this is `root` and is `1` by default.
 
 ### Third segment, condition
@@ -378,8 +386,10 @@ they can be enabled using flags.
 > `remove.sudo.sh`
 
 Using the `-r` flag, scripts with `remove` as their first segment will be run.
-This also causes `dot` to `unstow` every **stow package** from the module,
+This also causes `pont` to `unstow` every **stow package** from the module,
 and also removes the `.tarhash` file, marking the module uninstalled.
+
+Specifying the flag twice causes it to also run scripts that start with an `r`
 
 #### Update
 
@@ -439,7 +449,7 @@ entries that are already executed and moves on.
 
 ##### Base modules
 
-Modules listed in the `DOT_BASE_MODULES` variable (space separated) are always
+Modules listed in the `PONT_BASE_MODULES` variable (space separated) are always
 treated as selected. This can be used to define global dependencies.
 Base modules are placed at the beginning of selected modules, so they are
 executed earlier.
@@ -469,12 +479,12 @@ and at least one dependency entry:
 rust ? [ ! $pacman ]
 ```
 
-This tells `dot` only install the `rust` module while installing this module
+This tells `pont` only install the `rust` module while installing this module
 when there is no `pacman` available.
 
 > There are some pre calculated variables for these use-cases but you can use
-> anything, and you can expand it with your `dotrc` as it will be sourced from
-> `dot`
+> anything, and you can expand it with your `pontrc` as it will be sourced from
+> `pont`
 
 Some of them:
 
@@ -516,7 +526,7 @@ This is used to define a module group on module level.
 Tags can be installed using the `:` prefix like so:
 
 ```sh
-dot :shell
+pont :shell
 ```
 
 This will install every module that has a `.tags` file with the line `shell`.
@@ -525,11 +535,11 @@ Tags can both appear in `.dependencies` files and in `*.preset` files.
 
 ### Listing available tags
 
-Available tags can be listed and `sort`ed using the `-lt` or `--list-tags`
-flags. These flag makes `dot` immediately exit.
+Available tags can be listed and `sort`ed using the `-T` or `--list-tags`
+flags. These flag makes `pont` immediately exit.
 
 ```sh
-dot -lt
+pont -T
 ```
 
 ## Stow packages
@@ -539,18 +549,18 @@ a stow package.
 
 > So in a module named `zsh`, the `.zsh` directory is a stowable package.
 
-Just like scripts, stow package names are too divided by dots into segments.
+Just like scripts, stow package names are too divided by periods into segments.
 The last one as mentioned is for marking a directory as a stow package.
 
 ### First segment, target
 
-By default, stow packages will be stowed to `DOT_TARGET` (can be overriden
-in a `dotrc` file) which is just `HOME` by default.
+By default, stow packages will be stowed to `PONT_TARGET` (can be overriden
+in a `pontrc` file) which is just `HOME` by default.
 
 To make stowing more dynamic, stow modules can have variables before the `.`
 in their names. These variables will then be expanded. If it's an absolute
-path it will be treated as such (Ignoring `DOT_TARGET`) but if its a relative
-path (it doesn't start with `/`) it will be appended after `DOT_TARGET`.
+path it will be treated as such (Ignoring `PONT_TARGET`) but if its a relative
+path (it doesn't start with `/`) it will be appended after `PONT_TARGET`.
 This path then will be used as the final target to stow to.
 
 > This variable can be set in the `init` script too if you wan't to be module
@@ -560,14 +570,14 @@ This path then will be used as the final target to stow to.
 ### Second segment, condition
 
 Just like packages, the second segment can be prefixed with `$`. In this case
-dot checks if that variable is set or not. If it's not prefixed, it will
+`pont` checks if that variable is set or not. If it's not prefixed, it will
 check with `command -v` if that it's a valid executable.
 
 ## Presets
 
 Presets basically standalone dependency files without anything to install.
 They have to have a `.preset` extension and they are searched under
-`$DOT_PRESETS_FOLDER` which by default the `presets` directory in your
+`$PONT_PRESETS_FOLDER` which by default the `presets` directory in your
 dotfiles directory.
 
 They can handle everything a normal dependency file can.
@@ -576,7 +586,7 @@ You can reference a preset with the `+` prefix. If you have a preset called
 `shells.preset`, you can install it like so:
 
 ```sh
-dot +shells
+pont +shells
 ```
 
 Presets can be included in other presets and dependency files the same way
@@ -592,11 +602,11 @@ vim
 
 ### Listing available presets
 
-Available presets can be listed and `sort`ed using the `-lp` or
-`--list-presets` flags. These flags makes `dot` immediately exit.
+Available presets can be listed and `sort`ed using the `-P` or
+`--list-presets` flags. These flags makes `pont` immediately exit.
 
 ```sh
-dot -lp
+pont -P
 ```
 
 ## Tips and Tricks
@@ -632,9 +642,10 @@ stat script.sh
 ls -l script.sh
 ```
 
-Or let dot automatically fix them by using the `-X` or
-`--toggle-fix-permissions` flags. **Or** by setting the `DOT_FIX_PERMISSIONS=`
-variable manually to `1` in your environment or `dotrc` file.
+Or let `pont` automatically fix them by using the `-X` or
+`--toggle-fix-permissions` flags. **Or** by setting the
+`PONT_FIX_PERMISSIONS=` variable manually to `1` in your environment or
+`pontrc` file.
 
 ## Far plans
 

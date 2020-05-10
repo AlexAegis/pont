@@ -1,41 +1,41 @@
-#compdef _dot dot
+#compdef _pont pont
 
 DOTFILES_HOME=${DOTFILES_HOME:-~/.config/dotfiles}
 
 function __get_presets {
-	find ${DOT_PRESETS_HOME:-$DOTFILES_HOME/presets/*} -regex '.*.preset' \
+	find ${PONT_PRESETS_HOME:-$DOTFILES_HOME/presets/*} -regex '.*.preset' \
 		-maxdepth 1 -mindepth 1 |
 		sed -e 's|.*/||' -e 's/.preset//' -e 's/^/+/' -e 's/$/ /'
 }
 
 function __get_tags {
-	find ${DOT_MODULES_HOME:-$DOTFILES_HOME/modules/*} \
+	find ${PONT_MODULES_HOME:-$DOTFILES_HOME/modules/*} \
 		-maxdepth 1 -mindepth 1 -name '.tags' \
 		-exec cat {} + | grep "^[^#;]" |
 		sort | uniq | sed -e 's/^/:/' -e 's/$/ /'
 }
 
-function _dot_modules {
-	_path_files -S " " -r " " -/ -W ${DOT_MODULES_HOME:-$DOTFILES_HOME/modules}
+function _pont_modules {
+	_path_files -S " " -r " " -/ -W ${PONT_MODULES_HOME:-$DOTFILES_HOME/modules}
 }
 
-function _dot_presets {
+function _pont_presets {
 	local presets=("${(@f)$(__get_presets)}")
 	_multi_parts " " 'presets'
 }
 
-function _dot_tags {
+function _pont_tags {
 	local tags=("${(@f)$(__get_tags)}")
 	_multi_parts " " 'tags'
 }
 
-function _dot_all {
-	_dot_modules
-	_dot_presets
-	_dot_tags
+function _pont_all {
+	_pont_modules
+	_pont_presets
+	_pont_tags
 }
 
-function _dot {
+function _pont {
     _arguments -S -C \
        '(-h --help)'{-h,--help}'[Print information on usage and flags then exit]' \
        '(-V --version)'{-V,--version}'[Print script version then exit]' \
@@ -78,10 +78,10 @@ function _dot {
 	   '(-S --skip-scripts)'{-S,--skip-scripts}'[Disables script execution. Its like dry execution but with stowing enabled.]' \
 	   '(-m --make)'{-m,--make}'[Enables Makefile execution. On by default.]' \
 	   '(-M --skip-make)'{-M,--skip-make}'[Disables Makefile execution.]' \
-	   '(-t --target)'{-t,--target}'[Its value will specify DOT_TARGET for this execution.]' \
-	   '(--scaffold --cpt)'{--scaffold,--cpt}'[Instead of executing modules, the selection now will used to scaffold modules based on a template folder at DOT_TEMPLATE]' \
+	   '(-t --target)'{-t,--target}'[Its value will specify PONT_TARGET for this execution.]' \
+	   '(--scaffold --cpt)'{--scaffold,--cpt}'[Instead of executing modules, the selection now will used to scaffold modules based on a template folder at PONT_TEMPLATE_HOME]' \
 	   '(-y --yank)'{-y,--yank}'[will yank the selection (with none expansion by default) to the target folder. Useful for copying modules along with their dependencies. (Used presets are also copied!)]' \
 	   '(-Y --yank-expanded)'{-y,--yank}'[will yank the expanded selection (same as -ey) to the target folder.]' \
-       "*:: :{ _dot_all }"
+       "*:: :{ _pont_all }"
 }
 

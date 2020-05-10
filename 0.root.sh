@@ -11,13 +11,11 @@ script_location=$(
 	pwd
 )
 
-# when running through `dot`, it's always cd'd here
-[ -e "./dot.sh" ] && script_location='.'
+# Using a symlink to make pont available without modifying the PATH
 
-# Using a symlink to make dot available without modifying the PATH
-ln -sf "$script_location/dot.sh" "/usr/local/bin/dot"
+ln -sf "$script_location/pont.sh" "/usr/local/bin/pont"
 
 ## Install man page
 
-# install -g 0 -o 0 -m 0644 dot.1 /usr/local/man/man8/
-# gzip /usr/local/man/man8/dot.1
+# install -g 0 -o 0 -m 0644 pont.1 /usr/local/man/man8/
+# gzip /usr/local/man/man8/pont.1

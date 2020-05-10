@@ -6,11 +6,11 @@ set -e
 # there are two modules, one that should be linked because the variable
 # DO_LINK is set and another that should not be linked because DO_NOT_LINK
 # is empty
-$COVERAGE ./dot.sh -q conditional_symlinks
+$COVERAGE ./pont.sh -q conditional_symlinks
 
 # Assertions
 sync
-[ -e "$DOT_TARGET/dolinkme" ] ||
+[ -e "$PONT_TARGET/dolinkme" ] ||
 	{ echo "Allowed conditional not linked"; exit 1; }
-[ ! -e "$DOT_TARGET/dontlinkme" ] ||
+[ ! -e "$PONT_TARGET/dontlinkme" ] ||
  	{ echo "Disallowed conditional linked"; exit 1; }

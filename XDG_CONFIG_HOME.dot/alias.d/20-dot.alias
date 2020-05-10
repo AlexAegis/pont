@@ -1,6 +1,0 @@
-#!/bin/sh
-
-alias cdot='cd $DOTFILES_HOME'
-alias dotup="dot -iu" # Update all installed
-alias dotre="dot -ox" # Re-execute outdated ones
-alias dotexp="dot -qeL" # Quiet expand and list. To check the dependency tree

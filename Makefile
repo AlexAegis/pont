@@ -5,8 +5,8 @@ MAKEFLAGS += -k # keep running on failure
 MAKEFLAGS += -j1 # explicitly run on a single thread,
 # more would cause problems on coverage report merging
 
-SHELL := /bin/dash
-COV_COM:='kcov --include-pattern=dot.sh --exclude-pattern=coverage coverage'
+SHELL := /bin/sh
+COV_COM:='kcov --include-pattern=pont.sh --exclude-pattern=coverage coverage'
 
 all_tests := $(basename $(wildcard test/*.test.sh))
 all_lint_formats := $(addsuffix .lint, sh dash bash ksh)

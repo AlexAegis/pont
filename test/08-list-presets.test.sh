@@ -3,7 +3,7 @@ set -e
 # shellcheck disable=SC1091
 . ./test/env.sh
 # This test checks if the script can find all presets
-result=$($COVERAGE ./dot.sh -P)
+result=$($COVERAGE ./pont.sh -P)
 # Assertions
 sync
 [ "$result" = "a
