@@ -53,6 +53,7 @@ jobs:
           cd kcov-master/build
           sudo make install
       - name: Test
+        timeout-minutes: 1
         run: make test
       - name: Upload coverage result to codecov
         run: bash <(curl -s https://codecov.io/bash)
