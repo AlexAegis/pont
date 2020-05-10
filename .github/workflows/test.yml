@@ -49,7 +49,7 @@ jobs:
           make
       - name: Install Kcov
         run: |
-          cd kcov-master/build
+          cd kcov-git/build
           sudo make install
       - name: Test
         timeout-minutes: 1
