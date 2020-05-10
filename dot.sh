@@ -532,7 +532,7 @@ interpret_args() {
 			-P | --list-presets) action_list_presets; exit 0 ;;
 			-T | --list-tags) action_list_tags; exit 0 ;;
 			-E | --list-environment) action_list_environment; exit 0 ;;
-			-L | --list-install) action_list_modules_to_install; exit 0 ;;
+			-L | --list-install) enqueue "action_list_modules_to_install" ;;
 			-Q | --list-queue) action_list_execution_queue; exit 0 ;;
 			-O | --list-outdated) action_list_outdated; exit 0 ;;
 			-C | --toggle-clean-symlinks)
@@ -1174,8 +1174,8 @@ action_expand_selected() {
 	fi
 
 	expand_entries $entries_selected
-	log_info "Final module list is:"
-	echo "$final_module_list"
+	log_info "Final module list is:
+$final_module_list"
 }
 
 action_expand_all() {
@@ -1184,8 +1184,8 @@ action_expand_all() {
 	[ ! "$all_modules" ] && get_all_modules
 	# shellcheck disable=SC2086
 	expand_entries $all_modules
-	log_info "Final module list is:"
-	echo "$final_module_list"
+	log_info "Final module list is:
+$final_module_list"
 }
 
 action_expand_installed() {
@@ -1194,8 +1194,8 @@ action_expand_installed() {
 	[ ! "$all_installed_modules" ] && get_all_installed_modules
 	# shellcheck disable=SC2086
 	expand_entries $all_installed_modules
-	log_info "Final module list is:"
-	echo "$final_module_list"
+	log_info "Final module list is:
+$final_module_list"
 }
 
 action_expand_outdated() {
@@ -1205,8 +1205,8 @@ action_expand_outdated() {
 	[ ! "$all_outdated_modules" ] && get_all_outdated_modules
 	# shellcheck disable=SC2086
 	expand_entries $all_outdated_modules
-	log_info "Final module list is:"
-	echo "$final_module_list"
+	log_info "Final module list is:
+$final_module_list"
 }
 
 action_expand_default_if_not_yet() {
