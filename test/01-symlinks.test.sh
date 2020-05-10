@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 # shellcheck disable=SC1091
-. ./test/.env
+. ./test/env.sh
 # This test tries to install the "symlinks" module which have multiple
 # linkable packages inside, two of which use relative paths and will be linked
 # to DOT_TARGET without mentioning it. One that's an absolute path, and one

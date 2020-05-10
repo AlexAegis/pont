@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 # shellcheck disable=SC1091
-. ./test/.env
+. ./test/env.sh
 # This test tries to install the `permissions` module.
 # faking wsl
 echo "export wsl=1" > .dotrc

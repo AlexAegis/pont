@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 # shellcheck disable=SC1091
-. ./test/.env
+. ./test/env.sh
 # This test tries to install the "symlinks" module while having the
 # DOT_BASE_MODULES set to "base" which should make that module install too.
 export DOT_BASE_MODULES="base"

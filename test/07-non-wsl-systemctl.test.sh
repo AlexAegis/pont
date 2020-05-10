@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 # shellcheck disable=SC1091
-. ./test/.env
+. ./test/env.sh
 # This test tries to install the `systemd` module on a systemd system
 # being a systemd system is enforced by mocking the is_installed function
 # in the .dotrc file

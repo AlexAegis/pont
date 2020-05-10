@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 # shellcheck disable=SC1091
-. ./test/.env
+. ./test/env.sh
 # This is an example test.
 # First every test should set the flag `-e` to error out on any failure
 # immediately.
