@@ -22,6 +22,8 @@ jobs:
           ${SUDO_AVAIL:+sudo} apt-get update
       - name: Install dependencies
         run: |
+          sudo ls -al /home/runner/work/dot
+          sudo rm -rf /home/runner/work/dot
           ${SUDO_AVAIL:+sudo} apt-get install -y make stow sudo wget curl
       - name: Cache kcov
         id: cache-kcov
