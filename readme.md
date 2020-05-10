@@ -112,6 +112,9 @@ typing a `-`, triggering the autocompletion will list all flags.
 
 Whether you chose to put it on your path or not, using it is the same.
 
+If you decide to use `pont` in to manage your dotfiles, please add `pont` as
+a tag!
+
 ### Configuration
 
 It does not require any configuration, but most things can be configured
