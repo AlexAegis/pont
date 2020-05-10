@@ -27,8 +27,8 @@ jobs:
         id: cache-kcov
         uses: actions/cache@v1
         with:
-          path: kcov-master
-          key: ${{ runner.os }}-kcov-master
+          path: kcov
+          key: ${{ runner.os }}-kcov
       - name: Install kcov install dependencies
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
@@ -43,14 +43,15 @@ jobs:
         run: |
           wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
           tar xzf master.tar.gz
-          cd kcov-master
+          mv kcov-master kcov
+          cd kcov
           mkdir -p build
           cd build
           cmake ..
           make
       - name: Install Kcov
         run: |
-          cd kcov-master/build
+          cd kcov/build
           sudo make install
       - name: Test
         timeout-minutes: 1
