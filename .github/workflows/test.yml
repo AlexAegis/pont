@@ -34,14 +34,13 @@ jobs:
           ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
             binutils-dev libiberty-dev libdw-dev
       - name: Install kcov compile only dependencies
-        if: steps.cache-kcov-master.outputs.cache-hit != 'true'
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y python3 git \
             cmake zlib1g-dev libssl-dev build-essential
       - name: Build kcov
-        if: steps.cache-kcov-master.outputs.cache-hit != 'true'
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
-          rm -rf kcov-git
           git clone --depth=1 https://github.com/SimonKagstrom/kcov/ kcov-git
           cd kcov-git
           mkdir -p build
@@ -50,7 +49,7 @@ jobs:
           make
       - name: Install Kcov
         run: |
-          cd kcov-git/build
+          cd kcov-master/build
           sudo make install
       - name: Test
         timeout-minutes: 1
