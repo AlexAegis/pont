@@ -17,6 +17,12 @@ jobs:
         run: |
           echo ::set-env name=SUDO_AVAIL::$(if command -v sudo \
             2> /dev/null; then echo 1; fi)
+      - name: Update repositories
+        run: |
+          ${SUDO_AVAIL:+sudo} apt-get update
+      - name: Install dependencies
+        run: |
+          ${SUDO_AVAIL:+sudo} apt-get install -y make stow sudo wget curl
       - name: Cache kcov
         id: cache-kcov
         uses: actions/cache@v1
@@ -25,7 +31,33 @@ jobs:
           key: ${{ runner.os }}-kcov-master
       - name: Install kcov install dependencies
         run: |
-          echo $HOME
-          ls -al
-          ls -al kcov-master
-          rm -rf kcov-master
+          ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
+            binutils-dev libiberty-dev libdw-dev
+      - name: Install kcov compile only dependencies
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
+        run: |
+          ${SUDO_AVAIL:+sudo} apt-get install -y python3 tar xz-utils \
+            cmake zlib1g-dev libssl-dev build-essential
+      - name: Build kcov
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
+        run: |
+          wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
+          tar xzf master.tar.gz
+          cd kcov-master
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+      - name: Install Kcov
+        run: |
+          cd kcov-master/build
+          sudo make install
+      - name: Test
+        timeout-minutes: 1
+        run: make test
+      - name: Upload coverage result to codecov
+        run: bash <(curl -s https://codecov.io/bash)
+      - name: Upload coverage result to codacy
+        run: |
+          export CODACY_PROJECT_TOKEN=${{ secrets.CODACY_PROJECT_TOKEN }}
+          bash <(curl -Ls https://coverage.codacy.com/get.sh)
