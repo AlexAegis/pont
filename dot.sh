@@ -281,7 +281,7 @@ log_error() {
 }
 
 show_help() {
-	echo "Dot $(show_version)
+	echo "$(show_version)
 -h, --help                    -- Print information on usage and flags then
                                  exit
 -V, --version                 -- Print script version then exit
@@ -395,7 +395,7 @@ Some scenarios:
 }
 
 show_version() {
-	echo "Version: 0.9.0" && exit 0
+	echo "Dot version: 0.9.0" && exit 0
 }
 
 clean_symlinks() {
