@@ -55,12 +55,6 @@ jobs:
           sudo make install
       - name: Test
         run: make test
-      - name: Cache codecov reporter
-        id: cache-codecov
-        uses: actions/cache@v1
-        with:
-          path: codecov-reporter.sh
-          key: ${{ runner.os }}-kcov-master-${WEEK}
       - name: Upload coverage result to codecov
         run: bash <(curl -s https://codecov.io/bash)
       - name: Upload coverage result to codacy
