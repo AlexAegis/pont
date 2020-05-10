@@ -1177,8 +1177,6 @@ action_clean_symlinks() {
 	clean_symlinks "$PONT_TARGET"
 }
 
-
-
 action_expand_selected() {
 	log_info "Set final module list to every selected and expanded module"
 	final_module_list=
