@@ -340,10 +340,6 @@ alone it will also be executed.
 > having a separate script for each system, or a custom script that skips on
 > `pacman` systems, just have a `fallback` script.
 
-TODO: enable the use of variables here using the `$` prefix
-
-TODO: Enable having multiple dependencies using `:`
-
 ### Init Scripts
 
 > `init.user.sh`
@@ -602,6 +598,27 @@ Available presets can be listed and `sort`ed using the `-lp` or
 ```sh
 dot -lp
 ```
+
+## Tips and Tricks
+
+### Junction modules and presets
+
+Having a dependency list, (A preset or a module with a .dependencies file)
+if you have a condition for each entry so that they are mutually exclusive,
+you can create an entity thats sole purpose is to conditionally redirect
+the dependency resolution.
+
+One such usecase would be to have a base `sys` module/preset that has
+dependencies on platform specific modules like `sys-debian`, `sys-arch` etc,
+with conditions so that they only run on their respective platforms.
+
+> You can further simplify it be having `.condition` files in the modules,
+> which is a stronger assurance that the module will only be installed on
+> the correct platform. In this case the junction dependency list doesn't
+> even need conditions!
+
+Then, other modules only have to reference this on entity, it will be resolved
+to the correct one.
 
 ## Troubleshooting
 
