@@ -603,6 +603,22 @@ Available presets can be listed and `sort`ed using the `-lp` or
 dot -lp
 ```
 
+## Troubleshooting
+
+### Scripts
+
+If a script doesn't want to run, check if it has execute permissions.
+
+```sh
+stat script.sh
+# or
+ls -l script.sh
+```
+
+Or let dot automatically fix them by using the `-X` or
+`--toggle-fix-permissions` flags. **Or** by setting the `DOT_FIX_PERMISSIONS=`
+variable manually to `1` in your environment or `dotrc` file.
+
 ## Far plans
 
 Once it's done, I might do a Rust rewrite for easier implementation of
