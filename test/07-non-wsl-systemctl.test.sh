@@ -5,6 +5,7 @@ set -e
 # This test tries to install the `systemd` module on a systemd system
 # being a systemd system is enforced by mocking the is_installed function
 # in the .dotrc file
+# shellcheck disable=SC2016
 echo '
 is_installed() {
 	if [ "$1" = "systemctl" ]; then

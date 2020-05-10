@@ -16,7 +16,8 @@ set -e
 
 # Assertions
 sync
-[ 1 = 1 ] ||
+var="1"
+[ 1 = "$var" ] ||
 	{ echo "Base not linked"; exit 1; }
 
 # This example test always succeeds, you can use it to trigger cleanup

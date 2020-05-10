@@ -86,29 +86,43 @@ DOT_CLEAN_SYMLINKS=0
 DOT_FIX_PERMISSIONS=0
 
 ## Precalculated environmental variables for modules
-export wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version \
+wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version \
 	2>/dev/null 1>/dev/null; then echo 1; fi)
+export wsl
 # wsl is always headless, others should be configured in dotrc
-export headless=$wsl
+headless=$wsl
+export headless
 # Package manager
-export pacman=$(if is_installed pacman; then echo 1; fi)
-export apt=$(if is_installed apt; then echo 1; fi)
-export xbps=$(if is_installed xbps; then echo 1; fi)
+pacman=$(if is_installed pacman; then echo 1; fi)
+export pacman
+apt=$(if is_installed apt; then echo 1; fi)
+export apt
+xbps=$(if is_installed xbps; then echo 1; fi)
+export xbps
 # Init system
-export sysctl=$(if is_installed sysctl; then echo 1; fi)
-export systemctl=$(if is_installed systemctl; then echo 1; fi)
-export systemd=$systemctl # alias
+sysctl=$(if is_installed sysctl; then echo 1; fi)
+export sysctl
+systemctl=$(if is_installed systemctl; then echo 1; fi)
+export systemctl
+systemd=$systemctl # alias
+export systemd
 # Distribution
 # TODO: Only valid on systemd distros
-export distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | \
+distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | \
 	tr -d '="')
+export distribution
 # It uses if and not && because when using && a new line would
 # return on false evaluation. `If` captures the output of test
-export arch=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
-export void=$(if [ "$distribution" = 'Void Linux' ]; then echo 1; fi)
-export debian=$(if [ "$distribution" = 'Debian GNU/Linux' ]; then echo 1; fi)
-export ubuntu=$(if [ "$distribution" = 'Ubuntu' ]; then echo 1; fi)
-export fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
+arch=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
+export arch
+void=$(if [ "$distribution" = 'Void Linux' ]; then echo 1; fi)
+export void
+debian=$(if [ "$distribution" = 'Debian GNU/Linux' ]; then echo 1; fi)
+export debian
+ubuntu=$(if [ "$distribution" = 'Ubuntu' ]; then echo 1; fi)
+export ubuntu
+fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
+export fedora
 
 # Config file sourcing
 # shellcheck disable=SC1090
@@ -1172,7 +1186,7 @@ action_expand_selected() {
 		done
 		IFS=$old_ifs
 	fi
-
+	# shellcheck disable=SC2086
 	expand_entries $entries_selected
 	log_info "Final module list is:
 $final_module_list"
@@ -1218,6 +1232,7 @@ action_expand_none() {
 	log_info "Set final module list only to the selected modules," \
 			 "no dependency expansion."
 	final_module_list=
+	# shellcheck disable=SC2086
 	expand_abstract_entries $entries_selected
 	log_info "Final module list is:"
 	echo "$final_module_list"

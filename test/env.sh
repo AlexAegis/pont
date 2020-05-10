@@ -1,6 +1,6 @@
 #!/bin/sh
 
-script_dir=$(dirname $(readlink -f $0))
+script_dir=$(dirname "$(readlink -f "$0")")
 echo "env set up into $script_dir"
 
 export DOTFILES_HOME="$script_dir/"
