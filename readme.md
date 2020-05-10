@@ -4,6 +4,8 @@
 
 > Check my [dotfiles](https://github.com/alexaegis/dotfiles) as a live example
 
+![logo](./docs/images/logo.svg)
+
 ## What is `pont`
 
 It's a single shell script designed to install programs and personal configs
@@ -59,7 +61,8 @@ This project was originally named `dot` but there is a `graphviz` utility
 by that name already. Another candidate was
 `dotman` but there are dozens of `dotman` repositories already.
 
-But `pont` was free and it means `dot` in Hungarian.
+But `pont` was free and it means `dot` in hungarian, and bridge in frech.
+Which I guess makes sense given the heavy use of symlinks.
 
 ## Prerequisites
 
