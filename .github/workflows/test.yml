@@ -17,12 +17,6 @@ jobs:
         run: |
           echo ::set-env name=SUDO_AVAIL::$(if command -v sudo \
             2> /dev/null; then echo 1; fi)
-      - name: Update repositories
-        run: |
-          ${SUDO_AVAIL:+sudo} apt-get update
-      - name: Install dependencies
-        run: |
-          ${SUDO_AVAIL:+sudo} apt-get install -y make stow sudo wget curl
       - name: Cache kcov
         id: cache-kcov
         uses: actions/cache@v1
@@ -31,4 +25,7 @@ jobs:
           key: ${{ runner.os }}-kcov-master
       - name: Install kcov install dependencies
         run: |
+          echo $HOME
           ls -al
+          ls -al kcov-master
+          rm -rf kcov-master
