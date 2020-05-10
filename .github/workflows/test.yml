@@ -24,11 +24,11 @@ jobs:
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y make stow sudo wget curl
       - name: Cache kcov
-        id: cache-kcov-master
+        id: cache-kcov
         uses: actions/cache@v1
         with:
-          path: kcov-master
-          key: ${{ runner.os }}-kcov-master
+          path: kcov-git
+          key: ${{ runner.os }}-kcov
       - name: Install kcov install dependencies
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
@@ -36,14 +36,13 @@ jobs:
       - name: Install kcov compile only dependencies
         if: steps.cache-kcov-master.outputs.cache-hit != 'true'
         run: |
-          ${SUDO_AVAIL:+sudo} apt-get install -y python3 tar xz-utils \
+          ${SUDO_AVAIL:+sudo} apt-get install -y python3 git \
             cmake zlib1g-dev libssl-dev build-essential
       - name: Build kcov
         if: steps.cache-kcov-master.outputs.cache-hit != 'true'
         run: |
-          wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
-          tar xzf master.tar.gz
-          cd kcov-master
+          git clone --depth=1 https://github.com/SimonKagstrom/kcov/ kcov-git
+          cd kcov-git
           mkdir -p build
           cd build
           cmake ..
