@@ -1,6 +1,6 @@
 # Todos
 
-TODO: Single dotmodule file for dependencies / clashes / etc
+TODO: Single dotmodule file for dependencies / clashes / etc, ini or toml
 
 TODO: Multirequirements using `:` 0.root.pacman:cargo.sh
 
