@@ -41,6 +41,7 @@ jobs:
       - name: Build kcov
         if: steps.cache-kcov-master.outputs.cache-hit != 'true'
         run: |
+          rm -rf kcov-git
           git clone --depth=1 https://github.com/SimonKagstrom/kcov/ kcov-git
           cd kcov-git
           mkdir -p build
