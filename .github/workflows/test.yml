@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: kcov
-          key: ${{ runner.os }}-kcov
+          key: kcov-${{ runner.os }}
       - name: Install kcov install dependencies
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
