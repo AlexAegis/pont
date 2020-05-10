@@ -34,12 +34,10 @@ jobs:
           ${SUDO_AVAIL:+sudo} apt-get install -y libcurl4-openssl-dev \
             binutils-dev libiberty-dev libdw-dev
       - name: Install kcov compile only dependencies
-        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y python3 tar xz-utils \
             cmake zlib1g-dev libssl-dev build-essential
       - name: Build kcov
-        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
           tar xzf master.tar.gz
