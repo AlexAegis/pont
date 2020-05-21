@@ -215,6 +215,20 @@ get_all_tags() {
 		sed -e 's/ *#.*$//' -e '/^$/d' | sort | uniq)
 }
 
+rename_module() {
+	# $1 from
+	# $2 to
+	log_info "Rename module $1 to $2"
+	# TODO: Check if from exists, fail if not
+	# TODO: Check if to exists, fail if is
+	# TODO: Rename module folder,
+	# TODO: Rename all packages ending inside it
+	# TODO: rename all references in dependency files, presets
+	# TODO: expand it to tags and presets
+	# TODO: reinstall if it was installed
+	echo "Not implemented!"
+}
+
 # Unused, left here for reference
 # dequeue() {
 # 	# remove last or remove the supplied items
@@ -519,7 +533,7 @@ update,execute,install,remove,\
 expand-none,expand-selected,expand-all,expand-installed,expand-outdated,\
 dry,wet,skip-base,force,\
 config,root,skip-root,scripts,skip-scripts,make,skip-make,\
-target:,scaffold:,cpt:,yank:,yank-expanded:,\
+target:,scaffold:,cpt:,yank:,yank-expanded:,rename::\
 \
 " -- "$@" || exit 1
 }
@@ -615,6 +629,11 @@ interpret_args() {
 					log_error "Invalid target: $2"; exit 1
 				fi
 				shift
+				;;
+			--rename)
+				shift
+				rename_module "$2" "$3"
+				exit 0
 				;;
 			--)	;;
 			-?*) log_error "Unknown option (ignored): $1" b;;
