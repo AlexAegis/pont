@@ -1238,8 +1238,8 @@ action_expand_none() {
 	final_module_list=
 	# shellcheck disable=SC2086
 	expand_abstract_entries $entries_selected
-	log_info "Final module list is:"
-	echo "$final_module_list"
+	log_info "Final module list is:
+$final_module_list"
 }
 
 action_list_modules_to_install() {
