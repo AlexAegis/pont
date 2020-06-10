@@ -1014,6 +1014,7 @@ make_module() {
 }
 
 install_module() {
+	# TODO: fallbacks alone wont execute
 	sripts_in_group=$(find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
 		-type f | sed 's|.*/||' | grep "^[0-9].*\..*\..*$" | sort)
 	log_trace "Scripts in module for $1 are:
