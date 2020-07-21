@@ -38,8 +38,8 @@ just only a few things on a remote server? Why would you add your X config to
 WSL? What if you distro hop a lot because you're experimenting?
 
 But even if you use it for a single system it does have it's advantages.
-Separating everything into it's little bundle helps keeping track of things.
-If you wan't to teak some configurations you only have to go to one place, and
+Separating everything into it's little bundles helps keeping track of things.
+If you wan't to tweak some configurations you only have to go to one place, and
 you get all related files in one module. You can see what other modules you
 made this one depend on.
 
