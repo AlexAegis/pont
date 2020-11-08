@@ -11,3 +11,13 @@ export PONT_TARGET="$script_dir/target"
 export PONT_BASE_MODULES=
 
 mkdir -p "$PONT_TARGET"
+
+# Constructs a temporary module
+make_dummy_module() {
+	mkdir -p "${PONT_MODULES_HOME}/${1:-dummy}"
+	echo "${2:-test}" > "${PONT_MODULES_HOME}/${1:-dummy}/dummyfile"
+}
+
+clear_dummy_module() {
+	rm -r "${PONT_MODULES_HOME}/${1:-dummy}"
+}

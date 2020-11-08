@@ -9,6 +9,7 @@ echo "$result"
 sync
 [ "$result" = "base
 conditional_symlinks
+deprecated
 permissions
 symlinks
 systemd" ] ||

@@ -10,7 +10,8 @@
 
 It's a single shell script designed to install programs and personal configs
 in bulk with minimal config. Depending on your setup, it's capable of
-bootstrapping a fresh system.
+installing every program you use with their configurations from a fresh
+install.
 
 The programs and configurations are stored in `dotmodules` which is just a
 directory with scripts and folders named in a conventional manner. The names
@@ -30,8 +31,8 @@ pont +arch
 And then it will install every single thing I specified there without
 assistance. In order.
 
-But that could be done by having a single set of applications in an install
-script, and all my config in a repository, right?
+_But that could be done by having a single set of applications in an install
+script, and all my config in a repository, right?_
 
 Yes, but what if you use multiple setups at once? Or you'd like to configure
 just only a few things on a remote server? Why would you add your X config to
@@ -40,16 +41,16 @@ WSL? What if you distro hop a lot because you're experimenting?
 But even if you use it for a single system it does have it's advantages.
 Separating everything into it's little bundles helps keeping track of things.
 If you wan't to tweak some configurations you only have to go to one place, and
-you get all related files in one module. You can see what other modules you
-made this one depend on.
+**you get to see all related files in one module**. You can see what other
+modules you made this one depend on.
 
 Configuration is just one part. But oftentime things require a little setup.
-Downloading a repository, making it, installing it. Installing and enabling
+Downloading a repository, compilation, installation. Installing and enabling
 services. These things can also be in an install script. You don't have to
-remember things. And when you don't have to remember things, you can start
-focusing on creating things.
+remember things. With these scripts you can always replay the setup you did.
 
-A modular design allows this.
+A modular design allows you to focus on one thing at once, and organize your
+configuration.
 
 > It's my first shell script project so please leave issues, if you have any
 
@@ -66,9 +67,9 @@ Which I guess makes sense given the heavy use of symlinks.
 
 ## Prerequisites
 
-A mostly [POSIX](https://en.wikipedia.org/wiki/POSIX) shell on
-`/bin/sh` to run `pont` itself. It was developed on `dash` and it does not
-utilize local variables.
+A mostly [POSIX](https://en.wikipedia.org/wiki/POSIX) compatible shell on
+`/bin/sh` to run `pont` itself. `bash` and `zsh` will work fine. It was
+developed on `dash` and it does not utilize local variables.
 
 A key component of `pont` is `stow` which handles the symlinks between the
 modules and the target, but it's not needed to run `pont` itself and execute
@@ -181,11 +182,11 @@ pont [-flags] modules...
 When installing a dotmodule successfully, a `.tarhash` file will be created
 in the modules directory. (Should be .gitignored). This containes a hash
 calculated from the content of the module at the time of install. This enables
-`pont` to skip any module that is **already install** and
+`pont` to skip any module that is **already installed** and
 **has not changed since**. This is especially important when installing
 modules with large dependency trees.
 
-> The `.tarhash` file also marks a module installed.
+> The `.tarhash` file marks a module installed.
 
 Modules that are already installed can be forced to be reinstalled using the
 `-f` or `--force` flags. It just makes it ignore the hashfile.
@@ -197,6 +198,12 @@ Installed modules can be listed and `sort`ed using the `-I` or
 
 ```sh
 pont -I
+```
+
+Tip: use `wc -l` to count the result of these queries
+
+```sh
+pont -I | wc -l
 ```
 
 ### Listing available modules
@@ -223,6 +230,8 @@ pont -D
 Outdated modules (Modules with changed hash since their last installation)
 can be listed and `sort`ed using the `-O` or `--list-outdated` flags.
 These flags make `pont` exit immediately.
+
+> Since this command re-hashes all install modules it can take a while
 
 ```sh
 pont -O

@@ -172,12 +172,12 @@ module_exists() {
 
 get_all_modules() {
 	all_modules=$(find "$PONT_MODULES_HOME/" -maxdepth 1 -mindepth 1 \
-		-printf "%f\n" | sort)
+		-type d -printf "%f\n" | sort)
 }
 
 get_all_presets() {
 	all_presets=$(find "$PONT_PRESETS_HOME/" -mindepth 1 \
-		-name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
+		-type f -name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
 }
 
 get_all_installed_modules() {
@@ -204,14 +204,14 @@ get_all_outdated_modules() {
 
 get_all_deprecated_modules() {
 	#shellcheck disable=SC2016
-	all_deprecated_modules=$(grep -lm 1 -- "" \
-		"$PONT_MODULES_HOME"/**/$PONT_DEPRECATIONFILE_NAME | \
+	all_deprecated_modules=$(find "$PONT_MODULES_HOME"/*/ -maxdepth 1 \
+		-mindepth 1 -type f -name "$PONT_DEPRECATIONFILE_NAME" | \
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
 
 get_all_tags() {
 	all_tags=$(find "$PONT_MODULES_HOME"/*/ -maxdepth 1 -mindepth 1 \
-		-name '.tags' -exec cat {} + | \
+		-type f -name '.tags' -exec cat {} + | \
 		sed -e 's/ *#.*$//' -e '/^$/d' | sort | uniq)
 }
 
@@ -256,18 +256,19 @@ enqueue() {
 	done
 }
 
-enqueue_front() {
-	log_trace "Enqueuing to the front $*"
-	while :; do
-		[ "$1" ] || break
-		if [ "$execution_queue" ]; then
-			execution_queue="${1}${IFS:-\0}${execution_queue}"
-		else
-			execution_queue="${1}"
-		fi
-		shift
-	done
-}
+# Unused, left here for reference
+# enqueue_front() {
+# 	log_trace "Enqueuing to the front $*"
+# 	while :; do
+# 		[ "$1" ] || break
+# 		if [ "$execution_queue" ]; then
+# 			execution_queue="${1}${IFS:-\0}${execution_queue}"
+# 		else
+# 			execution_queue="${1}"
+# 		fi
+# 		shift
+# 	done
+# }
 
 # Logging, the default log level is 1 meaning only trace logs are omitted
 log_trace() {
@@ -672,7 +673,7 @@ has_tag() {
 in_preset() {
 	# returns every entry in a preset
 	find "$PONT_PRESETS_HOME" -mindepth 1 -name "$1$PONT_PRESET_EXTENSION" \
-		-print0 | xargs -0 sed -e 's/ *#.*$//' -e '/^$/d'
+		-type f -print0 | xargs -0 sed -e 's/ *#.*$//' -e '/^$/d'
 }
 
 get_clashes() {
@@ -1294,7 +1295,7 @@ do_yank() {
 	# Copy all used presets
 	for preset in $expanded_presets; do
 		preset_file_name="$(echo "$preset" | cut -d '+' -f 2-).preset"
-		cp "$(find "$PONT_PRESETS_HOME" -name "$preset_file_name")" \
+		cp "$(find "$PONT_PRESETS_HOME" -type f -name "$preset_file_name")" \
 			"$yank_target/$preset_file_name"
 	done
 }
