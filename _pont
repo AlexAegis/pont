@@ -59,6 +59,7 @@ function _pont {
 	   '(-O --list-outdated)'{-O,--list-outdated}'[List all outdated (installed but has hash mismatch) modules then exit]' \
 	   '(-C --toggle-clean-symlinks)'{-C,--toggle-clean-symlinks}'[Removes broken symlinks in the target directory. (By default it turns on the feautre, but if it was turned on by the environment it turns it off.)]' \
 	   '(-X --toggle-fix-permissions)'{-X,--toggle-fix-permissions}'[Adds user execute permissions to all module scripts before running them.]' \
+	   '(-p --pull-dotfiles)'{-p,--pull-dotfiles}'[Perform git pull on the dotfiles home folder]' \
 	   '(-u --update)'{-u,--update}'[Run all scrips starting with u in the selected modules.]' \
 	   '(-x --execute --install)'{-x,--execute,--install}'[Run init scripts, stow configs, then run scripts starting with a number and the Makefile in all the selected modules.]' \
 	   '(-r --remove)'{-r,--remove}'[Unstows every stow package in the selected modules. If this flag is added twice it will also run all scrips starting with r in the selected modules.]' \

@@ -333,6 +333,7 @@ show_help() {
                                  the environment it turns it off.)
 -X, --toggle-fix-permissions  -- Adds user execute permissions to all module
                                  scripts before running them.
+-p, --pull-dotfiles           -- Perform git pull on the dotfiles home folder
 -u, --update                  -- Run all scrips starting with u in the
                                  selected modules.
 -x, --execute, --install      -- Run init scripts, stow configs, then run
@@ -520,6 +521,7 @@ parse_args() {
 IADPT\
 ELQO\
 CX\
+p\
 uxr\
 neaio\
 dwbf\
@@ -530,6 +532,7 @@ t:y:Y:\
 list-installed,list-modules,list-deprecated,list-presets,list-tags,\
 list-environment,list-install,list-queue,list-outdated,\
 toggle-clean-symlinks,toggle-fix-permissions,\
+pull-dotfiles,\
 update,execute,install,remove,\
 expand-none,expand-selected,expand-all,expand-installed,expand-outdated,\
 dry,wet,skip-base,force,\
@@ -574,6 +577,8 @@ interpret_args() {
 				PONT_CLEAN_SYMLINKS=$((1-PONT_CLEAN_SYMLINKS)) ;;
 			-X | --toggle-fix-permissions)
 				PONT_FIX_PERMISSIONS=$((1-PONT_FIX_PERMISSIONS)) ;;
+			-p | --pull-dotfiles)
+				enqueue "pull_dotfiles" ;;
 			-u | --update) enqueue "action_expand_default_if_not_yet" \
 				"action_update_modules" ;;
 			-x | --execute | --install) enqueue \
@@ -696,6 +701,18 @@ get_entry() {
 
 get_condition() {
 	echo "$1" | cut -d '?' -s -f 2- | cut -d '#' -f 1  | sed 's/^ //'
+}
+
+pull_dotfiles() {
+	log_trace "Performing git pull on DOTFILES_HOME ($DOTFILES_HOME)"
+	if [ -d "$DOTFILES_HOME/.git" ]; then
+		(
+			cd "$DOTFILES_HOME" || exit 1
+			git pull
+		)
+	else
+		log_error "DOTFILES_HOME ($DOTFILES_HOME) is not a git folder"
+	fi
 }
 
 execute_scripts_for_module() {
