@@ -692,7 +692,8 @@ $entries_selected"
 
 trim_around() {
 	# removes the first and last characters from every line
-	rev | cut -c2- | rev | cut -c2-
+	last_removed=${$1::-1}
+	echo ${last_removed:1}
 }
 
 has_tag() {
@@ -925,7 +926,7 @@ remove_modules() {
 		fi
 
 		# Stowing is hard disabled on windows
-		if [ ! "$windows" ]; then
+		if [ -z "$windows" ]; then
 			unstow_modules "$1"
 		fi
 
@@ -1011,8 +1012,7 @@ stow_package() {
 		fi
 
 		log_trace "Do stowing $1"
-		do_stow "$(echo "$1" | rev | cut -d '/' -f 2- | rev | \
-			sed 's|^$|/|')" \
+		do_stow "$(echo "${1%/*}" | sed 's|^$|/|')" \
 			"$(/bin/sh -c "echo \$$(basename "$1" | cut -d '.' -f 1)" | \
 				sed -e "s|^\$$|$PONT_TARGET|" \
 				-e "s|^[^/]|$PONT_TARGET/\0|")" \
@@ -1210,7 +1210,7 @@ $(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 			init_modules "$1"
 
 			# Stowing is hard disabled on windows
-			if [ ! "$windows" ]; then
+			if [ -z "$windows" ]; then
 				stow_modules "$1"
 			fi
 
@@ -1250,10 +1250,10 @@ action_quit() {
 action_fix_permissions() {
 	# Fix permissions, except in submodules
 	log_info "Fixing permissions in $DOTFILES_HOME... "
+	subs=$(git submodule status | sed -e 's/^ *//' -e 's/ *$//')
 	submodules=$(
 		cd "$DOTFILES_HOME" || exit
-		git submodule status | sed -e 's/^ *//' -e 's/ *$//' | rev |
-			cut -d ' ' -f 2- | rev | cut -d ' ' -f 2- |
+		echo ${subs% *} | cut -d ' ' -f 2- |
 			sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
 	)
 
