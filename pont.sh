@@ -1070,26 +1070,29 @@ powershell_script_filter() {
 	fi
 }
 
-get_scripts_in_group() {
+get_install_scripts_in_module() {
 	find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
 		-type f 2>/dev/null | sed 's|.*/||' | grep "^[0-9].*\..*\..*$" |
 		sort | powershell_script_filter
 }
 
 install_module() {
-	# TODO: fallbacks alone wont execute
-	sripts_in_group=$(get_scripts_in_group "$1")
+	sripts_in_module=$(get_install_scripts_in_module "$1")
 	log_trace "Scripts in module for $1 are:
-$sripts_in_group"
-	groups_in_module=$(echo "$sripts_in_group" | sed 's/\..*//g' | uniq)
+$sripts_in_module"
+	groups_in_module=$(echo "$sripts_in_module" | sed 's/\..*//g' | uniq)
 	for group in $groups_in_module; do
-		group_scripts=$(echo "$sripts_in_group" | grep "${group}." )
+		group_scripts=$(echo "$sripts_in_module" | grep "^${group}..*$" )
 	 	group_scripts_to_run=
 		for script in $group_scripts; do
 			# at least 4 section long, so there is a condition
 			if [ "$(echo "$script" | cut -d '.' -f 4)" ]; then
 				script_condition="$(echo "$script" | cut -d '.' -f 3)"
-				if [ "${script_condition#\$}" = "$script_condition" ]; then
+				if [ "$script_condition" = "fallback" ]; then
+					log_trace "fallback script"
+					group_scripts_to_run="$group_scripts_to_run\
+${IFS:-\0}$script"
+				elif [ "${script_condition#\$}" = "$script_condition" ]; then
 					log_trace "condition $script_condition is a command"
 					is_installed "$script_condition" && \
 						group_scripts_to_run="$group_scripts_to_run\
@@ -1219,7 +1222,7 @@ $(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 			# and the result can be determined in a single step
 			# It's mutually exclusive with normal scripts, will only run
 			# When no numbered scripts exist
-			if [ -z "$(get_scripts_in_group $1)" ];then
+			if [ -z "$(get_install_scripts_in_module $1)" ];then
 				make_module "$1"
 			fi
 
