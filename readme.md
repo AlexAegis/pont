@@ -77,6 +77,40 @@ modules that do not require linking. Meaning on a fresh install `pont` can set
 this dependency up for you if you have a module that deals with this and do
 not utilize linking.
 
+### On Windows
+
+`pont` works but has somewhat limited capabilities when running on a Windows
+POSIX compatibility layer such as `MINGW`. But is usable as a conditional,
+dependency tree resolving script runner.
+
+> Windows Support is limited as I only use basic functinalities and is not
+> tested beyond that.
+
+Caveats on Windows:
+
+- Stow is not available (It would be disabled even if it were as it would
+  just cause problems)
+- Limited to running PowerShell scripts with `*.ps1` file extension.
+- Since the PowerShell scripts are not running directly from PowerShell
+  a shebang is needed in every script: `#!/usr/bin/env powershell`
+- Has to be invoked from an elevated environment (For example `Git Bash` when
+  running with `Run As Administrator`) manually if the scrips you try to run
+  require this.
+- Scripts must not have `.root.` in it's
+  [second segment](#Second-segment,-privileges) because `sudo` is not
+  available in these environments and `pont` would try to invoke it when a
+  scripts demands privilege elevation.
+
+> This enables modules to be installed on both kind of systems without
+> conflict or excessive configuration. Most of the time they would be mutually
+> exclusive so you would either need a lot of
+> [`conditionfiles`](#Conditional-modules) (To limit modules into certain OS')
+> or condition everything in it to windows or not windows. Disabling automatic
+> symlinking on Windows altogether is the easier choice. If needed you can
+> always write the PowerShell script to do the symlinking. Same thing with
+> PowerShell scripts on linux, since only the file extension is checked, you
+> can just give it something else and have the same shebang.
+
 ## Installation
 
 This repository can be used to download and install `pont`. It can also act
@@ -520,6 +554,8 @@ fedora
 ```
 
 #### Conditional modules
+
+> .condition
 
 Sometimes a module doesn't makes sense in an environment, but is used by
 many others as a non-essential dependency. In a headless environment like
