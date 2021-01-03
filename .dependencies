@@ -1,10 +1,4 @@
 # This file is used by `pont` itself
-# and these are recommended modules to use with it
-# an XDG module which provides XDG locations of your choice
-# This is where `pont` user level symlink will be stowed to
-xdg
-# stow, to let itself be stowed in the first place
-stow
-
-# Neither of these are necessary to use `pont`, this is only used
-# for placing a symlink to $XDG_BIN_HOME
+# This module should not rely on other modules so it can be used without
+# modification. If you with to extend it, make a wrapper module and mark
+# this as it's dependency. See `pont-extra` among my dotmodules.

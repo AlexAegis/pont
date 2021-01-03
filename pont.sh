@@ -52,8 +52,27 @@ is_installed() {
 	command -v "$1" 2>/dev/null 1>/dev/null
 }
 
+get_home() {
+	# This solution returns the home folder of the original invoker of sudo
+	if is_installed getent; then
+		getent passwd "${SUDO_USER-$USER}" | cut -d: -f6
+	else
+		# On MINGW getent is not available, but elevated privileges don't
+		# change the home folder either, so this should be enough
+		echo "$HOME"
+	fi
+}
+
 # Environment
-user_home=$(getent passwd "${SUDO_USER-$USER}" | cut -d: -f6)
+user_home=$(get_home)
+uname_result="$(uname -s)"
+
+case "${uname_result}" in
+    Linux*)                        os_type="linux";;
+    Darwin*)                       os_type="mac";;
+	CYGWIN*|MINGW32*|MSYS*|MINGW*) os_type="windows";;
+    *)                             os_type="unknown:${uname_result}"
+esac
 
 # Normalize XDG variables according to the spec (Set it only if absent)
 XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$user_home/.config"}
@@ -92,6 +111,15 @@ PONT_CLEAN_SYMLINKS=0
 PONT_FIX_PERMISSIONS=0
 
 ## Precalculated environmental variables for modules
+
+# OS
+linux=$(if [ "$os_type" = "linux" ]; then echo 1; fi)
+export linux
+mac=$(if [ "$os_type" = "mac" ]; then echo 1; fi)
+export mac
+windows=$(if [ "$os_type" = "windows" ]; then echo 1; fi)
+export windows
+
 wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version \
 	2>/dev/null 1>/dev/null; then echo 1; fi)
 export wsl
@@ -114,7 +142,7 @@ systemd=$systemctl # alias
 export systemd
 # Distribution
 # TODO: Only valid on systemd distros
-distribution=$(grep "^NAME" /etc/os-release | grep -oh "=.*" | \
+distribution=$(grep "^NAME" /etc/os-release 2>/dev/null | grep -oh "=.*" | \
 	tr -d '="')
 export distribution
 # It uses if and not && because when using && a new line would
