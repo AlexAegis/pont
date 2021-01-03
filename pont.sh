@@ -918,8 +918,8 @@ remove_modules() {
 		if [ "$remove_count" -ge 2 ]; then
 			log_info "Hard remove $1"
 			remove_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
-				-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
-				| grep '^r.*\..*\..*$' | sort)
+				-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' |
+				grep -v '^restore.*$' | grep '^r.*\..*\..*$' | sort)
 			execute_scripts_for_module "$1" "$remove_sripts_in_module"
 		else
 			log_info "Soft remove $1"
