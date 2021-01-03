@@ -1059,10 +1059,23 @@ make_module() {
 	fi
 }
 
+powershell_script_filter() {
+	if [ $windows ]; then
+		grep "^.*ps1$"
+	else
+		grep -v "^.*ps1$"
+	fi
+}
+
+get_scripts_in_group() {
+	find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
+		-type f 2>/dev/null | sed 's|.*/||' | grep "^[0-9].*\..*\..*$" |
+		sort | powershell_script_filter
+}
+
 install_module() {
 	# TODO: fallbacks alone wont execute
-	sripts_in_group=$(find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
-		-type f | sed 's|.*/||' | grep "^[0-9].*\..*\..*$" | sort)
+	sripts_in_group=$(get_scripts_in_group "$1")
 	log_trace "Scripts in module for $1 are:
 $sripts_in_group"
 	groups_in_module=$(echo "$sripts_in_group" | sed 's/\..*//g' | uniq)
@@ -1198,7 +1211,11 @@ $(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 			# Make isn't a separate step because there only
 			# should be one single install step so that the hashes
 			# and the result can be determined in a single step
-			make_module "$1"
+			# It's mutually exclusive with normal scripts, will only run
+			# When no numbered scripts exist
+			if [ -z "$(get_scripts_in_group $1)" ];then
+				make_module "$1"
+			fi
 
 			install_module "$1"
 
