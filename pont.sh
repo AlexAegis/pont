@@ -924,7 +924,10 @@ remove_modules() {
 			log_info "Soft remove $1"
 		fi
 
-		unstow_modules "$1"
+		# Stowing is hard disabled on windows
+		if [ ! "$windows" ]; then
+			unstow_modules "$1"
+		fi
 
 		# remove hashfile to mark as uninstalled
 		[ -e "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" ] &&
@@ -1206,7 +1209,10 @@ $(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 
 			init_modules "$1"
 
-			stow_modules "$1"
+			# Stowing is hard disabled on windows
+			if [ ! "$windows" ]; then
+				stow_modules "$1"
+			fi
 
 			# Make isn't a separate step because there only
 			# should be one single install step so that the hashes
