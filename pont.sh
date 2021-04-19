@@ -133,6 +133,8 @@ apt=$(if is_installed apt; then echo 1; fi)
 export apt
 xbps=$(if is_installed xbps; then echo 1; fi)
 export xbps
+emerge=$(if is_installed emerge; then echo 1; fi)
+export emerge
 # Init system
 sysctl=$(if is_installed sysctl; then echo 1; fi)
 export sysctl
@@ -140,8 +142,10 @@ systemctl=$(if is_installed systemctl; then echo 1; fi)
 export systemctl
 systemd=$systemctl # alias
 export systemd
+openrc=$(if is_installed rc-service; then echo 1; fi)
+export openrc
 # Distribution
-# TODO: Only valid on systemd distros
+# ! May not be available on some systems
 distribution=$(grep "^NAME" /etc/os-release 2>/dev/null | grep -oh "=.*" | \
 	tr -d '="')
 export distribution
@@ -149,6 +153,8 @@ export distribution
 # return on false evaluation. `If` captures the output of test
 arch=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
 export arch
+gentoo=$(if [ "$distribution" = 'Gentoo' ]; then echo 1; fi)
+export gentoo
 void=$(if [ "$distribution" = 'Void Linux' ]; then echo 1; fi)
 export void
 debian=$(if [ "$distribution" = 'Debian GNU/Linux' ]; then echo 1; fi)
