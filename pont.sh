@@ -196,6 +196,7 @@ execution_queue=
 ## Internal functions
 
 is_deprecated() {
+	# TODO: Implement conditional deprecation
 	[ -e "$PONT_MODULES_HOME/$1/$PONT_DEPRECATIONFILE_NAME" ]
 }
 
