@@ -530,13 +530,16 @@ action_list_environment() {
 		"wsl=$wsl" \
 		"headless=$headless" \
 		"pacman=$pacman" \
+		"emerge=$emerge" \
 		"apt=$apt" \
 		"xbps=$xbps" \
 		"sysctl=$sysctl" \
 		"systemctl=$systemctl" \
 		"systemd=$systemd" \
+		"openrc=$openrc" \
 		"distribution=$distribution" \
 		"arch=$arch" \
+		"gentoo=$gentoo" \
 		"void=$void" \
 		"debian=$debian" \
 		"ubuntu=$ubuntu" \
@@ -677,7 +680,7 @@ interpret_args() {
 				exit 0
 				;;
 			--)	;;
-			-?*) log_error "Unknown option (ignored): $1" b;;
+			-?*) log_error "Unknown option (ignored): $1";;
 			*) # The rest are selected modules
 				# TODO: Pre validate them
 				if [ "$1" ]; then
