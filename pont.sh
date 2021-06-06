@@ -144,6 +144,9 @@ systemd=$systemctl # alias
 export systemd
 openrc=$(if is_installed rc-service; then echo 1; fi)
 export openrc
+# other features
+pam=$(if ldd /bin/su | grep -q pam; then echo 1; fi)
+export pam
 # Distribution
 # ! May not be available on some systems
 distribution=$(grep "^NAME" /etc/os-release 2>/dev/null | grep -oh "=.*" | \
