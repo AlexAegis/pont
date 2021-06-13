@@ -71,6 +71,7 @@ case "${uname_result}" in
     Linux*)                        os_type="linux";;
     Darwin*)                       os_type="mac";;
 	CYGWIN*|MINGW32*|MSYS*|MINGW*) os_type="windows";;
+	FreeBSD*)                      os_type="freebsd";;
     *)                             os_type="unknown:${uname_result}"
 esac
 
@@ -119,6 +120,8 @@ mac=$(if [ "$os_type" = "mac" ]; then echo 1; fi)
 export mac
 windows=$(if [ "$os_type" = "windows" ]; then echo 1; fi)
 export windows
+bsd=$(if [ "$os_type" = "freebsd" ]; then echo 1; fi)
+export bsd
 
 wsl=$(if grep -qEi "(Microsoft|WSL)" /proc/version \
 	2>/dev/null 1>/dev/null; then echo 1; fi)
