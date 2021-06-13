@@ -5,7 +5,7 @@ set -e
 # This test tries to install the `permissions` module.
 # faking wsl
 echo "export wsl=1" > .pontrc
-result=$($COVERAGE ./pont.sh -q systemd)
+result=$(./pont.sh -q systemd)
 rm .pontrc
 # Assertions
 sync

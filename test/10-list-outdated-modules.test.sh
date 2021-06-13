@@ -8,7 +8,9 @@ set -e
 make_dummy_module dummy test1
 ./pont.sh -q dummy
 make_dummy_module dummy test2
-result=$($COVERAGE ./pont.sh -O)
+
+$COVERAGE ./pont.sh -O
+result=$(./pont.sh -O)
 clear_dummy_module dummy
 # Assertions
 sync

@@ -3,7 +3,8 @@ set -e
 # shellcheck disable=SC1091
 . ./test/env.sh
 # This test checks if the script can find all deprecated modules
-result=$($COVERAGE ./pont.sh -D)
+$COVERAGE ./pont.sh -D
+result=$(./pont.sh -D)
 # Assertions
 sync
 [ "$result" = "deprecated" ] ||

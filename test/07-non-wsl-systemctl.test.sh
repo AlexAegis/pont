@@ -14,8 +14,9 @@ is_installed() {
 	command -v "$1" 2>/dev/null 1>/dev/null
 }
 ' > .pontrc
-result=$($COVERAGE ./pont.sh -q systemd)
+result=$(./pont.sh -q systemd)
 rm .pontrc
+
 # Assertions
 sync
 [ "$result" = "systemd script" ] ||
