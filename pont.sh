@@ -215,12 +215,12 @@ module_exists() {
 
 get_all_modules() {
 	all_modules=$(find "$PONT_MODULES_HOME/" -maxdepth 1 -mindepth 1 \
-		-type d -printf "%f\n" | sort)
+		-type d | sed 's|.*/||' | sort)
 }
 
 get_all_presets() {
 	all_presets=$(find "$PONT_PRESETS_HOME/" -mindepth 1 \
-		-type f -name '*.preset' -printf "%f\n" | sed 's/.preset//' | sort)
+		-type f -name '*.preset' | sed -e 's|.*/||' -e 's/.preset//' | sort)
 }
 
 get_all_installed_modules() {
