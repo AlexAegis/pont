@@ -1260,9 +1260,7 @@ $(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 		if [ "${PONT_FORCE_FLAG:-0}" = 0 ]; then
 			old_hash=$(cat "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
 				2>/dev/null)
-			new_hash=$(tar --absolute-names \
-				--exclude="$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
-				-c "$PONT_MODULES_HOME/$1" | "$HASH_COMMAND")
+			new_hash=$(do_hash "$1")
 
 			if [ "$old_hash" = "$new_hash" ]; then
 				log_trace "${C_GREEN}hash match $old_hash $new_hash"
