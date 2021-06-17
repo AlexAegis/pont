@@ -148,7 +148,9 @@ export systemd
 openrc=$(if is_installed rc-service; then echo 1; fi)
 export openrc
 # other features
-pam=$(if ldd /bin/su | grep -q pam; then echo 1; fi)
+if is_installed ldd; then
+	pam=$(if ldd /bin/su | grep -q pam; then echo 1; fi)
+fi
 export pam
 # Distribution
 # ! May not be available on some systems
