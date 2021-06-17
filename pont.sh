@@ -560,37 +560,89 @@ action_list_modules_to_execute() {
 
 ## Argument handling
 
-parse_args() {
-	/usr/bin/getopt -u -o "hVlvq\
-IADPT\
-ELQO\
-CX\
-p\
-uxr\
-neaio\
-dwbf\
-cRsSmM\
-t:y:Y:\
-\
-" -l "help,version,log,log-level,verbose,quiet,\
-list-installed,list-modules,list-deprecated,list-presets,list-tags,\
-list-environment,list-install,list-queue,list-outdated,\
-toggle-clean-symlinks,toggle-fix-permissions,\
-pull-dotfiles,\
-update,execute,install,remove,\
-expand-none,expand-selected,expand-all,expand-installed,expand-outdated,\
-dry,wet,skip-base,force,\
-config,root,skip-root,scripts,skip-scripts,make,skip-make,\
-target:,scaffold:,cpt:,yank:,yank-expanded:,rename::\
-\
-" -- "$@" || exit 1
+expand_single_args() {
+	var="${1#-}" # cut off first, and only dash
+	while [ "$var" ]; do
+		next="${var#?}"
+		first_char="${var%$next}"
+		echo "-$first_char"
+		var="$next" # next
+	done
 }
 
-interpret_args() {
-	IFS='
+# POSIX compliant argument parser.
+# This function will parse and return a separated argument list. It handles
+# long arguments and checks for missing or extra values.
+# it handles both whitespace and '=' separated values
+# it also treats quoted parameters as one
+# It does NOT check for unknown variables as there is no list of allowed args
+# but those are easy to handle later
+parse_args() {
+	# first parameter is a single string, an IFS separated list of arguments
+	# that should have a single value
+	with_parameters="$1"
+	shift
+	while [ "$1" ]; do
+		single_cut_with_equalparam="${1##-}"
+		single_cut="${single_cut_with_equalparam%%=*}" # = value cut pff
+		double_cut_with_equalparam="${1##--}"
+		double_cut="${double_cut_with_equalparam%%=*}" # = value cut pff
+		equalparam=${1##*=}
+		if [ "$equalparam" = "$1" ]; then
+			equalparam=''
+		fi
+		# starts with one dash but not two
+		if ! [ "$single_cut_with_equalparam" = "$1" ] && [ "$double_cut_with_equalparam" = "$1" ]; then
+			split_args=$(expand_single_args "$single_cut")
+			shift
+			if [ -n "$equalparam" ]; then
+				set -- "$equalparam" "$@"
+			fi
+			# shellcheck disable=SC2086
+			set -- $split_args "$@"
+		# two dash
+		elif ! [ "$double_cut_with_equalparam" = "$1" ]; then
+			shift
+			if [ -n "$equalparam" ]; then
+				set -- "$equalparam" "$@"
+			fi
+			set -- "--$double_cut" "$@"
+		fi
+
+		has_parameter=''
+		for a in $with_parameters; do
+			if [ "$a" = "$1" ]; then
+				has_parameter='1'
+				break
+			fi
+		done
+
+		if [ -n "$has_parameter" ]; then
+			if [ -z "$2" ] || ! [ "${2##-}" = "$2" ]; then
+				echo "$1 is missing it's parameter!" >&2
+				exit 1
+			fi
+		fi
+
+		printf "%s\n\n" "$1"
+		shift
+	done
+}
+
+_args_with_params='-l
+--log-level
+-t
+--target
+-y
+--yank
+-Y
+--yank-expanded
+--rename
 '
-	while :; do
-		[ "$1" ] || break
+# TODO: --rename second argument is not handled
+
+interpret_args() {
+	while [ "$1" ]; do
 		case $1 in
 			-h | -\? | --help) show_help ;;
 			-V | --version) show_version ;;
@@ -1272,7 +1324,7 @@ action_fix_permissions() {
 	subs=$(git submodule status | sed -e 's/^ *//' -e 's/ *$//')
 	submodules=$(
 		cd "$DOTFILES_HOME" || exit
-		echo ${subs% *} | cut -d ' ' -f 2- |
+		echo "${subs% *}" | cut -d ' ' -f 2- |
 			sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
 	)
 
@@ -1426,9 +1478,10 @@ execute_queue() {
 
 ## Execution
 
-IFS=' '
+IFS='
+'
 # shellcheck disable=SC2046
-interpret_args $(parse_args "$@")
+interpret_args $(parse_args "$_args_with_params" "$@")
 
 # if nothing is selected, ask for modules
 if [ ${PONT_CONFIG_FLAG:-0} = 1 ] || [ $# -eq 0 ]; then
