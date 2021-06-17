@@ -111,6 +111,18 @@ PONT_DEFAULT_EXPANSION_ACTION="action_expand_none"
 PONT_CLEAN_SYMLINKS=0
 PONT_FIX_PERMISSIONS=0
 
+HASH_COMMAND=
+if is_installed sha1sum; then
+	HASH_COMMAND="sha1sum"
+elif is_installed shasum; then
+	HASH_COMMAND="shasum"
+fi
+
+if [ -z "$HASH_COMMAND" ]; then
+	echo 'No hasher available: sha1sum or shasum' >&2
+	exit 1
+fi
+
 ## Precalculated environmental variables for modules
 
 # OS
@@ -1203,8 +1215,7 @@ $group_fallback_scripts"
 do_hash() {
 	tar --absolute-names \
 		--exclude="$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
-		-c "$PONT_MODULES_HOME/$1" |
-		sha1sum
+		-c "$PONT_MODULES_HOME/$1" | "$HASH_COMMAND"
 }
 
 do_hash_module() {
@@ -1251,7 +1262,7 @@ $(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 				2>/dev/null)
 			new_hash=$(tar --absolute-names \
 				--exclude="$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
-				-c "$PONT_MODULES_HOME/$1" | sha1sum)
+				-c "$PONT_MODULES_HOME/$1" | "$HASH_COMMAND")
 
 			if [ "$old_hash" = "$new_hash" ]; then
 				log_trace "${C_GREEN}hash match $old_hash $new_hash"
