@@ -1213,9 +1213,8 @@ $group_fallback_scripts"
 }
 
 do_hash() {
-	tar --absolute-names \
-		--exclude="$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
-		-c "$PONT_MODULES_HOME/$1" | "$HASH_COMMAND"
+	tar --exclude="$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
+		-c "$PONT_MODULES_HOME/$1" 2> /dev/null | "$HASH_COMMAND"
 }
 
 do_hash_module() {
