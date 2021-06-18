@@ -90,7 +90,14 @@ script_location=$(
 )
 # if it has been installed
 if [ -L "$script_location/pont" ]; then
-	script_location=$(readlink "$script_location/pont")
+	script_link_location=$(readlink "$script_location/pont")
+	if ! [ "${script_link_location#\/}" = "$script_link_location" ]; then
+		# absulte link
+		script_location="$script_link_location"
+	else
+		# relative link
+		script_location="$script_location/$script_link_location"
+	fi
 	script_location=${script_location%\/*} # cut filename
 fi
 
@@ -979,8 +986,7 @@ init_modules() {
 
 source_modules_envs() {
 	log_info "Sourcing modules envs $*"
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 		env_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 			| grep '^e.*\..*\..*$' | sort)
@@ -992,8 +998,7 @@ source_modules_envs() {
 
 update_modules() {
 	log_info "Updating modules $*"
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 		# Source env
 		source_modules_envs "$1"
 		update_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
