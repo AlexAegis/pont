@@ -842,6 +842,7 @@ pull_dotfiles() {
 		(
 			cd "$DOTFILES_HOME" || exit 1
 			git pull
+			git submodule update --init
 		)
 	else
 		log_error "DOTFILES_HOME ($DOTFILES_HOME) is not a git folder"
