@@ -660,7 +660,7 @@ parse_args() {
 			fi
 		fi
 
-		printf "%s\n\n" "$1"
+		printf "%s\n" "$1"
 		shift
 	done
 }
