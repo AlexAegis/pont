@@ -89,7 +89,7 @@ script_location=$(
 	pwd
 )
 # if it has been installed
-if [ -e "$script_location/pont" ]; then
+if [ -L "$script_location/pont" ]; then
 	script_location=$(readlink "$script_location/pont")
 	script_location=${script_location%\/*} # cut filename
 fi
@@ -900,11 +900,10 @@ execute_scripts_for_module() {
 }
 
 do_expand_entries() {
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 		# Extracting condition, if there is
 		condition="$(get_condition "$1")"
-		# TODO: .condition files and $HEADLESS variable
+		# TODO: .condition files and $HEADLESS variable !!!
 		log_trace "Trying to expand $(get_entry "$1")..."
 
 		[ "$condition" ] && log_trace "...with condition $condition..."
