@@ -491,8 +491,10 @@ show_version() {
 clean_symlinks() {
 	# recusively removes every broken symlink in a directory
 	# used to clean before installation and after uninstallation
+	# ! TODO: skip protected files, on mac it tries to delete and fail many
+	# ! extended file permission bits are used
 	find "${1-$PWD}" -type l -exec \
-		sh -c 'for x; do [ -e "$x" ] || rm "$x"; done' _ {} +
+		sh -c 'for x; do [ -e "$x" ] || rm "$x"; done' _ {} + 2>/dev/null
 }
 
 scaffold() {
