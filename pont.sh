@@ -83,9 +83,22 @@ XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"$user_home/.cache/run"}
 XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 
 # Environmental config
+
+script_location=$(
+	cd "${0%\/*}" || exit
+	pwd
+)
+# if it has been installed
+if [ -e "$script_location/pont" ]; then
+	script_location=$(readlink "$script_location/pont")
+	script_location=${script_location%\/*} # cut filename
+fi
+
+
 ## This where the packages will be stowed to. Can also be set with -t
 PONT_TARGET=${PONT_TARGET:-"$user_home"}
-DOTFILES_HOME=${DOTFILES_HOME:-"$user_home/.config/dotfiles"}
+## By default, assume this script is two levels in the dotfiles folder
+DOTFILES_HOME=${DOTFILES_HOME:-"$script_location/../.."}
 # TODO: Support multiple folders $IFS separated, quote them
 PONT_MODULES_HOME=${PONT_MODULES_HOME:-"$DOTFILES_HOME/modules"}
 PONT_PRESETS_HOME=${PONT_PRESETS_HOME:-"$DOTFILES_HOME/presets"}
