@@ -257,8 +257,8 @@ get_all_presets() {
 
 get_all_installed_modules() {
 	#shellcheck disable=SC2016
-	all_installed_modules=$(grep -lm 1 -- "" \
-		"$PONT_MODULES_HOME"/**/$PONT_HASHFILE_NAME | \
+	all_installed_modules=$(grep -l -- "" \
+		"$PONT_MODULES_HOME"/**/"$PONT_HASHFILE_NAME" | \
 		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
 
