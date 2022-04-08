@@ -600,7 +600,7 @@ expand_single_args() {
 	var="${1#-}" # cut off first, and only dash
 	while [ "$var" ]; do
 		next="${var#?}"
-		first_char="${var%$next}"
+		first_char="${var%"$next"}"
 		echo "-$first_char"
 		var="$next" # next
 	done
@@ -1351,15 +1351,16 @@ action_quit() {
 action_fix_permissions() {
 	# Fix permissions, except in submodules
 	log_info "Fixing permissions in $DOTFILES_HOME... "
-	subs=$(git submodule status | sed -e 's/^ *//' -e 's/ *$//')
-	submodules=$(
+	(
 		cd "$DOTFILES_HOME" || exit
-		echo "${subs% *}" | cut -d ' ' -f 2- |
-			sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
+		subs=$(git submodule status | sed -e 's/^ *//' -e 's/ *$//')
+		submodules=$(
+			echo "${subs% *}" | cut -d ' ' -f 2- |
+				sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
+		)
+		eval "find $PONT_MODULES_HOME -type f \( $submodules \) \
+			-regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod u+x {} \;"
 	)
-
-	eval "find $PONT_MODULES_HOME -type f \( $submodules \) \
--regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod u+x {} \;"
 }
 
 action_clean_symlinks() {
