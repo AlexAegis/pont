@@ -55,7 +55,7 @@ is_installed() {
 get_home() {
 	# This solution returns the home folder of the original invoker of sudo
 	if is_installed getent; then
-		getent passwd "${SUDO_USER-$USER}" | cut -d: -f6
+		getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6
 	else
 		# On MINGW getent is not available, but elevated privileges don't
 		# change the home folder either, so this should be enough
