@@ -191,7 +191,11 @@ distribution=$(grep "^NAME" /etc/os-release 2>/dev/null | grep -oh "=.*" | \
 export distribution
 # It uses if and not && because when using && a new line would
 # return on false evaluation. `If` captures the output of test
-arch=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
+alarm=$(if [ "$distribution" = 'Arch Linux ARM' ]; then echo 1; fi)
+export alarm
+archx86=$(if [ "$distribution" = 'Arch Linux' ]; then echo 1; fi)
+export archx86
+arch=$(if [ "$alarm" ] || [ "$archx86" ]; then echo 1; fi)
 export arch
 gentoo=$(if [ "$distribution" = 'Gentoo' ]; then echo 1; fi)
 export gentoo
@@ -311,8 +315,7 @@ rename_module() {
 # 		execution_queue=$(echo "$execution_queue" | sed '$ d')
 # 		return
 # 	fi
-# 	while :; do
-# 		[ "$1" ] || break
+# 	while [ "$1" ]; do
 # 		execution_queue=$(echo "$execution_queue" | grep -v "$1")
 # 		shift
 # 	done
@@ -320,8 +323,7 @@ rename_module() {
 
 enqueue() {
 	log_trace "Enqueuing $*"
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 		if [ "$execution_queue" ]; then
 			execution_queue="${execution_queue}${IFS:-\0}${1}"
 		else
@@ -334,8 +336,7 @@ enqueue() {
 # Unused, left here for reference
 # enqueue_front() {
 # 	log_trace "Enqueuing to the front $*"
-# 	while :; do
-# 		[ "$1" ] || break
+# 	while [ "$1" ]; do
 # 		if [ "$execution_queue" ]; then
 # 			execution_queue="${1}${IFS:-\0}${execution_queue}"
 # 		else
@@ -580,6 +581,8 @@ action_list_environment() {
 		"systemd=$systemd" \
 		"openrc=$openrc" \
 		"distribution=$distribution" \
+		"archx86=$archx86" \
+		"alarm=$alarm" \
 		"arch=$arch" \
 		"gentoo=$gentoo" \
 		"void=$void" \
@@ -975,8 +978,7 @@ expand_abstract_entries() {
 
 init_modules() {
 	log_info "Initializing modules $*"
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 		init_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 			| grep '^i.*\..*\..*$' | sort)
@@ -1000,8 +1002,14 @@ source_modules_envs() {
 update_modules() {
 	log_info "Updating modules $*"
 	while [ "$1" ]; do
+		if ! check_module_condition "$1"; then
+			shift
+			continue
+		fi
+
 		# Source env
 		source_modules_envs "$1"
+
 		update_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 			| grep '^u.*\..*\..*$' | sort)
@@ -1012,10 +1020,15 @@ update_modules() {
 
 remove_modules() {
 	log_trace "Removing modules $*"
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
+		if ! check_module_condition "$1"; then
+			shift
+			continue
+		fi
+
 		# Source env
 		source_modules_envs "$1"
+
 		# Only run the remove scripts with -rr, a single r just unstows
 		if [ "$remove_count" -ge 2 ]; then
 			log_info "Hard remove $1"
@@ -1099,8 +1112,7 @@ stow_package() {
 	stow_mode="$1"
 	log_trace "Stowing packages $*"
 	shift
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 
 		if [ "$(basename "$1" | cut -d '.' -f 3)" ]; then
 			stow_condition="$(basename "$1" | cut -d '.' -f 2)"
@@ -1127,8 +1139,7 @@ stow_package() {
 
 stow_modules() {
 	log_trace "Stow modules $*"
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 		# shellcheck disable=SC2046
 		# TODO: Mixed splitting, find outputs new line splits
 		stow_package "stow" $(find "$PONT_MODULES_HOME/$1" \
@@ -1139,8 +1150,7 @@ stow_modules() {
 
 unstow_modules() {
 	log_trace "Unstow modules $*"
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 		# shellcheck disable=SC2046
 		stow_package "unstow" $(find "$PONT_MODULES_HOME/$1" \
 			-mindepth 1 -maxdepth 1 -type d -iname "*.$1")
@@ -1253,9 +1263,20 @@ hash_module() {
 	fi
 }
 
+check_module_condition() {
+	if [ -e "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME" ]; then
+		contition="$(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME" \
+						| sed -e 's/ *#.*$//' -e '/^$/d')"
+		if ! eval "$contition"; then
+			log_info "Condition on $1 failed. Skipping. $contition"
+			return 1
+		fi
+	fi
+	return 0
+}
+
 execute_modules() {
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 		total_result=0
 		log_trace "Checking if module exists: $PONT_MODULES_HOME/$1"
 		if [ ! -d "$PONT_MODULES_HOME/$1" ]; then
@@ -1264,11 +1285,7 @@ execute_modules() {
 			continue
 		fi
 
-		if [ -e "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME" ] && \
-			! eval "$(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
-		then
-			log_warning "Condition on $1 failed. Skipping
-$(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
+		if ! check_module_condition "$1"; then
 			shift
 			continue
 		fi
@@ -1456,8 +1473,7 @@ action_update_modules() {
 do_yank() {
 	mkdir -p "$yank_target"
 	# Copy all modules
-	while :; do
-		[ "$1" ] || break
+	while [ "$1" ]; do
 		log_info "Yanking $PONT_MODULES_HOME/$1 to $yank_target/$1"
 		cp -r "$PONT_MODULES_HOME/$1" "$yank_target/$1"
 		shift
