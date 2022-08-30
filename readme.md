@@ -133,7 +133,7 @@ privileges then `/usr/local/bin/pont` too, with the manpage.
 
 This repository also contains `zsh` autocompletions
 
-If you're using [Antibody](https://github.com/getantibody/antibody) then add
+If you're using [Antidote](https://getantidote.github.io/) then add
 this entry to your plugin file to get `pont` autocompletions:
 
 ```sh
