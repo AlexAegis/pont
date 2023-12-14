@@ -658,7 +658,7 @@ parse_args() {
 
 		if [ -n "$has_parameter" ]; then
 			if [ -z "$2" ] || ! [ "${2##-}" = "$2" ]; then
-				echo "$1 is missing it's parameter!" >&2
+				echo "$1 is missing its parameter!" >&2
 				exit 1
 			fi
 		fi
@@ -681,7 +681,7 @@ _args_with_params='-l
 # TODO: --rename second argument is not handled
 
 interpret_args() {
-	while [ "$1" ]; do
+	while [ "${1-\0}" != '\0' ]; do
 		case $1 in
 			-h | -\? | --help) show_help ;;
 			-V | --version) show_version ;;
@@ -800,7 +800,7 @@ $entries_selected"
 trim_around() {
 	# removes the first and last characters from every line
 	last_removed=${$1::-1}
-	echo ${last_removed:1}
+	echo "${last_removed:1}"
 }
 
 has_tag() {
@@ -861,8 +861,8 @@ execute_scripts_for_module() {
 	successful_scripts=0
 	for script in $2; do
 		result=0
-		if [ ${PONT_DRY_FLAG:-0} = 0 ] && \
-			[ ${PONT_SCRIPTS_ENABLED:-1} = 1 ]; then
+		if [ "${PONT_DRY_FLAG:-0}" = 0 ] && \
+			[ "${PONT_SCRIPTS_ENABLED:-1}" = 1 ]; then
 			log_trace "Running $script..."
 
 			privilege='user'
@@ -1087,7 +1087,7 @@ do_stow() {
 		exit 1
 	fi
 
-	if [ ${PONT_DRY_FLAG:-0} != 1 ]; then
+	if [ "${PONT_DRY_FLAG:-0}" != 1 ]; then
 		# Module target symlinks are always cleaned
 		clean_symlinks "$2"
 		if [ "$SUDO_USER" ]; then
@@ -1159,7 +1159,7 @@ unstow_modules() {
 }
 
 make_module() {
-	if [ ${PONT_MAKE_ENABLED:-1} = 1 ] \
+	if [ "${PONT_MAKE_ENABLED:-1}" = 1 ] \
 		&& [ -e "$PONT_MODULES_HOME/$1/Makefile" ]; then
 		if ! is_installed "make"; then
 			log_error "Make not available"; return 1
@@ -1252,7 +1252,7 @@ do_hash_module() {
 }
 
 hash_module() {
-	if [ ${PONT_DRY_FLAG:-0} = 0 ]; then
+	if [ "${PONT_DRY_FLAG:-0}" = 0 ]; then
 		log_success "Successfully installed $1"
 
 		if [ "$SUDO_USER" ]; then
@@ -1531,7 +1531,7 @@ IFS='
 interpret_args $(parse_args "$_args_with_params" "$@")
 
 # if nothing is selected, ask for modules
-if [ ${PONT_CONFIG_FLAG:-0} = 1 ] || [ $# -eq 0 ]; then
+if [ "${PONT_CONFIG_FLAG:-0}" = 1 ] || [ $# -eq 0 ]; then
 	ask_entries # config checked again to avoid double call on ask_entries
 fi
 
@@ -1542,10 +1542,10 @@ fi
 log_trace "Execution queue:
 $execution_queue"
 
-[ $PONT_FIX_PERMISSIONS = 1 ] && action_fix_permissions
+[ "$PONT_FIX_PERMISSIONS" = 1 ] && action_fix_permissions
 # shellcheck disable=SC2086
 execute_queue $execution_queue
 
-[ $PONT_CLEAN_SYMLINKS = 1 ] && action_clean_symlinks
+[ "$PONT_CLEAN_SYMLINKS" = 1 ] && action_clean_symlinks
 
 set +a
