@@ -13,7 +13,7 @@
 #
 #                - The dotmodule manager
 #
-# Copyright (c) 2020 Győri Sándor (AlexAegis) <alexaegis@gmail.com>
+# Copyright (c) 2020-2024 Győri Sándor (AlexAegis) <alexaegis@pm.me>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
