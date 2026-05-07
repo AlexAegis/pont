@@ -13,7 +13,7 @@
 #
 #                - The dotmodule manager
 #
-# Copyright (c) 2020-2024 Győri Sándor (AlexAegis) <alexaegis@pm.me>
+# Copyright (c) 2020-2026 Győri Sándor (AlexAegis) <alexaegis@pm.me>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -92,7 +92,7 @@ script_location=$(
 if [ -L "$script_location/pont" ]; then
 	script_link_location=$(readlink "$script_location/pont")
 	if ! [ "${script_link_location#\/}" = "$script_link_location" ]; then
-		# absulte link
+		# absolute link
 		script_location="$script_link_location"
 	else
 		# relative link
@@ -106,6 +106,9 @@ fi
 PONT_TARGET=${PONT_TARGET:-"$user_home"}
 ## By default, assume this script is two levels in the dotfiles folder
 DOTFILES_HOME=${DOTFILES_HOME:-"$script_location/../.."}
+DOTFILES_HOME=$(cd "$DOTFILES_HOME" 2>/dev/null && pwd) || {
+	echo "DOTFILES_HOME is not accessible: $DOTFILES_HOME" >&2; exit 1
+}
 # TODO: Support multiple folders $IFS separated, quote them
 PONT_MODULES_HOME=${PONT_MODULES_HOME:-"$DOTFILES_HOME/modules"}
 PONT_PRESETS_HOME=${PONT_PRESETS_HOME:-"$DOTFILES_HOME/presets"}
@@ -166,7 +169,7 @@ pacman=$(if is_installed pacman; then echo 1; fi)
 export pacman
 apt=$(if is_installed apt; then echo 1; fi)
 export apt
-xbps=$(if is_installed xbps; then echo 1; fi)
+xbps=$(if is_installed xbps-install; then echo 1; fi)
 export xbps
 emerge=$(if is_installed emerge; then echo 1; fi)
 export emerge
@@ -246,7 +249,7 @@ is_deprecated() {
 
 module_exists() {
 	[ ! "$all_modules" ] && get_all_modules
-	echo "$all_modules" | grep -x "$1"
+	echo "$all_modules" | grep -qx "$1"
 }
 
 get_all_modules() {
@@ -260,10 +263,9 @@ get_all_presets() {
 }
 
 get_all_installed_modules() {
-	#shellcheck disable=SC2016
-	all_installed_modules=$(grep -l -- "" \
-		"$PONT_MODULES_HOME"/**/"$PONT_HASHFILE_NAME" | \
-		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
+	all_installed_modules=$(find "$PONT_MODULES_HOME" -maxdepth 2 -mindepth 2 \
+		-type f -name "$PONT_HASHFILE_NAME" -size +0c | \
+		sed -E 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
 
 echo_all_outdated_modules() {
@@ -285,7 +287,7 @@ get_all_deprecated_modules() {
 	#shellcheck disable=SC2016
 	all_deprecated_modules=$(find "$PONT_MODULES_HOME"/*/ -maxdepth 1 \
 		-mindepth 1 -type f -name "$PONT_DEPRECATIONFILE_NAME" | \
-		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
+		sed -E 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
 }
 
 get_all_tags() {
@@ -325,7 +327,8 @@ enqueue() {
 	log_trace "Enqueuing $*"
 	while [ "$1" ]; do
 		if [ "$execution_queue" ]; then
-			execution_queue="${execution_queue}${IFS:-\0}${1}"
+			execution_queue="${execution_queue}
+${1}"
 		else
 			execution_queue="${1}"
 		fi
@@ -405,23 +408,23 @@ show_help() {
                                  mismatch) modules then exit
 -C, --toggle-clean-symlinks   -- Removes broken symlinks in the target
                                  directory. (By default it turns on the
-                                 feautre, but if it was turned on by
+                                 feature, but if it was turned on by
                                  the environment it turns it off.)
 -X, --toggle-fix-permissions  -- Adds user execute permissions to all module
                                  scripts before running them.
 -p, --pull-dotfiles           -- Perform git pull on the dotfiles home folder
--u, --update                  -- Run all scrips starting with u in the
+-u, --update                  -- Run all scripts starting with u in the
                                  selected modules.
 -x, --execute, --install      -- Run init scripts, stow configs, then run
                                  scripts starting with a number and the
                                  Makefile in all the selected modules.
 -r, --remove                  -- Unstows every stow package in the selected
                                  modules. If this flag is added twice it will
-                                 also run all scrips starting with r in the
+                                 also run all scripts starting with r in the
                                  selected modules.
 -n, --expand-none             -- Expands only the abstract entries in the
                                  selection. No dependencies are resolved.
--e, --expand-seleted          -- Expands the original selection (the
+-e, --expand-selected         -- Expands the original selection (the
                                  argument list) down to its dependencies
                                  recursively. Use this for regular
                                  installations.
@@ -431,7 +434,7 @@ show_help() {
                                  of the current selection. Useful for batch
                                  running update and backup scripts.
 -o, --expand-outdated         -- Expands every installed module regardless
-                                 of the current selection thats saved hash
+                                 of the current selection that's saved hash
                                  is no longer matching a freshly calculated
                                  one. Useful for batch refreshing modules
                                  after modifying them.
@@ -493,11 +496,11 @@ Some scenarios:
 }
 
 show_version() {
-	echo "pont version: 0.9.0" && exit 0
+	echo "pont version: 0.9.0"
 }
 
 clean_symlinks() {
-	# recusively removes every broken symlink in a directory
+	# recursively removes every broken symlink in a directory
 	# used to clean before installation and after uninstallation
 	# ! TODO: skip protected files, on mac it tries to delete and fail many
 	# ! extended file permission bits are used
@@ -588,13 +591,7 @@ action_list_environment() {
 		"void=$void" \
 		"debian=$debian" \
 		"ubuntu=$ubuntu" \
-		"fedora=$fedora" && exit 0
-}
-
-action_list_modules_to_execute() {
-	# Print the to-be installed modules
-	log_info "List modules to execute:"
-	echo "$final_module_list"
+		"fedora=$fedora"
 }
 
 ## Argument handling
@@ -681,10 +678,10 @@ _args_with_params='-l
 # TODO: --rename second argument is not handled
 
 interpret_args() {
-	while [ "${1-\0}" != '\0' ]; do
+	while [ $# -gt 0 ]; do
 		case $1 in
 			-h | -\? | --help) show_help ;;
-			-V | --version) show_version ;;
+			-V | --version) show_version; exit 0 ;;
 			-l | --log | --log-level)
 				case $2 in
 					'trace' | 'TRACE' | '0') PONT_LOG_LEVEL='0' ;;
@@ -759,7 +756,7 @@ interpret_args() {
 				else
 					log_error "Invalid target: $2"; exit 1
 				fi
-				echo "yank_target $yank_target"
+				log_trace "yank_target $yank_target"
 				shift
 				;;
 			-Y | --yank-expanded)
@@ -772,7 +769,6 @@ interpret_args() {
 				shift
 				;;
 			--rename)
-				shift
 				rename_module "$2" "$3"
 				exit 0
 				;;
@@ -782,7 +778,8 @@ interpret_args() {
 				# TODO: Pre validate them
 				if [ "$1" ]; then
 					if [ "$entries_selected" ]; then
-						entries_selected="$entries_selected${IFS:-\0}$1"
+						entries_selected="$entries_selected
+$1"
 					else
 						entries_selected="$1"
 					fi
@@ -797,18 +794,12 @@ $entries_selected"
 	done
 }
 
-trim_around() {
-	# removes the first and last characters from every line
-	last_removed=${$1::-1}
-	echo "${last_removed:1}"
-}
-
 has_tag() {
 	# Returns every dotmodule that contains any of the tags
 	# shellcheck disable=SC2016
 	grep -lRxEm 1 -- "$1 ?#?.*" \
 		"$PONT_MODULES_HOME"/*/"$PONT_TAGSFILE_NAME" |
-		sed -r 's_^.*/([^/]*)/[^/]*$_\1_g'
+		sed -E 's_^.*/([^/]*)/[^/]*$_\1_g'
 }
 
 in_preset() {
@@ -856,7 +847,9 @@ execute_scripts_for_module() {
 	# 1: module name
 	# 2: scripts to run
 	# 3: sourcing setting, if set, user privileged scripts will be sourced
-	cd "$PONT_MODULES_HOME/$1" || exit 1
+	# Outputs: group_result (sum of exit codes), successful_scripts (count)
+	_esm_saved_dir="$PWD"
+	cd "$PONT_MODULES_HOME/$1" || { log_error "Cannot cd to module $1"; return 1; }
 	group_result=0
 	successful_scripts=0
 	for script in $2; do
@@ -908,6 +901,7 @@ execute_scripts_for_module() {
 			log_trace "Skipping $script..."
 		fi
 	done
+	cd "$_esm_saved_dir" || true
 }
 
 do_expand_entries() {
@@ -930,7 +924,8 @@ do_expand_entries() {
 			if [ -z "$resolved" ]; then
 				resolved="$1"
 			else
-				resolved="$resolved${IFS:-\0}$1"
+				resolved="$resolved
+$1"
 			fi
 			case "$1" in
 			+*) # presets
@@ -938,7 +933,8 @@ do_expand_entries() {
 				if [ -z "$expanded_presets" ]; then
 					expanded_presets="$1"
 				else
-					expanded_presets="$expanded_presets${IFS:-\0}$1"
+					expanded_presets="$expanded_presets
+$1"
 				fi
 				# shellcheck disable=SC2046
 				do_expand_entries \
@@ -979,10 +975,10 @@ expand_abstract_entries() {
 init_modules() {
 	log_info "Initializing modules $*"
 	while [ "$1" ]; do
-		init_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
+		init_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 			| grep '^i.*\..*\..*$' | sort)
-		execute_scripts_for_module "$1" "$init_sripts_in_module" "1"
+		execute_scripts_for_module "$1" "$init_scripts_in_module" "1"
 		shift
 	done
 }
@@ -990,11 +986,11 @@ init_modules() {
 source_modules_envs() {
 	log_info "Sourcing modules envs $*"
 	while [ "$1" ]; do
-		env_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
+		env_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 			| grep '^e.*\..*\..*$' | sort)
-		log_trace "Environmental scripts in $1 are $env_sripts_in_module"
-		execute_scripts_for_module "$1" "$env_sripts_in_module" "1"
+		log_trace "Environmental scripts in $1 are $env_scripts_in_module"
+		execute_scripts_for_module "$1" "$env_scripts_in_module" "1"
 		shift
 	done
 }
@@ -1010,10 +1006,10 @@ update_modules() {
 		# Source env
 		source_modules_envs "$1"
 
-		update_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
+		update_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
 			| grep '^u.*\..*\..*$' | sort)
-		execute_scripts_for_module "$1" "$update_sripts_in_module"
+		execute_scripts_for_module "$1" "$update_scripts_in_module"
 		shift
 	done
 }
@@ -1032,10 +1028,10 @@ remove_modules() {
 		# Only run the remove scripts with -rr, a single r just unstows
 		if [ "$remove_count" -ge 2 ]; then
 			log_info "Hard remove $1"
-			remove_sripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
+			remove_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 				-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' |
 				grep -v '^restore.*$' | grep '^r.*\..*\..*$' | sort)
-			execute_scripts_for_module "$1" "$remove_sripts_in_module"
+			execute_scripts_for_module "$1" "$remove_scripts_in_module"
 		else
 			log_info "Soft remove $1"
 		fi
@@ -1107,7 +1103,7 @@ do_stow() {
 }
 
 stow_package() {
-	# recieves a stowmode "stow" | "unstow"
+	# receives a stowmode "stow" | "unstow"
 	# then a list of directories of packages inside modules
 	stow_mode="$1"
 	log_trace "Stowing packages $*"
@@ -1164,7 +1160,7 @@ make_module() {
 		if ! is_installed "make"; then
 			log_error "Make not available"; return 1
 		fi
-		# It's already cd'd in.
+		cd "$PONT_MODULES_HOME/$1" || return 1
 		# Makefiles are always executed using user rights
 		if [ "$SUDO_USER" ]; then
 			sudo --preserve-env="PATH" -E -u "$SUDO_USER" make
@@ -1189,12 +1185,12 @@ get_install_scripts_in_module() {
 }
 
 install_module() {
-	sripts_in_module=$(get_install_scripts_in_module "$1")
+	scripts_in_module=$(get_install_scripts_in_module "$1")
 	log_trace "Scripts in module for $1 are:
-$sripts_in_module"
-	groups_in_module=$(echo "$sripts_in_module" | sed 's/\..*//g' | uniq)
+$scripts_in_module"
+	groups_in_module=$(echo "$scripts_in_module" | sed 's/\..*//g' | uniq)
 	for group in $groups_in_module; do
-		group_scripts=$(echo "$sripts_in_module" | grep "^${group}..*$" )
+		group_scripts=$(echo "$scripts_in_module" | grep "^${group}..*$" )
 	 	group_scripts_to_run=
 		for script in $group_scripts; do
 			# at least 4 section long, so there is a condition
@@ -1202,22 +1198,23 @@ $sripts_in_module"
 				script_condition="$(echo "$script" | cut -d '.' -f 3)"
 				if [ "$script_condition" = "fallback" ]; then
 					log_trace "fallback script"
-					group_scripts_to_run="$group_scripts_to_run\
-${IFS:-\0}$script"
+					group_scripts_to_run="$group_scripts_to_run
+$script"
 				elif [ "${script_condition#\$}" = "$script_condition" ]; then
 					log_trace "condition $script_condition is a command"
 					is_installed "$script_condition" && \
-						group_scripts_to_run="$group_scripts_to_run\
-${IFS:-\0}$script"
+						group_scripts_to_run="$group_scripts_to_run
+$script"
 				else
 					log_trace "condition $script_condition is a variable"
 					[ "$(eval "echo $script_condition")" ] && \
-						group_scripts_to_run="$group_scripts_to_run\
-${IFS:-\0}$script"
+						group_scripts_to_run="$group_scripts_to_run
+$script"
 				fi
 			else
 				# else it has no condition
-				group_scripts_to_run="$group_scripts_to_run${IFS:-\0}$script"
+				group_scripts_to_run="$group_scripts_to_run
+$script"
 			fi
 		done
 		group_scripts_without_fallback=$(echo "$group_scripts_to_run" |
@@ -1230,7 +1227,7 @@ $group_scripts_without_fallback"
 
 		group_fallback_scripts=$(echo "$group_scripts_to_run" |
 			 grep 'fallback')
-		if [ $successful_scripts = 0 ] && [ "$group_fallback_scripts" ]; then
+		if [ "$successful_scripts" = 0 ] && [ "$group_fallback_scripts" ]; then
 			log_info "Installing group $group for $1 was not successful, \
 trying fallbacks:
 $group_fallback_scripts"
@@ -1256,7 +1253,9 @@ hash_module() {
 		log_success "Successfully installed $1"
 
 		if [ "$SUDO_USER" ]; then
-			sudo --preserve-env="PATH" -E -u "$SUDO_USER" do_hash_module "$1"
+			sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
+				sh -c 'tar --exclude="$1/$3" -c "$1" 2>/dev/null | $2 > "$1/$3"' \
+				_ "$PONT_MODULES_HOME/$1" "$HASH_COMMAND" "$PONT_HASHFILE_NAME"
 		else
 			do_hash_module "$1"
 		fi
@@ -1265,10 +1264,10 @@ hash_module() {
 
 check_module_condition() {
 	if [ -e "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME" ]; then
-		contition="$(cat "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME" \
-						| sed -e 's/ *#.*$//' -e '/^$/d')"
-		if ! eval "$contition"; then
-			log_info "Condition on $1 failed. Skipping. $contition"
+		condition="$(sed -e 's/ *#.*$//' -e '/^$/d' \
+			"$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
+		if ! eval "$condition"; then
+			log_info "Condition on $1 failed. Skipping. $condition"
 			return 1
 		fi
 	fi
@@ -1278,6 +1277,8 @@ check_module_condition() {
 execute_modules() {
 	while [ "$1" ]; do
 		total_result=0
+		old_hash=
+		new_hash=
 		log_trace "Checking if module exists: $PONT_MODULES_HOME/$1"
 		if [ ! -d "$PONT_MODULES_HOME/$1" ]; then
 			log_error "Module $1 not found. Skipping"
@@ -1361,10 +1362,6 @@ execute_modules() {
 
 ## Actions
 
-action_quit() {
-	exit "${1:-0}"
-}
-
 action_fix_permissions() {
 	# Fix permissions, except in submodules
 	log_info "Fixing permissions in $DOTFILES_HOME... "
@@ -1394,7 +1391,8 @@ action_expand_selected() {
 		IFS=' '
 		for base_module in $PONT_BASE_MODULES; do
 			IFS=$old_ifs
-			entries_selected="${base_module}${IFS:-\0}${entries_selected}"
+			entries_selected="${base_module}
+${entries_selected}"
 		done
 		IFS=$old_ifs
 	fi
