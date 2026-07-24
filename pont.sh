@@ -354,30 +354,35 @@ log_trace() {
 	# Visible at and under log level 0
 	[ "${PONT_LOG_LEVEL:-1}" -le 0 ] && \
 		echo "${C_CYAN}[  Trace  ]: $*${C_RESET}" >&2
+	return 0
 }
 
 log_info() {
 	# Visible at and under log level 1
 	[ "${PONT_LOG_LEVEL:-1}" -le 1 ] && \
 		echo "${C_BLUE}[  Info   ]: $*${C_RESET}" >&2
+	return 0
 }
 
 log_warning() {
 	# Visible at and under log level 2
 	[ "${PONT_LOG_LEVEL:-1}" -le 2 ] && \
 		echo "${C_YELLOW}[ Warning ]: $*${C_RESET}" >&2
+	return 0
 }
 
 log_success() {
 	# Visible at and under log level 2, same as warning but green
 	[ "${PONT_LOG_LEVEL:-1}" -le 2 ] && \
 		echo "${C_GREEN}[ Success ]: $*${C_RESET}" >&2
+	return 0
 }
 
 log_error() {
 	# Visible at and under log level 3
 	[ "${PONT_LOG_LEVEL:-1}" -le 3 ] && \
 		echo "${C_RED}[  Error  ]: $*${C_RESET}" >&2
+	return 0
 }
 
 show_help() {
@@ -1525,8 +1530,11 @@ execute_queue() {
 
 IFS='
 '
-# shellcheck disable=SC2046
-interpret_args $(parse_args "$_args_with_params" "$@")
+# parse_args can only exit its own subshell, so its failure has to be caught
+# here, otherwise execution would fall through to the default install action
+parsed_args=$(parse_args "$_args_with_params" "$@") || exit 1
+# shellcheck disable=SC2086
+interpret_args $parsed_args
 
 # if nothing is selected, ask for modules
 if [ "${PONT_CONFIG_FLAG:-0}" = 1 ] || [ $# -eq 0 ]; then
