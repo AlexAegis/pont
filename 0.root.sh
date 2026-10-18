@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# If this module is installed with --no-root and this script doesn't
+# If this module is installed with --skip-root and this script doesn't
 # execute, worry not, if you have stow and xdg modules set up, it will be
 # available on your path. (Given that XDG_BIN_HOME is defined in the
 # xdg module, and on the PATH, and is sourced.)

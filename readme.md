@@ -199,6 +199,32 @@ PONT_CLEAN_SYMLINKS=1
 PONT_FIX_PERMISSIONS=1
 ```
 
+For a user who does not install packages, such as a separate user that runs
+coding agents:
+
+```sh
+# Skip root scripts. Scripts whose condition is a package manager follow this
+# setting, unless PONT_PACKAGES_FLAG, --packages, or --skip-packages says
+# otherwise. Skipped scripts count as done, so the fallbacks of their
+# install group do not run either.
+PONT_ROOT_FLAG=0
+# Keep the install hashes out of the module folders, as <module>.tarhash
+# files. It has to be an absolute path.
+PONT_HASH_HOME="$XDG_STATE_HOME/pont/hashes"
+# The dotfiles can then be read-only for this user, if nothing else writes
+# into them, such as PONT_FIX_PERMISSIONS or a module script.
+PONT_FIX_PERMISSIONS=0
+```
+
+`PONT_PACKAGE_MANAGERS` is the space separated list of condition names that
+count as package managers. `pont -E` prints it. While package scripts are
+skipped, a skipped script counts as done even when its package manager is not
+installed. Update and remove scripts have no install groups, so their
+fallbacks run even when a package script is skipped.
+
+Setting `PONT_HASH_HOME` for a user who already installed modules makes every
+module look not installed once, until it is installed again.
+
 ### Installing dotmodules
 
 You can optionally set flags, then as much modules/presets/tags as you want.
@@ -214,7 +240,8 @@ pont [-flags] modules...
 > or some of my modules.
 
 When installing a dotmodule successfully, a `.tarhash` file will be created
-in the modules directory. (Should be .gitignored). This containes a hash
+in the modules directory, or in `PONT_HASH_HOME` when it is set. (Should be
+.gitignored). This containes a hash
 calculated from the content of the module at the time of install. This enables
 `pont` to skip any module that is **already installed** and
 **has not changed since**. This is especially important when installing
@@ -350,13 +377,15 @@ and not `root`.**
 In every script, you can also be sure that `.` means the root of that module
 as `pont` will `cd` into the module before executing anything.
 
-Using the `-nr` or `--no-root` flags, scripts with `sudo` privileges can be
-skipped.
+Using the `-R` or `--skip-root` flags, scripts with `sudo` privileges can be
+skipped. Scripts whose condition is a package manager are then skipped too,
+unless `--packages` is set. They count as done, so the fallbacks of their
+install group stay off.
 
 > If you are on a system where you don't have `root` access, but the programs
 > are installed and you only need your configurations, you can set this flag
 > permamently in a `pontrc`, and only use the `stow`ing mechanism of `pont`.
-> The variable controlling this is `root` and is `1` by default.
+> The variable controlling this is `PONT_ROOT_FLAG` and is `1` by default.
 
 ### Third segment, condition
 

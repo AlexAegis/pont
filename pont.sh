@@ -79,6 +79,7 @@ esac
 XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$user_home/.config"}
 XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$user_home/.cache"}
 XDG_DATA_HOME=${XDG_DATA_HOME:-"$user_home/.local/share"}
+XDG_STATE_HOME=${XDG_STATE_HOME:-"$user_home/.local/state"}
 XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-"$user_home/.cache/run"}
 XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 
@@ -121,10 +122,15 @@ PONT_DRY_FLAG=${PONT_DRY_FLAG:-0}
 PONT_FORCE_FLAG=${PONT_FORCE_FLAG:-0}
 PONT_NO_BASE_FLAG=${PONT_NO_BASE_FLAG:-0}
 PONT_ROOT_FLAG=${PONT_ROOT_FLAG:-1}
+# Empty follows PONT_ROOT_FLAG
+PONT_PACKAGES_FLAG=${PONT_PACKAGES_FLAG:-}
+PONT_PACKAGE_MANAGERS=${PONT_PACKAGE_MANAGERS:-"pacman aura paru yay apt \
+apt-get xbps-install emerge brew pkg yum dnf zypper choco winget scoop"}
 PONT_SCRIPTS_ENABLED=${PONT_SCRIPTS_ENABLED:-1}
 PONT_MAKE_ENABLED=${PONT_MAKE_ENABLED:-1}
 PONT_PRESET_EXTENSION=${PONT_PRESET_EXTENSION:-".preset"}
 PONT_HASHFILE_NAME=${PONT_HASHFILE_NAME:-".tarhash"}
+PONT_HASH_HOME=${PONT_HASH_HOME:-}
 PONT_DEPRECATIONFILE_NAME=${PONT_DEPRECATIONFILE_NAME:-".deprecated"}
 PONT_DEPENDENCIESFILE_NAME=${PONT_DEPENDENCIESFILE_NAME:-".dependencies"}
 PONT_CONDITIONFILE_NAME=${PONT_CONDITIONFILE_NAME:-".condition"}
@@ -221,6 +227,14 @@ export fedora
 # shellcheck disable=SC1091
 [ -e "./.pontrc" ] && . "./.pontrc"
 
+case $PONT_HASH_HOME in
+'' | /*) ;;
+*)
+	echo "PONT_HASH_HOME has to be an absolute path: $PONT_HASH_HOME" >&2
+	exit 1
+	;;
+esac
+
 set +a
 
 # Inner variables that are not allowed to be changed using pontrc
@@ -247,9 +261,17 @@ is_deprecated() {
 	[ -e "$PONT_MODULES_HOME/$1/$PONT_DEPRECATIONFILE_NAME" ]
 }
 
+# A module name is a direct child folder of PONT_MODULES_HOME, never . or ..
+is_module_name() {
+	case $1 in
+	'' | */* | *\\* | . | ..) return 1 ;;
+	esac
+	[ -d "$PONT_MODULES_HOME/$1" ]
+}
+
 module_exists() {
 	[ ! "$all_modules" ] && get_all_modules
-	echo "$all_modules" | grep -qx "$1"
+	echo "$all_modules" | grep -qxF -- "$1"
 }
 
 get_all_modules() {
@@ -263,17 +285,27 @@ get_all_presets() {
 }
 
 get_all_installed_modules() {
-	all_installed_modules=$(find "$PONT_MODULES_HOME" -maxdepth 2 -mindepth 2 \
-		-type f -name "$PONT_HASHFILE_NAME" -size +0c | \
-		sed -E 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
+	if [ "$PONT_HASH_HOME" ]; then
+		[ ! "$all_modules" ] && get_all_modules
+		all_installed_modules=$(find "$PONT_HASH_HOME" -maxdepth 1 \
+			-mindepth 1 -type f -name "*$PONT_HASHFILE_NAME" -size +0c \
+			2>/dev/null | sed 's|.*/||' | while IFS= read -r _hashfile; do
+				_module=${_hashfile%"$PONT_HASHFILE_NAME"}
+				module_exists "$_module" && echo "$_module"
+			done | sort)
+	else
+		all_installed_modules=$(find "$PONT_MODULES_HOME" -maxdepth 2 \
+			-mindepth 2 -type f -name "$PONT_HASHFILE_NAME" -size +0c | \
+			sed -E 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
+	fi
 }
 
 echo_all_outdated_modules() {
 	[ ! "$all_modules" ] && get_all_modules
 	for mod in $all_modules; do
-		if [ -e "$PONT_MODULES_HOME/$mod/$PONT_HASHFILE_NAME" ]; then
+		if [ -e "$(hashfile_of "$mod")" ]; then
 			fresh_hash="$(do_hash "$mod")"
-			old_hash="$(cat "$PONT_MODULES_HOME/$mod/$PONT_HASHFILE_NAME")"
+			old_hash="$(cat "$(hashfile_of "$mod")")"
 			[ "$fresh_hash" != "$old_hash" ] && echo "$mod"
 		fi
 	done
@@ -459,6 +491,16 @@ show_help() {
 --root                        -- Enables root privileged script execution.
                                  On by default.
 -R, --skip-root               -- Disables root privileged script execution.
+                                 Also skips the scripts whose condition is a
+                                 package manager, unless --packages is set,
+                                 as --skip-packages describes.
+--packages                    -- Enables scripts whose condition is a package
+                                 manager. Without this flag or the next one,
+                                 they follow --root and --skip-root.
+--skip-packages               -- Skips scripts whose condition is a package
+                                 manager in PONT_PACKAGE_MANAGERS, and counts
+                                 them as done, so the fallbacks of their
+                                 install group stay off.
 -s, --scripts                 -- Enables script execution. On by default.
 -S, --skip-scripts            -- Disables script execution. Its like dry
                                  execution but with stowing enabled.
@@ -571,9 +613,12 @@ action_list_environment() {
 	echo "PONT_DRY_FLAG=${PONT_DRY_FLAG:-0}" \
 		"PONT_FORCE_FLAG=${PONT_FORCE_FLAG:-0}" \
 		"PONT_ROOT_FLAG=${PONT_ROOT_FLAG:-1}" \
+		"PONT_PACKAGES_FLAG=${PONT_PACKAGES_FLAG:-${PONT_ROOT_FLAG:-1}}" \
+		"PONT_PACKAGE_MANAGERS=$PONT_PACKAGE_MANAGERS" \
 		"PONT_CONFIG_FLAG=${PONT_CONFIG_FLAG:-0}" \
 		"PONT_PRESET_EXTENSION=$PONT_PRESET_EXTENSION" \
 		"PONT_HASHFILE_NAME=$PONT_HASHFILE_NAME" \
+		"PONT_HASH_HOME=$PONT_HASH_HOME" \
 		"PONT_DEPENDENCIESFILE_NAME=$PONT_DEPENDENCIESFILE_NAME" \
 		"PONT_CLASHFILE_NAME=$PONT_CLASHFILE_NAME" \
 		"PONT_TAGSFILE_NAME=$PONT_TAGSFILE_NAME" \
@@ -737,6 +782,8 @@ interpret_args() {
 			-c | --config) PONT_CONFIG_FLAG=1 ;;
 			--root) PONT_ROOT_FLAG=1 ;;
 			-R | --skip-root) PONT_ROOT_FLAG=0 ;;
+			--packages) PONT_PACKAGES_FLAG=1 ;;
+			--skip-packages) PONT_PACKAGES_FLAG=0 ;;
 			-s | --scripts) PONT_SCRIPTS_ENABLED=1 ;;
 			-S | --skip-scripts) PONT_SCRIPTS_ENABLED=0 ;;
 			-m | --make) PONT_MAKE_ENABLED=1 ;;
@@ -848,6 +895,30 @@ pull_dotfiles() {
 	fi
 }
 
+# Prints the condition segment of a script name, or nothing when it has none
+get_script_condition() {
+	# at least 4 section long, so there is a condition
+	[ "$(echo "$1" | cut -d '.' -f 4)" ] && echo "$1" | cut -d '.' -f 3
+}
+
+# True when the script's condition segment names a package manager
+is_package_script() {
+	_ips_condition=$(get_script_condition "$1")
+	[ "$_ips_condition" ] || return 1
+	case " $(echo "$PONT_PACKAGE_MANAGERS" | tr '\n' ' ') " in
+	*" $_ips_condition "*) return 0 ;;
+	esac
+	return 1
+}
+
+hashfile_of() {
+	if [ "$PONT_HASH_HOME" ]; then
+		echo "$PONT_HASH_HOME/$1$PONT_HASHFILE_NAME"
+	else
+		echo "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME"
+	fi
+}
+
 execute_scripts_for_module() {
 	# 1: module name
 	# 2: scripts to run
@@ -867,7 +938,11 @@ execute_scripts_for_module() {
 			[ "$(echo "$script" | grep -o '\.' | wc -w)" -gt 1 ] && \
 				privilege=$(echo "$script" | cut -d '.' -f 2 | sed 's/-.*//')
 
-			if [ "$privilege" = "root" ] ||
+			if [ "${PONT_PACKAGES_FLAG:-${PONT_ROOT_FLAG:-1}}" = 0 ] &&
+				is_package_script "$script"; then
+				log_info "Skipping $script because package installation" \
+					"is disabled"
+			elif [ "$privilege" = "root" ] ||
 				[ "$privilege" = "sudo" ]; then
 				if [ "${PONT_ROOT_FLAG:-1}" = 1 ]; then
 					(
@@ -1003,6 +1078,11 @@ source_modules_envs() {
 update_modules() {
 	log_info "Updating modules $*"
 	while [ "$1" ]; do
+		if ! is_module_name "$1"; then
+			log_error "Module $1 not found. Skipping"
+			shift
+			continue
+		fi
 		if ! check_module_condition "$1"; then
 			shift
 			continue
@@ -1022,6 +1102,12 @@ update_modules() {
 remove_modules() {
 	log_trace "Removing modules $*"
 	while [ "$1" ]; do
+		# The name becomes part of the removed hash file path
+		if ! is_module_name "$1"; then
+			log_error "Module $1 not found. Skipping"
+			shift
+			continue
+		fi
 		if ! check_module_condition "$1"; then
 			shift
 			continue
@@ -1047,8 +1133,7 @@ remove_modules() {
 		fi
 
 		# remove hashfile to mark as uninstalled
-		[ -e "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" ] &&
-			rm "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME"
+		[ -e "$(hashfile_of "$1")" ] && rm "$(hashfile_of "$1")"
 
 		shift
 	done
@@ -1198,8 +1283,14 @@ $scripts_in_module"
 		group_scripts=$(echo "$scripts_in_module" | grep "^${group}..*$" )
 	 	group_scripts_to_run=
 		for script in $group_scripts; do
+			if [ "${PONT_PACKAGES_FLAG:-${PONT_ROOT_FLAG:-1}}" = 0 ] &&
+				is_package_script "$script"; then
+				# Counted as done when skipped, even without its package
+				# manager, so the fallbacks of the group stay off
+				group_scripts_to_run="$group_scripts_to_run
+$script"
 			# at least 4 section long, so there is a condition
-			if [ "$(echo "$script" | cut -d '.' -f 4)" ]; then
+			elif [ "$(echo "$script" | cut -d '.' -f 4)" ]; then
 				script_condition="$(echo "$script" | cut -d '.' -f 3)"
 				if [ "$script_condition" = "fallback" ]; then
 					log_trace "fallback script"
@@ -1250,7 +1341,8 @@ do_hash() {
 }
 
 do_hash_module() {
-	do_hash "$1" >"$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME"
+	[ "$PONT_HASH_HOME" ] && mkdir -p "$PONT_HASH_HOME"
+	do_hash "$1" >"$(hashfile_of "$1")"
 }
 
 hash_module() {
@@ -1259,8 +1351,10 @@ hash_module() {
 
 		if [ "$SUDO_USER" ]; then
 			sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
-				sh -c 'tar --exclude="$1/$3" -c "$1" 2>/dev/null | $2 > "$1/$3"' \
-				_ "$PONT_MODULES_HOME/$1" "$HASH_COMMAND" "$PONT_HASHFILE_NAME"
+				sh -c 'mkdir -p "$(dirname "$4")" &&
+					tar --exclude="$1/$3" -c "$1" 2>/dev/null | $2 > "$4"' \
+				_ "$PONT_MODULES_HOME/$1" "$HASH_COMMAND" "$PONT_HASHFILE_NAME" \
+				"$(hashfile_of "$1")"
 		else
 			do_hash_module "$1"
 		fi
@@ -1285,7 +1379,7 @@ execute_modules() {
 		old_hash=
 		new_hash=
 		log_trace "Checking if module exists: $PONT_MODULES_HOME/$1"
-		if [ ! -d "$PONT_MODULES_HOME/$1" ]; then
+		if ! is_module_name "$1"; then
 			log_error "Module $1 not found. Skipping"
 			shift
 			continue
@@ -1300,8 +1394,7 @@ execute_modules() {
 
 		# Only calculate the hashes if we going to use it
 		if [ "${PONT_FORCE_FLAG:-0}" = 0 ]; then
-			old_hash=$(cat "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
-				2>/dev/null)
+			old_hash=$(cat "$(hashfile_of "$1")" 2>/dev/null)
 			new_hash=$(do_hash "$1")
 
 			if [ "$old_hash" = "$new_hash" ]; then
@@ -1354,8 +1447,7 @@ execute_modules() {
 				hash_module "$1"
 			else
 				log_error "Installation failed $1"
-				[ -e "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" ] &&
-					rm "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME"
+				[ -e "$(hashfile_of "$1")" ] && rm "$(hashfile_of "$1")"
 			fi
 
 		else
