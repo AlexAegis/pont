@@ -10,7 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
       - name: Environment
@@ -25,7 +25,7 @@ jobs:
           ${SUDO_AVAIL:+sudo} apt-get install -y make stow sudo wget curl
       - name: Cache kcov
         id: cache-kcov
-        uses: actions/cache@v1
+        uses: actions/cache@v6
         with:
           path: kcov
           key: kcov-${{ runner.os }}
