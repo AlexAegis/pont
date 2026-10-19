@@ -122,7 +122,6 @@ PONT_DRY_FLAG=${PONT_DRY_FLAG:-0}
 PONT_FORCE_FLAG=${PONT_FORCE_FLAG:-0}
 PONT_NO_BASE_FLAG=${PONT_NO_BASE_FLAG:-0}
 PONT_ROOT_FLAG=${PONT_ROOT_FLAG:-1}
-# Empty follows PONT_ROOT_FLAG
 PONT_PACKAGES_FLAG=${PONT_PACKAGES_FLAG:-}
 PONT_PACKAGE_MANAGERS=${PONT_PACKAGE_MANAGERS:-"pacman aura paru yay apt \
 apt-get xbps-install emerge brew pkg yum dnf zypper choco winget scoop"}
@@ -261,7 +260,7 @@ is_deprecated() {
 	[ -e "$PONT_MODULES_HOME/$1/$PONT_DEPRECATIONFILE_NAME" ]
 }
 
-# A module name is a direct child folder of PONT_MODULES_HOME, never . or ..
+# A module name is a direct child folder of PONT_MODULES_HOME
 is_module_name() {
 	case $1 in
 	'' | */* | *\\* | . | ..) return 1 ;;
@@ -492,8 +491,8 @@ show_help() {
                                  On by default.
 -R, --skip-root               -- Disables root privileged script execution.
                                  Also skips the scripts whose condition is a
-                                 package manager, unless --packages is set,
-                                 as --skip-packages describes.
+                                 package manager and counts them as done,
+                                 unless --packages is set.
 --packages                    -- Enables scripts whose condition is a package
                                  manager. Without this flag or the next one,
                                  they follow --root and --skip-root.
@@ -895,7 +894,7 @@ pull_dotfiles() {
 	fi
 }
 
-# Prints the condition segment of a script name, or nothing when it has none
+# Prints the condition segment of a script name
 get_script_condition() {
 	# at least 4 section long, so there is a condition
 	[ "$(echo "$1" | cut -d '.' -f 4)" ] && echo "$1" | cut -d '.' -f 3
