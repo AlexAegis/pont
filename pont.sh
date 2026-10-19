@@ -447,7 +447,9 @@ show_help() {
                                  feature, but if it was turned on by
                                  the environment it turns it off.)
 -X, --toggle-fix-permissions  -- Adds user execute permissions to all module
-                                 scripts before running them.
+                                 scripts before running them, except in
+                                 subfolders with their own .git, such as
+                                 submodules and nested clones.
 -p, --pull-dotfiles           -- Perform git pull on the dotfiles home folder
 -u, --update                  -- Run all scripts starting with u in the
                                  selected modules.
@@ -1464,18 +1466,11 @@ execute_modules() {
 ## Actions
 
 action_fix_permissions() {
-	# Fix permissions, except in submodules
-	log_info "Fixing permissions in $DOTFILES_HOME... "
-	(
-		cd "$DOTFILES_HOME" || exit
-		subs=$(git submodule status | sed -e 's/^ *//' -e 's/ *$//')
-		submodules=$(
-			echo "${subs% *}" | cut -d ' ' -f 2- |
-				sed -e 's@^@-not -path "**/@' -e 's@$@/*"@' | tr '\n' ' '
-		)
-		eval "find $PONT_MODULES_HOME -type f \( $submodules \) \
-			-regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' -exec chmod u+x {} \;"
-	)
+	# Files under another .git, such as a submodule, belong to that repository
+	log_info "Fixing permissions in $PONT_MODULES_HOME... "
+	find "$PONT_MODULES_HOME" -mindepth 1 -type d -exec test -e '{}/.git' \; \
+		-prune -o -type f -regex '.*\.\(sh\|zsh\|bash\|fish\|dash\)' \
+		-exec chmod u+x {} +
 }
 
 action_clean_symlinks() {

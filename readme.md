@@ -195,7 +195,8 @@ DOT_BASE_MODULES="base sys"
 # Will always remove broken symlinks after execution in PONT_TARGET
 PONT_CLEAN_SYMLINKS=1
 # Makes it always execute `chmod u+x` on '.*.(sh|zsh|bash|fish|dash)' files in
-# the modules. I use it so when making scripts I don't have to deal with it.
+# the modules, except in subfolders with their own .git, such as submodules and
+# nested clones. I use it so when making scripts I don't have to deal with it.
 PONT_FIX_PERMISSIONS=1
 ```
 
@@ -721,7 +722,8 @@ ls -l script.sh
 Or let `pont` automatically fix them by using the `-X` or
 `--toggle-fix-permissions` flags. **Or** by setting the
 `PONT_FIX_PERMISSIONS=` variable manually to `1` in your environment or
-`pontrc` file.
+`pontrc` file. It skips subfolders with their own .git, such as submodules; set
+those modes in their own repository.
 
 ## Far plans
 
