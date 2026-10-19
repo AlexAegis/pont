@@ -74,9 +74,9 @@ function _pont {
 	   '(-f --force)'{-f,--force}'[Ignores hashfiles. To avoid accidentally installing large dependency trees, this automatically turns on --expand-none. Expansion can be changed after.]' \
 	   '(-c --config)'{-c,--config}'[Instead of the selection in the argument list, select entries in a TUI with whiptail.]' \
 	   '--root[Enables root privileged script execution. On by default.]' \
-	   '(-R --skip-root)'{-R,--skip-root}'[Disables root privileged script execution. Also skips the scripts whose condition is a package manager, unless --packages is set.]' \
-	   '--packages[Enables scripts whose condition is a package manager. Without this flag or --skip-packages, they follow --root and --skip-root.]' \
-	   '--skip-packages[Skips scripts whose condition is a package manager, and counts them as done, so the fallbacks of their install group stay off.]' \
+	   '(-R --skip-root)'{-R,--skip-root}'[Disables root privileged script execution. Also skips the scripts that require a package manager, unless --package-manager-scripts is set.]' \
+	   '--package-manager-scripts[Enables scripts that require a package manager. Without this flag or --skip-package-manager-scripts, they follow --root and --skip-root.]' \
+	   '--skip-package-manager-scripts[Skips scripts that require a package manager, and counts them as done, so the fallbacks of their install group do not run.]' \
 	   '(-s --scripts)'{-s,--scripts}'[Enables script execution. On by default.]' \
 	   '(-S --skip-scripts)'{-S,--skip-scripts}'[Disables script execution. Its like dry execution but with stowing enabled.]' \
 	   '(-m --make)'{-m,--make}'[Enables Makefile execution. On by default.]' \

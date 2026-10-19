@@ -27,11 +27,11 @@ sync
 	{ echo "Removal left the hash in PONT_HASH_HOME"; exit 1; }
 
 # A second install reads the hash and runs no script
-$COVERAGE ./pont.sh -q packages
-rm "$PONT_TARGET/packages/plain"
-$COVERAGE ./pont.sh -q packages
+$COVERAGE ./pont.sh -q package_manager_scripts
+rm "$PONT_TARGET/package_manager_scripts/plain"
+$COVERAGE ./pont.sh -q package_manager_scripts
 sync
-[ ! -e "$PONT_TARGET/packages/plain" ] ||
+[ ! -e "$PONT_TARGET/package_manager_scripts/plain" ] ||
 	{ echo "Installed module ran again"; exit 1; }
 
 # Files that are not hashes of existing modules are neither listed nor removed
@@ -41,7 +41,7 @@ echo kept > "$PONT_TARGET/victim.tarhash"
 installed=$(./pont.sh -I)
 $COVERAGE ./pont.sh -q -r ../victim
 sync
-[ "$installed" = "packages" ] ||
+[ "$installed" = "package_manager_scripts" ] ||
 	{ echo "Installed list not correct: $installed"; exit 1; }
 [ -e "$PONT_TARGET/victim.tarhash" ] ||
 	{ echo "Removal deleted a file outside PONT_HASH_HOME"; exit 1; }
@@ -56,8 +56,8 @@ sync
 # . and .. are not modules, also without PONT_HASH_HOME
 echo kept > "$PONT_MODULES_HOME/.tarhash"
 echo kept > "$PONT_MODULES_HOME/../.tarhash"
-PONT_HASH_HOME= $COVERAGE ./pont.sh -q -r .
-PONT_HASH_HOME= $COVERAGE ./pont.sh -q -r ..
+PONT_HASH_HOME='' $COVERAGE ./pont.sh -q -r .
+PONT_HASH_HOME='' $COVERAGE ./pont.sh -q -r ..
 sync
 [ -e "$PONT_MODULES_HOME/.tarhash" ] ||
 	{ echo "Removal of . deleted the hash of the modules folder"; exit 1; }
@@ -72,7 +72,7 @@ clear_dummy_module .dotmod
 [ "$dotmod_hash" ] ||
 	{ echo "A dot-prefixed module was not installed"; exit 1; }
 
-if PONT_HASH_HOME="relative/hashes" ./pont.sh -q packages; then
+if PONT_HASH_HOME="relative/hashes" ./pont.sh -q package_manager_scripts; then
 	echo "A relative PONT_HASH_HOME was accepted"; exit 1
 fi
 if PONT_HASH_HOME="relative/hashes" ./pont.sh -I; then

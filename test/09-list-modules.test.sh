@@ -12,7 +12,7 @@ conditional_symlinks
 deprecated
 fallback
 lone_fallback
-packages
+package_manager_scripts
 permissions
 symlinks
 systemd" ] ||

@@ -122,7 +122,7 @@ PONT_DRY_FLAG=${PONT_DRY_FLAG:-0}
 PONT_FORCE_FLAG=${PONT_FORCE_FLAG:-0}
 PONT_NO_BASE_FLAG=${PONT_NO_BASE_FLAG:-0}
 PONT_ROOT_FLAG=${PONT_ROOT_FLAG:-1}
-PONT_PACKAGES_FLAG=${PONT_PACKAGES_FLAG:-}
+PONT_PACKAGE_MANAGER_SCRIPTS_FLAG=${PONT_PACKAGE_MANAGER_SCRIPTS_FLAG:-}
 PONT_PACKAGE_MANAGERS=${PONT_PACKAGE_MANAGERS:-"pacman aura paru yay apt \
 apt-get xbps-install emerge brew pkg yum dnf zypper choco winget scoop"}
 PONT_SCRIPTS_ENABLED=${PONT_SCRIPTS_ENABLED:-1}
@@ -490,16 +490,16 @@ show_help() {
 --root                        -- Enables root privileged script execution.
                                  On by default.
 -R, --skip-root               -- Disables root privileged script execution.
-                                 Also skips the scripts whose condition is a
-                                 package manager and counts them as done,
-                                 unless --packages is set.
---packages                    -- Enables scripts whose condition is a package
+                                 Also skips the scripts that require a package
+                                 manager and counts them as done, unless
+                                 --package-manager-scripts is set.
+--package-manager-scripts     -- Enables scripts that require a package
                                  manager. Without this flag or the next one,
                                  they follow --root and --skip-root.
---skip-packages               -- Skips scripts whose condition is a package
-                                 manager in PONT_PACKAGE_MANAGERS, and counts
-                                 them as done, so the fallbacks of their
-                                 install group stay off.
+--skip-package-manager-scripts -- Skips scripts that require a package
+                                  manager in PONT_PACKAGE_MANAGERS, and counts
+                                  them as done, so the fallbacks of their
+                                  install group do not run.
 -s, --scripts                 -- Enables script execution. On by default.
 -S, --skip-scripts            -- Disables script execution. Its like dry
                                  execution but with stowing enabled.
@@ -609,10 +609,11 @@ action_list_outdated() {
 
 action_list_environment() {
 	log_info "All configurable variables:"
+	_ale_pm=${PONT_PACKAGE_MANAGER_SCRIPTS_FLAG:-${PONT_ROOT_FLAG:-1}}
 	echo "PONT_DRY_FLAG=${PONT_DRY_FLAG:-0}" \
 		"PONT_FORCE_FLAG=${PONT_FORCE_FLAG:-0}" \
 		"PONT_ROOT_FLAG=${PONT_ROOT_FLAG:-1}" \
-		"PONT_PACKAGES_FLAG=${PONT_PACKAGES_FLAG:-${PONT_ROOT_FLAG:-1}}" \
+		"PONT_PACKAGE_MANAGER_SCRIPTS_FLAG=$_ale_pm" \
 		"PONT_PACKAGE_MANAGERS=$PONT_PACKAGE_MANAGERS" \
 		"PONT_CONFIG_FLAG=${PONT_CONFIG_FLAG:-0}" \
 		"PONT_PRESET_EXTENSION=$PONT_PRESET_EXTENSION" \
@@ -781,8 +782,10 @@ interpret_args() {
 			-c | --config) PONT_CONFIG_FLAG=1 ;;
 			--root) PONT_ROOT_FLAG=1 ;;
 			-R | --skip-root) PONT_ROOT_FLAG=0 ;;
-			--packages) PONT_PACKAGES_FLAG=1 ;;
-			--skip-packages) PONT_PACKAGES_FLAG=0 ;;
+			--package-manager-scripts)
+				PONT_PACKAGE_MANAGER_SCRIPTS_FLAG=1 ;;
+			--skip-package-manager-scripts)
+				PONT_PACKAGE_MANAGER_SCRIPTS_FLAG=0 ;;
 			-s | --scripts) PONT_SCRIPTS_ENABLED=1 ;;
 			-S | --skip-scripts) PONT_SCRIPTS_ENABLED=0 ;;
 			-m | --make) PONT_MAKE_ENABLED=1 ;;
@@ -900,14 +903,17 @@ get_script_condition() {
 	[ "$(echo "$1" | cut -d '.' -f 4)" ] && echo "$1" | cut -d '.' -f 3
 }
 
-# True when the script's condition segment names a package manager
-is_package_script() {
-	_ips_condition=$(get_script_condition "$1")
-	[ "$_ips_condition" ] || return 1
+script_requires_package_manager() {
+	_srpm_condition=$(get_script_condition "$1")
+	[ "$_srpm_condition" ] || return 1
 	case " $(echo "$PONT_PACKAGE_MANAGERS" | tr '\n' ' ') " in
-	*" $_ips_condition "*) return 0 ;;
+	*" $_srpm_condition "*) return 0 ;;
 	esac
 	return 1
+}
+
+package_manager_scripts_enabled() {
+	[ "${PONT_PACKAGE_MANAGER_SCRIPTS_FLAG:-${PONT_ROOT_FLAG:-1}}" != 0 ]
 }
 
 hashfile_of() {
@@ -937,10 +943,10 @@ execute_scripts_for_module() {
 			[ "$(echo "$script" | grep -o '\.' | wc -w)" -gt 1 ] && \
 				privilege=$(echo "$script" | cut -d '.' -f 2 | sed 's/-.*//')
 
-			if [ "${PONT_PACKAGES_FLAG:-${PONT_ROOT_FLAG:-1}}" = 0 ] &&
-				is_package_script "$script"; then
-				log_info "Skipping $script because package installation" \
-					"is disabled"
+			if ! package_manager_scripts_enabled &&
+				script_requires_package_manager "$script"; then
+				log_info "Skipping $script because scripts that require" \
+					"a package manager are disabled"
 			elif [ "$privilege" = "root" ] ||
 				[ "$privilege" = "sudo" ]; then
 				if [ "${PONT_ROOT_FLAG:-1}" = 1 ]; then
@@ -1101,7 +1107,6 @@ update_modules() {
 remove_modules() {
 	log_trace "Removing modules $*"
 	while [ "$1" ]; do
-		# The name becomes part of the removed hash file path
 		if ! is_module_name "$1"; then
 			log_error "Module $1 not found. Skipping"
 			shift
@@ -1282,10 +1287,10 @@ $scripts_in_module"
 		group_scripts=$(echo "$scripts_in_module" | grep "^${group}..*$" )
 	 	group_scripts_to_run=
 		for script in $group_scripts; do
-			if [ "${PONT_PACKAGES_FLAG:-${PONT_ROOT_FLAG:-1}}" = 0 ] &&
-				is_package_script "$script"; then
+			if ! package_manager_scripts_enabled &&
+				script_requires_package_manager "$script"; then
 				# Counted as done when skipped, even without its package
-				# manager, so the fallbacks of the group stay off
+				# manager, so the fallbacks of the group do not run
 				group_scripts_to_run="$group_scripts_to_run
 $script"
 			# at least 4 section long, so there is a condition
