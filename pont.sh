@@ -548,7 +548,7 @@ show_version() {
 }
 
 clean_symlinks() {
-	# recursively removes every broken symlink in a directory, for -C
+	# recursively removes every broken symlink in a directory
 	# ! TODO: skip protected files, on mac it tries to delete and fail many
 	# ! extended file permission bits are used
 	find "${1-$PWD}" -type l -exec \
