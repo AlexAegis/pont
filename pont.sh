@@ -558,9 +558,7 @@ clean_symlinks() {
 clean_package_symlinks() {
 	# $1: package directory
 	# $2: target directory
-	# removes a broken symlink at each target path that matches a package path,
-	# before stow links there or unstows. Like find in clean_symlinks, does not
-	# enter a target directory that is a link: a folded one leads into a module.
+	# removes broken symlinks where the package links, skips linked directories
 	[ -d "$2" ] && [ ! -L "$2" ] || return 0
 	for _cps_entry in "$1"/* "$1"/.[!.]* "$1"/..?*; do
 		[ -e "$_cps_entry" ] || [ -L "$_cps_entry" ] || continue
@@ -1197,7 +1195,7 @@ do_stow() {
 	fi
 
 	if [ "${PONT_DRY_FLAG:-0}" != 1 ]; then
-		# Remove broken links at the paths that the package links
+		# Package target symlinks are always cleaned
 		clean_package_symlinks "$1/$3" "$2"
 		if [ "$SUDO_USER" ]; then
 			sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
