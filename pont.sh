@@ -548,12 +548,29 @@ show_version() {
 }
 
 clean_symlinks() {
-	# recursively removes every broken symlink in a directory
-	# used to clean before installation and after uninstallation
+	# recursively removes every broken symlink in a directory, for -C
 	# ! TODO: skip protected files, on mac it tries to delete and fail many
 	# ! extended file permission bits are used
 	find "${1-$PWD}" -type l -exec \
 		sh -c 'for x; do [ -e "$x" ] || rm "$x"; done' _ {} + 2>/dev/null
+}
+
+clean_package_symlinks() {
+	# $1: package directory
+	# $2: target directory
+	# removes a broken symlink at each target path that matches a package path,
+	# before stow links there or unstows. Like find in clean_symlinks, does not
+	# enter a target directory that is a link: a folded one leads into a module.
+	[ -d "$2" ] && [ ! -L "$2" ] || return 0
+	for _cps_entry in "$1"/* "$1"/.[!.]* "$1"/..?*; do
+		[ -e "$_cps_entry" ] || [ -L "$_cps_entry" ] || continue
+		_cps_target="$2/${_cps_entry##*/}"
+		if [ -L "$_cps_target" ] && [ ! -e "$_cps_target" ]; then
+			rm "$_cps_target"
+		elif [ -d "$_cps_entry" ]; then
+			clean_package_symlinks "$_cps_entry" "$_cps_target"
+		fi
+	done
 }
 
 scaffold() {
@@ -1180,8 +1197,8 @@ do_stow() {
 	fi
 
 	if [ "${PONT_DRY_FLAG:-0}" != 1 ]; then
-		# Module target symlinks are always cleaned
-		clean_symlinks "$2"
+		# Remove broken links at the paths that the package links
+		clean_package_symlinks "$1/$3" "$2"
 		if [ "$SUDO_USER" ]; then
 			sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
 				stow -D -d "$1" -t "$2" "$3"

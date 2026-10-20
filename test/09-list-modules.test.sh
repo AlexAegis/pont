@@ -14,6 +14,8 @@ fallback
 lone_fallback
 package_manager_scripts
 permissions
+scoped_clean
+scoped_clean_link
 symlinks
 systemd" ] ||
  	{ echo "Not all presets have been listed!"; exit 1; }
