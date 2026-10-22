@@ -245,6 +245,11 @@ calculated from the content of the module at the time of install. This enables
 **has not changed since**. This is especially important when installing
 modules with large dependency trees.
 
+A module whose stow fails, for example because a real file is in the way of a
+link, fails like a module whose install script fails. pont deletes its
+`.tarhash`, so `-I` and `-O` no longer list it. `-i` and `-o` no longer select
+it either. A later run that selects the module tries it again.
+
 > The `.tarhash` file marks a module installed.
 
 Modules that are already installed can be forced to be reinstalled using the

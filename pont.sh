@@ -1200,17 +1200,26 @@ do_stow() {
 		if [ "$SUDO_USER" ]; then
 			sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
 				stow -D -d "$1" -t "$2" "$3"
-			[ "$stow_mode" = "stow" ] && \
+			if [ "$stow_mode" = "stow" ]; then
 				sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
-					stow -S -d "$1" -t "$2" "$3"
+					stow -S -d "$1" -t "$2" "$3" || stow_failed "$3"
+			fi
 		else
 			# https://github.com/aspiers/stow/issues/69
 			stow -D -d "$1" -t "$2" "$3"
-			[ "$stow_mode" = "stow" ] && \
-				stow -S -d "$1" -t "$2" "$3"
+			if [ "$stow_mode" = "stow" ]; then
+				stow -S -d "$1" -t "$2" "$3" || stow_failed "$3"
+			fi
 		fi
 		log_trace "Stowed $1"
 	fi
+}
+
+stow_failed() {
+	# $1: package name
+	# Fails the module like a failed install script, so pont deletes its hash
+	log_error "stow failed for package $1"
+	total_result=$((${total_result:-0} + 1))
 }
 
 stow_package() {
