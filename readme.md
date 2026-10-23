@@ -247,8 +247,9 @@ modules with large dependency trees.
 
 A module whose stow fails, for example because a real file is in the way of a
 link, fails like a module whose install script fails. pont deletes its
-`.tarhash`, so `-I` and `-O` no longer list it. `-i` and `-o` no longer select
-it either. A later run that selects the module tries it again.
+`.tarhash`, so `-I` and `-O` no longer list it. `-i` and `-o` select it only as
+a dependency of a module that they select. A later run that selects the module
+tries it again.
 
 > The `.tarhash` file marks a module installed.
 
