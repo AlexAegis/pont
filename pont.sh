@@ -1198,21 +1198,38 @@ do_stow() {
 	if [ "${PONT_DRY_FLAG:-0}" != 1 ]; then
 		# Package target symlinks are always cleaned
 		clean_package_symlinks "$1/$3" "$2"
-		if [ "$SUDO_USER" ]; then
-			sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
-				stow -D -d "$1" -t "$2" "$3"
-			if [ "$stow_mode" = "stow" ]; then
-				sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
-					stow -S -d "$1" -t "$2" "$3" || stow_failed "$3"
-			fi
-		else
-			# https://github.com/aspiers/stow/issues/69
-			stow -D -d "$1" -t "$2" "$3"
-			if [ "$stow_mode" = "stow" ]; then
-				stow -S -d "$1" -t "$2" "$3" || stow_failed "$3"
-			fi
+		# A failed simulation keeps every link of the package
+		if [ "$stow_mode" = "stow" ] && ! check_stow "$1" "$2" "$3"; then
+			stow_failed "$3"
+			return
+		fi
+		# Not stow -R, which keeps the unchanged links, so that file watchers
+		# see every link change: https://github.com/aspiers/stow/issues/69
+		stow_as_user -D -d "$1" -t "$2" "$3"
+		if [ "$stow_mode" = "stow" ]; then
+			stow_as_user -S -d "$1" -t "$2" "$3" || stow_failed "$3"
 		fi
 		log_trace "Stowed $1"
+	fi
+}
+
+stow_as_user() {
+	# Under sudo, the links belong to the user who ran sudo
+	if [ "$SUDO_USER" ]; then
+		sudo --preserve-env="PATH" -E -u "$SUDO_USER" stow "$@"
+	else
+		stow "$@"
+	fi
+}
+
+check_stow() {
+	# $1: the packages parent directory
+	# $2: target directory
+	# $3: package name
+	# Simulates the restow. Prints the output of stow only when it fails.
+	if ! _cs_output=$(stow_as_user -n -R -d "$1" -t "$2" "$3" 2>&1); then
+		printf '%s\n' "$_cs_output" >&2
+		return 1
 	fi
 }
 

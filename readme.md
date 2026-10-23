@@ -246,10 +246,12 @@ calculated from the content of the module at the time of install. This enables
 modules with large dependency trees.
 
 A module whose stow fails, for example because a real file is in the way of a
-link, fails like a module whose install script fails. pont deletes its
-`.tarhash`, so `-I` and `-O` no longer list it. `-i` and `-o` select it only as
-a dependency of a module that they select. A later run that selects the module
-tries it again.
+link, fails like a module whose install script fails. Before pont stows a
+package, it simulates the restow with `stow -n -R`. If the simulation fails,
+for example on a conflict, the package keeps its links. pont deletes the
+`.tarhash` of the module, so `-I` and `-O` no longer list it. `-i` and `-o`
+select it only as a dependency of a module that they select. A later run that
+selects the module tries it again.
 
 > The `.tarhash` file marks a module installed.
 

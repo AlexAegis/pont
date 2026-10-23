@@ -3,8 +3,10 @@ set -e
 # shellcheck disable=SC1091
 . ./test/env.sh
 # A module whose stow fails gets no hash, so a later run that selects it
-# tries it again. A real folder at the path of a package folder is no conflict:
-# stow links the files of the package inside it and keeps the other files there.
+# tries it again. A conflict keeps the links of the package. A real folder at
+# the path of a package folder is no conflict: stow links the files of the
+# package inside it and keeps the other files there. A restow runs stow -D and
+# stow -S as two calls, so that file watchers see every link change.
 
 # Modules that this test makes, so that the module list of test 09 stays
 # unchanged
@@ -51,6 +53,21 @@ check_real_dir Restow
 [ -L "$real_dir/ok_file2" ] || { echo "The restow did not run"; exit 1; }
 [ -e "$ok_hash" ] || { echo "A restow into a real folder failed"; exit 1; }
 
+# A stow on PATH that logs the first argument of each call
+stow_bin="$PONT_TARGET/stow_failure_bin"
+stow_log="$PONT_TARGET/stow_failure_log"
+mkdir -p "$stow_bin"
+cat >"$stow_bin/stow" <<STOW
+#!/bin/sh
+printf '%s\n' "\$1" >>"$stow_log"
+exec "$(command -v stow)" "\$@"
+STOW
+chmod +x "$stow_bin/stow"
+PATH="$stow_bin:$PATH" ./pont.sh -q -fx stow_failure_ok
+calls=$(tr '\n' ' ' <"$stow_log")
+[ "$calls" = '-n -D -S ' ] ||
+	{ echo "The restow called stow with: $calls"; exit 1; }
+
 # Without a hash, the next run that selects the module applies it again
 rm "$PONT_TARGET/stow_failure_file"
 $COVERAGE ./pont.sh -q stow_failure
@@ -65,6 +82,8 @@ echo real >"$PONT_TARGET/stow_failure_file2"
 $COVERAGE ./pont.sh -q stow_failure
 [ ! -e "$hash" ] ||
 	{ echo "An installed module whose stow failed kept its hash"; exit 1; }
+[ -L "$PONT_TARGET/stow_failure_file" ] ||
+	{ echo "A conflict removed the other links of the package"; exit 1; }
 
 # A failed unstow does not fail the module when its links are in place. Root
 # can write the read-only folder, so the unstow would not fail.
