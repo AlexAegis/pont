@@ -1261,14 +1261,30 @@ stow_package() {
 
 		log_trace "Do stowing $1"
 		do_stow "$(echo "${1%/*}" | sed 's|^$|/|')" \
-			"$(/bin/sh -c "echo \$$(basename "$1" | cut -d '.' -f 1)" | \
-				sed -e "s|^\$$|$PONT_TARGET|" \
-				-e "s|^[^/]|$PONT_TARGET/\0|")" \
+			"$(package_target "$(basename "$1")")" \
 			"$(basename "$1")" \
 			"$stow_mode"
 		shift
 	done
 
+}
+
+package_target() {
+	# $1: package name
+	# The variable before the first dot names the target. A relative value is
+	# under PONT_TARGET. Without a variable, as in .module, the target is
+	# PONT_TARGET. An empty or unset variable gives an empty target.
+	_pt_variable="${1%%.*}"
+	if [ ! "$_pt_variable" ]; then
+		printf '%s\n' "$PONT_TARGET"
+		return
+	fi
+	# A child shell reads the variable, so only an exported one counts
+	_pt_value=$(/bin/sh -c "printf '%s' \"\$$_pt_variable\"")
+	case $_pt_value in
+	'' | /*) printf '%s\n' "$_pt_value" ;;
+	*) printf '%s\n' "$PONT_TARGET/$_pt_value" ;;
+	esac
 }
 
 stow_modules() {

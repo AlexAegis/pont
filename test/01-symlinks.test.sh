@@ -17,3 +17,10 @@ echo "$PONT_TARGET/base"
 	{ echo "Relative not linked"; exit 1; }
 [ -e "$PONT_TARGET/symlinks/target_absolute/absolute" ] ||
 	{ echo "Absolute not linked"; exit 1; }
+
+# A & in PONT_TARGET stays in the path of a relative target
+amp_target="$PONT_TARGET/a&b"
+PONT_TARGET="$amp_target" $COVERAGE ./pont.sh -q -fx symlinks
+sync
+[ -e "$amp_target/symlinks/target_relative/relative" ] ||
+	{ echo "Relative not linked under a target with a &"; exit 1; }
