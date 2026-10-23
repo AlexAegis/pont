@@ -1196,6 +1196,11 @@ do_stow() {
 	fi
 
 	if [ "${PONT_DRY_FLAG:-0}" != 1 ]; then
+		if [ ! "$2" ]; then
+			log_error "Target variable ${3%%.*} of $3 is empty or not exported"
+			[ "$stow_mode" = "stow" ] && stow_failed "$3"
+			return
+		fi
 		# Package target symlinks are always cleaned
 		clean_package_symlinks "$1/$3" "$2"
 		# A failed simulation keeps every link of the package

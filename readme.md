@@ -646,7 +646,9 @@ To make stowing more dynamic, stow modules can have variables before the `.`
 in their names. These variables will then be expanded. If it's an absolute
 path it will be treated as such (Ignoring `PONT_TARGET`) but if its a relative
 path (it doesn't start with `/`) it will be appended after `PONT_TARGET`.
-This path then will be used as the final target to stow to.
+This path then will be used as the final target to stow to. If the variable is
+empty or not exported, pont does not stow the package. The module then fails
+like a module whose stow fails.
 
 > This variable can be set in the `init` script too if you wan't to be module
 > specific. These scripts are run before stowing and everything they define

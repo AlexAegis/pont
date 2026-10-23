@@ -12,15 +12,18 @@ set -e
 # unchanged
 module="$PONT_MODULES_HOME/stow_failure"
 ok_module="$PONT_MODULES_HOME/stow_failure_ok"
+empty_module="$PONT_MODULES_HOME/stow_failure_empty"
 hash="$module/.tarhash"
 ok_hash="$ok_module/.tarhash"
 real_dir="$PONT_TARGET/stow_failure_dir"
-trap 'chmod -f u+w "$real_dir"; rm -rf "$module" "$ok_module"' EXIT
+trap 'chmod -f u+w "$real_dir"
+	rm -rf "$module" "$ok_module" "$empty_module"' EXIT
 trap 'exit 1' HUP INT TERM
-rm -rf "$module" "$ok_module"
+rm -rf "$module" "$ok_module" "$empty_module"
 
 mkdir -p "$module/.stow_failure" \
-	"$ok_module/.stow_failure_ok/stow_failure_dir" "$real_dir"
+	"$ok_module/.stow_failure_ok/stow_failure_dir" "$real_dir" \
+	"$empty_module/STOW_FAILURE_EMPTY.stow_failure_empty"
 echo package >"$module/.stow_failure/stow_failure_file"
 # A script that succeeds must not hide the failed stow
 printf '#!/bin/sh\n' >"$module/1.user.sh"
@@ -84,6 +87,20 @@ $COVERAGE ./pont.sh -q stow_failure
 	{ echo "An installed module whose stow failed kept its hash"; exit 1; }
 [ -L "$PONT_TARGET/stow_failure_file" ] ||
 	{ echo "A conflict removed the other links of the package"; exit 1; }
+
+# An unset target variable fails the module
+echo package >"$empty_module/STOW_FAILURE_EMPTY.stow_failure_empty/empty_file"
+unset STOW_FAILURE_EMPTY
+$COVERAGE ./pont.sh -q -fx stow_failure_empty 2>/dev/null
+errors=$(./pont.sh -q -fx stow_failure_empty 2>&1 >/dev/null)
+case $errors in
+*'Target variable STOW_FAILURE_EMPTY of '*) ;;
+*) echo "The error does not name the target variable: $errors"; exit 1 ;;
+esac
+[ ! -e "$empty_module/.tarhash" ] ||
+	{ echo "A module with an unset target variable got a hash"; exit 1; }
+[ ! -e "$PONT_TARGET/empty_file" ] ||
+	{ echo "A package with an unset target variable was linked"; exit 1; }
 
 # A failed unstow does not fail the module when its links are in place. Root
 # can write the read-only folder, so the unstow would not fail.
