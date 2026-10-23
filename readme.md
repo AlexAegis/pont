@@ -251,7 +251,8 @@ package, it simulates the restow with `stow -n -R`. If the simulation fails,
 for example on a conflict, the package keeps its links. pont deletes the
 `.tarhash` of the module, so `-I` and `-O` no longer list it. `-i` and `-o`
 select it only as a dependency of a module that they select. A later run that
-selects the module tries it again.
+selects the module tries it again. A deprecated module is tried again only
+with `-f`.
 
 > The `.tarhash` file marks a module installed.
 
