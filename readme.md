@@ -474,6 +474,12 @@ and also removes the `.tarhash` file, marking the module uninstalled.
 
 Specifying the flag twice causes it to also run scripts that start with an `r`
 
+`-r` also removes an installed module whose
+[`.condition`](#Conditional-modules) fails. pont sources the `e` scripts of
+such a module before the unstow, although the condition fails. They can set
+the targets of its stow packages. `-rr` does not run the remove scripts of
+such a module.
+
 #### Update
 
 > `update.sudo.sh`
@@ -599,7 +605,8 @@ some of your modules might end up depending on them for convinience.
 Instead of marking each dependency with a condition, the module itself can be.
 For this, create a file name `.condition` in the modules root. It's content
 will simply be `eval`d before executing anything in the module. So not even
-`init` will run if `.condition` is false.
+`init` will run if `.condition` is false. [Remove](#Remove) describes how `-r`
+handles an installed module whose `.condition` fails.
 
 ### Tags
 

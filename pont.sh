@@ -1107,6 +1107,7 @@ update_modules() {
 			continue
 		fi
 		if ! check_module_condition "$1"; then
+			log_info "Condition on $1 failed. Skipping. $condition"
 			shift
 			continue
 		fi
@@ -1130,16 +1131,24 @@ remove_modules() {
 			shift
 			continue
 		fi
+		module_applies=1
 		if ! check_module_condition "$1"; then
-			shift
-			continue
+			# An installed module keeps its links and its hash, so -r removes
+			# them without its remove scripts
+			if [ ! -e "$(hashfile_of "$1")" ]; then
+				log_info "Condition on $1 failed. Skipping. $condition"
+				shift
+				continue
+			fi
+			log_info "Condition on $1 failed. No remove scripts. $condition"
+			module_applies=
 		fi
 
 		# Source env
 		source_modules_envs "$1"
 
 		# Only run the remove scripts with -rr, a single r just unstows
-		if [ "$remove_count" -ge 2 ]; then
+		if [ "$remove_count" -ge 2 ] && [ "$module_applies" ]; then
 			log_info "Hard remove $1"
 			remove_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 				-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' |
@@ -1431,11 +1440,11 @@ hash_module() {
 }
 
 check_module_condition() {
+	# Leaves the condition in $condition for the log of the caller
 	if [ -e "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME" ]; then
 		condition="$(sed -e 's/ *#.*$//' -e '/^$/d' \
 			"$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 		if ! eval "$condition"; then
-			log_info "Condition on $1 failed. Skipping. $condition"
 			return 1
 		fi
 	fi
@@ -1455,6 +1464,7 @@ execute_modules() {
 		fi
 
 		if ! check_module_condition "$1"; then
+			log_info "Condition on $1 failed. Skipping. $condition"
 			shift
 			continue
 		fi
