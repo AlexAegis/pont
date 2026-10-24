@@ -934,6 +934,55 @@ package_manager_scripts_enabled() {
 	[ "${PONT_PACKAGE_MANAGER_SCRIPTS_FLAG:-${PONT_ROOT_FLAG:-1}}" != 0 ]
 }
 
+script_condition_file_suffix() {
+	printf '.%s' "${PONT_CONDITIONFILE_NAME#.}"
+}
+
+without_script_condition_files() {
+	_wscf_suffix=$(script_condition_file_suffix)
+	while IFS= read -r _wscf_name; do
+		case "$_wscf_name" in
+		*?"$_wscf_suffix") ;;
+		*) printf '%s\n' "$_wscf_name" ;;
+		esac
+	done
+}
+
+is_script_file_name() {
+	case "$1" in
+	restore*) return 1 ;;
+	[0-9eiur]*.*.*) return 0 ;;
+	esac
+	return 1
+}
+
+check_script_condition_file() {
+	# 1: module name
+	# 2: script name
+	# Outputs: script_condition_file_status (0: run, 1: skip, other: fail)
+	script_condition_file_status=0
+	_cscf_file="$PONT_MODULES_HOME/$1/$2$(script_condition_file_suffix)"
+	[ -e "$_cscf_file" ] || return 0
+	log_trace "Condition file: ${_cscf_file##*/}"
+	# shellcheck disable=SC1090
+	(unset IFS; set --; . "$_cscf_file")
+	script_condition_file_status=$?
+	[ "$script_condition_file_status" = 0 ]
+}
+
+warn_unused_script_condition_files() {
+	_wuscf_suffix=$(script_condition_file_suffix)
+	find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 -type f \
+		-name "?*$_wuscf_suffix" 2>/dev/null |
+		while IFS= read -r _wuscf_file; do
+			_wuscf_script="${_wuscf_file%"$_wuscf_suffix"}"
+			if ! [ -e "$_wuscf_script" ] ||
+				! is_script_file_name "${_wuscf_script##*/}"; then
+				log_warning "No script for condition file $_wuscf_file"
+			fi
+		done
+}
+
 hashfile_of() {
 	if [ "$PONT_HASH_HOME" ]; then
 		echo "$PONT_HASH_HOME/$1$PONT_HASHFILE_NAME"
@@ -960,22 +1009,31 @@ execute_scripts_for_module() {
 			privilege='user'
 			[ "$(echo "$script" | grep -o '\.' | wc -w)" -gt 1 ] && \
 				privilege=$(echo "$script" | cut -d '.' -f 2 | sed 's/-.*//')
+			case "$privilege" in
+			root | sudo) root_script=1 ;;
+			*) root_script= ;;
+			esac
 
 			if ! package_manager_scripts_enabled &&
 				script_requires_package_manager "$script"; then
 				log_info "Skipping $script because scripts that require" \
 					"a package manager are disabled"
-			elif [ "$privilege" = "root" ] ||
-				[ "$privilege" = "sudo" ]; then
-				if [ "${PONT_ROOT_FLAG:-1}" = 1 ]; then
-					(
-						sudo --preserve-env="PATH" -E \
-							"$PONT_MODULES_HOME/$1/$script"
-					)
+			elif [ "$root_script" ] && [ "${PONT_ROOT_FLAG:-1}" != 1 ]; then
+				log_info "Skipping $script because root execution" \
+					"is disabled"
+			elif ! check_script_condition_file "$1" "$script"; then
+				if [ "$script_condition_file_status" = 1 ]; then
+					log_info "Skipping $script, condition not met"
 				else
-					log_info "Skipping $script because root execution" \
-						"is disabled"
+					log_error "Condition of $script failed: status \
+$script_condition_file_status"
+					false
 				fi
+			elif [ "$root_script" ]; then
+				(
+					sudo --preserve-env="PATH" -E \
+						"$PONT_MODULES_HOME/$1/$script"
+				)
 			else
 				if [ "$SUDO_USER" ]; then
 					(
@@ -1080,7 +1138,7 @@ init_modules() {
 	while [ "$1" ]; do
 		init_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
-			| grep '^i.*\..*\..*$' | sort)
+			| grep '^i.*\..*\..*$' | without_script_condition_files | sort)
 		execute_scripts_for_module "$1" "$init_scripts_in_module" "1"
 		shift
 	done
@@ -1091,7 +1149,7 @@ source_modules_envs() {
 	while [ "$1" ]; do
 		env_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
-			| grep '^e.*\..*\..*$' | sort)
+			| grep '^e.*\..*\..*$' | without_script_condition_files | sort)
 		log_trace "Environmental scripts in $1 are $env_scripts_in_module"
 		execute_scripts_for_module "$1" "$env_scripts_in_module" "1"
 		shift
@@ -1117,7 +1175,7 @@ update_modules() {
 
 		update_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' \
-			| grep '^u.*\..*\..*$' | sort)
+			| grep '^u.*\..*\..*$' | without_script_condition_files | sort)
 		execute_scripts_for_module "$1" "$update_scripts_in_module"
 		shift
 	done
@@ -1152,7 +1210,8 @@ remove_modules() {
 			log_info "Hard remove $1"
 			remove_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
 				-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' |
-				grep -v '^restore.*$' | grep '^r.*\..*\..*$' | sort)
+				grep -v '^restore.*$' | grep '^r.*\..*\..*$' |
+				without_script_condition_files | sort)
 			execute_scripts_for_module "$1" "$remove_scripts_in_module"
 		else
 			log_info "Soft remove $1"
@@ -1349,10 +1408,11 @@ powershell_script_filter() {
 get_install_scripts_in_module() {
 	find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
 		-type f 2>/dev/null | sed 's|.*/||' | grep "^[0-9].*\..*\..*$" |
-		sort | powershell_script_filter
+		without_script_condition_files | sort | powershell_script_filter
 }
 
 install_module() {
+	warn_unused_script_condition_files "$1"
 	scripts_in_module=$(get_install_scripts_in_module "$1")
 	log_trace "Scripts in module for $1 are:
 $scripts_in_module"

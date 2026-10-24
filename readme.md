@@ -432,6 +432,34 @@ alone it will also be executed.
 > having a separate script for each system, or a custom script that skips on
 > `pacman` systems, just have a `fallback` script.
 
+### Condition files
+
+> 0.root.sh**.condition**
+
+Any script can have a condition file, named `<script>.condition`:
+
+- sourced in a subshell, right before the script
+- working directory: the module folder
+- variables: same as the scripts, like `$pacman`
+- always POSIX `sh`, also for a `.ps1` script
+
+Exit status:
+
+- `0`: run
+- `1`: skip, count as done, no [fallback](#Fallback)
+- other: skip, count as failed
+
+Example: skip a root script that installs into `/etc` while the installed copy
+is up to date, print the diff before the `sudo` prompt:
+
+```sh
+# 1.root.sh.condition
+[ -r ./resources/example.conf ] || exit 2
+[ -e /etc/example.conf ] || exit 0
+diff -u /etc/example.conf ./resources/example.conf
+case $? in 0) exit 1 ;; 1) exit 0 ;; *) exit 2 ;; esac
+```
+
 ### Init Scripts
 
 > `init.user.sh`
