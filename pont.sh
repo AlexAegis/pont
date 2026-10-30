@@ -682,6 +682,7 @@ expand_single_args() {
 # It does NOT check for unknown variables as there is no list of allowed args
 # but those are easy to handle later
 parse_args() {
+	set -f # only called in a subshell
 	# first parameter is a single string, an IFS separated list of arguments
 	# that should have a single value
 	with_parameters="$1"
@@ -1131,6 +1132,21 @@ expand_abstract_entries() {
 	expand_abstract_only=1
 	final_module_list="$(do_expand_entries "$@")"
 	expand_abstract_only=
+}
+
+# Calls $1 with each line of $2 as one argument, without globbing the lines
+call_with_lines() {
+	_cwl_command=$1
+	case $- in *f*) _cwl_noglob=1 ;; *) _cwl_noglob= ;; esac
+	set -f
+	_cwl_ifs=$IFS
+	IFS='
+'
+	# shellcheck disable=SC2086 # intentional newline split, globbing off
+	set -- $2
+	IFS=$_cwl_ifs
+	[ "$_cwl_noglob" ] || set +f
+	"$_cwl_command" "$@"
 }
 
 init_modules() {
@@ -1625,8 +1641,7 @@ ${entries_selected}"
 		done
 		IFS=$old_ifs
 	fi
-	# shellcheck disable=SC2086
-	expand_entries $entries_selected
+	call_with_lines expand_entries "$entries_selected"
 	log_info "Final module list is:
 $final_module_list"
 }
@@ -1671,8 +1686,7 @@ action_expand_none() {
 	log_info "Set final module list only to the selected modules," \
 			 "no dependency expansion."
 	final_module_list=
-	# shellcheck disable=SC2086
-	expand_abstract_entries $entries_selected
+	call_with_lines expand_abstract_entries "$entries_selected"
 	log_info "Final module list is:
 $final_module_list"
 }
@@ -1683,18 +1697,15 @@ action_list_modules_to_install() {
 }
 
 action_remove_modules() {
-	# shellcheck disable=SC2086
-	remove_modules $final_module_list
+	call_with_lines remove_modules "$final_module_list"
 }
 
 action_execute_modules() {
-	# shellcheck disable=SC2086
-	execute_modules $final_module_list
+	call_with_lines execute_modules "$final_module_list"
 }
 
 action_update_modules() {
-	# shellcheck disable=SC2086
-	update_modules $final_module_list
+	call_with_lines update_modules "$final_module_list"
 }
 
 do_yank() {
@@ -1706,16 +1717,18 @@ do_yank() {
 		shift
 	done
 	# Copy all used presets
+	case $- in *f*) _dy_noglob=1 ;; *) _dy_noglob= ;; esac
+	set -f
 	for preset in $expanded_presets; do
 		preset_file_name="$(echo "$preset" | cut -d '+' -f 2-).preset"
 		cp "$(find "$PONT_PRESETS_HOME" -type f -name "$preset_file_name")" \
 			"$yank_target/$preset_file_name"
 	done
+	[ "$_dy_noglob" ] || set +f
 }
 
 action_yank() {
-	# shellcheck disable=SC2086
-	do_yank $final_module_list
+	call_with_lines do_yank "$final_module_list"
 }
 
 ask_entries() {
@@ -1757,8 +1770,7 @@ IFS='
 # parse_args can only exit its own subshell, so its failure has to be caught
 # here, otherwise execution would fall through to the default install action
 parsed_args=$(parse_args "$_args_with_params" "$@") || exit 1
-# shellcheck disable=SC2086
-interpret_args $parsed_args
+call_with_lines interpret_args "$parsed_args"
 
 # if nothing is selected, ask for modules
 if [ "${PONT_CONFIG_FLAG:-0}" = 1 ] || [ $# -eq 0 ]; then
