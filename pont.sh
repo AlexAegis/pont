@@ -63,6 +63,45 @@ get_home() {
 	fi
 }
 
+# Same as sudo -E, but also works with sudo-rs, which ignores -E
+sudo_with_environment() {
+	case $(sudo --version 2>/dev/null) in
+	sudo-rs*) sudo --preserve-env="$(sudo_kept_variables)" "$@" ;;
+	*) sudo --preserve-env="PATH" -E "$@" ;;
+	esac
+}
+
+# Exported variables that sudo -E would keep, as a comma-separated list. The
+# patterns below are sudo's default env_delete and env_check lists, plus USER,
+# LOGNAME and SUDO_*, which sudo sets itself.
+sudo_kept_variables() {
+	awk 'BEGIN {
+		for (name in ENVIRON) {
+			value = ENVIRON[name]
+			if (name !~ /^[A-Za-z_][A-Za-z0-9_]*$/ ||
+				name ~ /^(USER|LOGNAME|SUDO_[A-Za-z0-9_]*)$/ ||
+				name ~ /^(LD_|_RLD)/ ||
+				name ~ /^(IFS|CDPATH|LOCALDOMAIN|RES_OPTIONS|HOSTALIASES)$/ ||
+				name ~ /^(NLSPATH|PATH_LOCALE|TERMINFO|TERMINFO_DIRS)$/ ||
+				name ~ /^(TERMPATH|TERMCAP|ENV|BASH_ENV|PS4|GLOBIGNORE)$/ ||
+				name ~ /^(BASHOPTS|SHELLOPTS|JAVA_TOOL_OPTIONS|FPATH)$/ ||
+				name ~ /^(PERLIO_DEBUG|PERLLIB|PERL5LIB|PERL5OPT|PERL5DB)$/ ||
+				name ~ /^(NULLCMD|READNULLCMD|ZDOTDIR|TMPPREFIX|RUBYLIB)$/ ||
+				name ~ /^(RUBYOPT|PYTHONHOME|PYTHONPATH|PYTHONINSPECT)$/ ||
+				name ~ /^(PYTHONUSERBASE)$/ ||
+				value ~ /^\(\)/ ||
+				(name ~ /^(COLORTERM|LANG|LANGUAGE|LINGUAS|TERM|LC_.*)$/ &&
+					value ~ /[\/%]/) ||
+				(name == "TZ" && (value ~ /\.\./ || (value ~ /^:?\// &&
+					value !~ /^:?\/usr\/share\/zoneinfo\//))))
+				continue
+			names = names separator name
+			separator = ","
+		}
+		print names
+	}'
+}
+
 # Environment
 user_home=$(get_home)
 uname_result="$(uname -s)"
@@ -1032,14 +1071,13 @@ $script_condition_file_status"
 				fi
 			elif [ "$root_script" ]; then
 				(
-					sudo --preserve-env="PATH" -E \
-						"$PONT_MODULES_HOME/$1/$script"
+					sudo_with_environment "$PONT_MODULES_HOME/$1/$script"
 				)
 			else
 				if [ "$SUDO_USER" ]; then
 					(
-						sudo --preserve-env="PATH" -E \
-							-u "$SUDO_USER" "$PONT_MODULES_HOME/$1/$script"
+						sudo_with_environment -u "$SUDO_USER" \
+							"$PONT_MODULES_HOME/$1/$script"
 					)
 				else
 					if [ "$3" ]; then
@@ -1305,7 +1343,7 @@ do_stow() {
 stow_as_user() {
 	# Under sudo, the links belong to the user who ran sudo
 	if [ "$SUDO_USER" ]; then
-		sudo --preserve-env="PATH" -E -u "$SUDO_USER" stow "$@"
+		sudo_with_environment -u "$SUDO_USER" stow "$@"
 	else
 		stow "$@"
 	fi
@@ -1406,7 +1444,7 @@ make_module() {
 		cd "$PONT_MODULES_HOME/$1" || return 1
 		# Makefiles are always executed using user rights
 		if [ "$SUDO_USER" ]; then
-			sudo --preserve-env="PATH" -E -u "$SUDO_USER" make
+			sudo_with_environment -u "$SUDO_USER" make
 		else
 			make
 		fi
@@ -1504,7 +1542,8 @@ hash_module() {
 		log_success "Successfully installed $1"
 
 		if [ "$SUDO_USER" ]; then
-			sudo --preserve-env="PATH" -E -u "$SUDO_USER" \
+			# shellcheck disable=SC2016
+			sudo_with_environment -u "$SUDO_USER" \
 				sh -c 'mkdir -p "$(dirname "$4")" &&
 					tar --exclude="$1/$3" -c "$1" 2>/dev/null | $2 > "$4"' \
 				_ "$PONT_MODULES_HOME/$1" "$HASH_COMMAND" "$PONT_HASHFILE_NAME" \
