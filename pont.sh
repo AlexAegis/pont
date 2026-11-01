@@ -1129,13 +1129,8 @@ $1"
 			fi
 			case "$1" in
 			+*) # presets
-				# collect expanded presets in case a yank action needs it
-				if [ -z "$expanded_presets" ]; then
-					expanded_presets="$1"
-				else
-					expanded_presets="$expanded_presets
-$1"
-				fi
+				# printed for a yank action, expand_entries separates them
+				get_entry "$1"
 				# shellcheck disable=SC2046
 				do_expand_entries \
 					$(in_preset "$(get_entry "$1" | cut -c2-)")
@@ -1162,13 +1157,17 @@ $1"
 	done
 }
 
+# Sets final_module_list and expanded_presets. do_expand_entries runs in a
+# subshell, so it prints both, presets with their + prefix.
 expand_entries() {
-	final_module_list="$(do_expand_entries "$@")"
+	_ee_lines=$(do_expand_entries "$@")
+	final_module_list=$(printf '%s\n' "$_ee_lines" | grep -v '^+')
+	expanded_presets=$(printf '%s\n' "$_ee_lines" | grep '^+')
 }
 
 expand_abstract_entries() {
 	expand_abstract_only=1
-	final_module_list="$(do_expand_entries "$@")"
+	expand_entries "$@"
 	expand_abstract_only=
 }
 
@@ -1760,8 +1759,13 @@ do_yank() {
 	set -f
 	for preset in $expanded_presets; do
 		preset_file_name="$(echo "$preset" | cut -d '+' -f 2-).preset"
-		cp "$(find "$PONT_PRESETS_HOME" -type f -name "$preset_file_name")" \
-			"$yank_target/$preset_file_name"
+		preset_file=$(find "$PONT_PRESETS_HOME" -type f \
+			-name "$preset_file_name")
+		if [ -z "$preset_file" ]; then
+			log_warning "Preset $preset_file_name not found, not yanked"
+			continue
+		fi
+		cp "$preset_file" "$yank_target/$preset_file_name"
 	done
 	[ "$_dy_noglob" ] || set +f
 }
