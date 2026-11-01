@@ -1841,6 +1841,19 @@ action_yank() {
 	call_with_lines do_yank "$final_module_list"
 }
 
+# Shows the arguments in a whiptail checklist and prints each selected one on a
+# line of its own
+ask_checklist() {
+	for _ac_entry do
+		shift
+		set -- "$@" "$_ac_entry" "$_ac_entry" OFF
+	done
+	whiptail --separate-output --clear --notags \
+		--title 'Select modules to install' \
+		--checklist 'Space changes selection, enter approves' \
+		0 0 0 "$@" 3>&1 1>&2 2>&3 3>&-
+}
+
 ask_entries() {
 	! is_installed whiptail && log_error "No whiptail installed" \
 		&& exit 1
@@ -1849,20 +1862,13 @@ ask_entries() {
 	[ ! "$all_tags" ] && get_all_tags
 	[ ! "$all_presets" ] && get_all_presets
 
-	preset_options="$(echo "$all_presets" | \
-		awk '{printf ":%s :%s OFF ", $1, $1}')"
-	tag_options="$(echo "$all_tags" | \
-		awk '{printf ":%s :%s OFF ", $1, $1}')"
-	module_options="$(echo "$all_modules" | \
-		awk '{printf "%s %s OFF ", $1, $1}')"
-
 	log_trace "Manual module input"
 
-	entries_selected=$(eval "whiptail --separate-output --clear --notags \
-		--title 'Select modules to install' \
-		--checklist 'Space changes selection, enter approves' \
-		0 0 0 $preset_options $tag_options $module_options \
-		3>&1 1>&2 2>&3 3>&- | sed 's/ /\n/g'")
+	entries_selected=$(call_with_lines ask_checklist "$(
+		printf '%s\n' "$all_presets" | sed -e '/^$/d' -e 's/^/+/'
+		printf '%s\n' "$all_tags" | sed -e '/^$/d' -e 's/^/:/'
+		printf '%s\n' "$all_modules"
+	)")
 }
 
 execute_queue() {
