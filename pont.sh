@@ -1070,7 +1070,9 @@ execute_scripts_for_module() {
 	cd "$PONT_MODULES_HOME/$1" || { log_error "Cannot cd to module $1"; return 1; }
 	group_result=0
 	successful_scripts=0
+	pause_globbing
 	for script in $2; do
+		resume_globbing
 		result=0
 		if [ "${PONT_DRY_FLAG:-0}" = 0 ] && \
 			[ "${PONT_SCRIPTS_ENABLED:-1}" = 1 ]; then
@@ -1131,6 +1133,7 @@ $script_condition_file_status"
 			log_trace "Skipping $script..."
 		fi
 	done
+	resume_globbing
 	cd "$_esm_saved_dir" || true
 }
 
@@ -1201,18 +1204,32 @@ expand_abstract_entries() {
 	expand_abstract_only=
 }
 
+# Turns globbing off, such as for the word list of a for loop. Call
+# resume_globbing first in the loop body and after the loop, before any other
+# pause_globbing.
+pause_globbing() {
+	case $- in *f*) _globbing_paused= ;; *) _globbing_paused=1 ;; esac
+	set -f
+}
+
+# Turns globbing on again, unless it was off before pause_globbing
+resume_globbing() {
+	if [ "$_globbing_paused" ]; then
+		set +f
+	fi
+}
+
 # Calls $1 with each line of $2 as one argument, without globbing the lines
 call_with_lines() {
 	_cwl_command=$1
-	case $- in *f*) _cwl_noglob=1 ;; *) _cwl_noglob= ;; esac
-	set -f
+	pause_globbing
 	_cwl_ifs=$IFS
 	IFS='
 '
 	# shellcheck disable=SC2086 # intentional newline split, globbing off
 	set -- $2
 	IFS=$_cwl_ifs
-	[ "$_cwl_noglob" ] || set +f
+	resume_globbing
 	"$_cwl_command" "$@"
 }
 
@@ -1509,10 +1526,16 @@ install_module() {
 	log_trace "Scripts in module for $1 are:
 $scripts_in_module"
 	groups_in_module=$(echo "$scripts_in_module" | sed 's/\..*//g' | uniq)
+	pause_globbing
 	for group in $groups_in_module; do
-		group_scripts=$(echo "$scripts_in_module" | grep "^${group}..*$" )
+		resume_globbing
+		# shellcheck disable=SC2016
+		group_scripts=$(printf '%s\n' "$scripts_in_module" |
+			_im_group=$group awk 'index($0, ENVIRON["_im_group"] ".") == 1')
 	 	group_scripts_to_run=
+		pause_globbing
 		for script in $group_scripts; do
+			resume_globbing
 			if ! package_manager_scripts_enabled &&
 				script_requires_package_manager "$script"; then
 				# Counted as done when skipped, even without its package
@@ -1543,6 +1566,7 @@ $script"
 $script"
 			fi
 		done
+		resume_globbing
 		group_scripts_without_fallback=$(echo "$group_scripts_to_run" |
 			 grep -v 'fallback')
 
@@ -1563,6 +1587,7 @@ $group_fallback_scripts"
 
 		total_result=$((total_result + group_result))
 	done
+	resume_globbing
 }
 
 do_hash() {
@@ -1712,17 +1737,17 @@ action_expand_selected() {
 	final_module_list=
 
 	if [ "$PONT_NO_BASE_FLAG" != 1 ]; then
-		case $- in *f*) _aes_noglob=1 ;; *) _aes_noglob= ;; esac
-		set -f
+		pause_globbing
 		old_ifs=$IFS
 		IFS=' '
 		for base_module in $PONT_BASE_MODULES; do
 			IFS=$old_ifs
+			resume_globbing
 			entries_selected="${base_module}
 ${entries_selected}"
 		done
 		IFS=$old_ifs
-		[ "$_aes_noglob" ] || set +f
+		resume_globbing
 	fi
 	call_with_lines expand_entries "$entries_selected"
 	log_info "Final module list is:
@@ -1797,9 +1822,9 @@ do_yank() {
 		shift
 	done
 	# Copy all used presets
-	case $- in *f*) _dy_noglob=1 ;; *) _dy_noglob= ;; esac
-	set -f
+	pause_globbing
 	for preset in $expanded_presets; do
+		resume_globbing
 		preset_file_name="$(echo "$preset" | cut -d '+' -f 2-).preset"
 		preset_file=$(find "$PONT_PRESETS_HOME" -type f \
 			-name "$(literal_pattern "$preset_file_name")")
@@ -1809,7 +1834,7 @@ do_yank() {
 		fi
 		cp "$preset_file" "$yank_target/$preset_file_name"
 	done
-	[ "$_dy_noglob" ] || set +f
+	resume_globbing
 }
 
 action_yank() {
