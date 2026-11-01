@@ -307,6 +307,11 @@ is_module_name() {
 	[ -d "$PONT_MODULES_HOME/$1" ]
 }
 
+# Prints $1 as a pattern of find -name or tar --exclude that matches only $1
+literal_pattern() {
+	printf '%s\n' "$1" | sed 's/[][*?\\]/\\&/g'
+}
+
 module_exists() {
 	[ ! "$all_modules" ] && get_all_modules
 	echo "$all_modules" | grep -qxF -- "$1"
@@ -338,15 +343,21 @@ get_all_installed_modules() {
 	fi
 }
 
+# Prints each argument that is an installed module with changed files
+echo_outdated_modules() {
+	while [ "$1" ]; do
+		if [ -e "$(hashfile_of "$1")" ]; then
+			fresh_hash="$(do_hash "$1")"
+			old_hash="$(cat "$(hashfile_of "$1")")"
+			[ "$fresh_hash" != "$old_hash" ] && printf '%s\n' "$1"
+		fi
+		shift
+	done
+}
+
 echo_all_outdated_modules() {
 	[ ! "$all_modules" ] && get_all_modules
-	for mod in $all_modules; do
-		if [ -e "$(hashfile_of "$mod")" ]; then
-			fresh_hash="$(do_hash "$mod")"
-			old_hash="$(cat "$(hashfile_of "$mod")")"
-			[ "$fresh_hash" != "$old_hash" ] && echo "$mod"
-		fi
-	done
+	call_with_lines echo_outdated_modules "$all_modules"
 }
 
 get_all_outdated_modules() {
@@ -934,7 +945,8 @@ has_tag() {
 
 in_preset() {
 	# returns every entry in a preset
-	find "$PONT_PRESETS_HOME" -mindepth 1 -name "$1$PONT_PRESET_EXTENSION" \
+	find "$PONT_PRESETS_HOME" -mindepth 1 \
+		-name "$(literal_pattern "$1$PONT_PRESET_EXTENSION")" \
 		-type f -print0 | xargs -0 sed -e 's/ *#.*$//' -e '/^$/d'
 }
 
@@ -1431,13 +1443,24 @@ package_target() {
 	esac
 }
 
+# Prints the package directories of module $1, one on each line
+module_packages() {
+	find "$PONT_MODULES_HOME/$1" -mindepth 1 -maxdepth 1 -type d \
+		-iname "*.$(literal_pattern "$1")"
+}
+
+stow_each_package() {
+	stow_package "stow" "$@"
+}
+
+unstow_each_package() {
+	stow_package "unstow" "$@"
+}
+
 stow_modules() {
 	log_trace "Stow modules $*"
 	while [ "$1" ]; do
-		# shellcheck disable=SC2046
-		# TODO: Mixed splitting, find outputs new line splits
-		stow_package "stow" $(find "$PONT_MODULES_HOME/$1" \
-			-mindepth 1 -maxdepth 1 -type d -iname "*.$1")
+		call_with_lines stow_each_package "$(module_packages "$1")"
 		shift
 	done
 }
@@ -1445,9 +1468,7 @@ stow_modules() {
 unstow_modules() {
 	log_trace "Unstow modules $*"
 	while [ "$1" ]; do
-		# shellcheck disable=SC2046
-		stow_package "unstow" $(find "$PONT_MODULES_HOME/$1" \
-			-mindepth 1 -maxdepth 1 -type d -iname "*.$1")
+		call_with_lines unstow_each_package "$(module_packages "$1")"
 		shift
 	done
 }
@@ -1545,7 +1566,8 @@ $group_fallback_scripts"
 }
 
 do_hash() {
-	tar --exclude="$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME" \
+	tar --exclude="$(literal_pattern \
+		"$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME")" \
 		-c "$PONT_MODULES_HOME/$1" 2> /dev/null | "$HASH_COMMAND"
 }
 
@@ -1562,8 +1584,10 @@ hash_module() {
 			# shellcheck disable=SC2016
 			sudo_with_environment -u "$SUDO_USER" \
 				sh -c 'mkdir -p "$(dirname "$4")" &&
-					tar --exclude="$1/$3" -c "$1" 2>/dev/null | $2 > "$4"' \
-				_ "$PONT_MODULES_HOME/$1" "$HASH_COMMAND" "$PONT_HASHFILE_NAME" \
+					tar --exclude="$3" -c "$1" 2>/dev/null | $2 > "$4"' \
+				_ "$PONT_MODULES_HOME/$1" "$HASH_COMMAND" \
+				"$(literal_pattern \
+					"$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME")" \
 				"$(hashfile_of "$1")"
 		else
 			do_hash_module "$1"
@@ -1688,6 +1712,8 @@ action_expand_selected() {
 	final_module_list=
 
 	if [ "$PONT_NO_BASE_FLAG" != 1 ]; then
+		case $- in *f*) _aes_noglob=1 ;; *) _aes_noglob= ;; esac
+		set -f
 		old_ifs=$IFS
 		IFS=' '
 		for base_module in $PONT_BASE_MODULES; do
@@ -1696,6 +1722,7 @@ action_expand_selected() {
 ${entries_selected}"
 		done
 		IFS=$old_ifs
+		[ "$_aes_noglob" ] || set +f
 	fi
 	call_with_lines expand_entries "$entries_selected"
 	log_info "Final module list is:
@@ -1706,8 +1733,7 @@ action_expand_all() {
 	log_info "Set final module list to every module, expanding them."
 	final_module_list=
 	[ ! "$all_modules" ] && get_all_modules
-	# shellcheck disable=SC2086
-	expand_entries $all_modules
+	call_with_lines expand_entries "$all_modules"
 	log_info "Final module list is:
 $final_module_list"
 }
@@ -1716,8 +1742,7 @@ action_expand_installed() {
 	log_info "Set final module list to every installed and expanded module."
 	final_module_list=
 	[ ! "$all_installed_modules" ] && get_all_installed_modules
-	# shellcheck disable=SC2086
-	expand_entries $all_installed_modules
+	call_with_lines expand_entries "$all_installed_modules"
 	log_info "Final module list is:
 $final_module_list"
 }
@@ -1727,8 +1752,7 @@ action_expand_outdated() {
 			 "expanding them."
 	final_module_list=
 	[ ! "$all_outdated_modules" ] && get_all_outdated_modules
-	# shellcheck disable=SC2086
-	expand_entries $all_outdated_modules
+	call_with_lines expand_entries "$all_outdated_modules"
 	log_info "Final module list is:
 $final_module_list"
 }
@@ -1778,7 +1802,7 @@ do_yank() {
 	for preset in $expanded_presets; do
 		preset_file_name="$(echo "$preset" | cut -d '+' -f 2-).preset"
 		preset_file=$(find "$PONT_PRESETS_HOME" -type f \
-			-name "$preset_file_name")
+			-name "$(literal_pattern "$preset_file_name")")
 		if [ -z "$preset_file" ]; then
 			log_warning "Preset $preset_file_name not found, not yanked"
 			continue
