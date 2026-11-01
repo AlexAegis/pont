@@ -1131,20 +1131,17 @@ $1"
 			+*) # presets
 				# printed for a yank action, expand_entries separates them
 				get_entry "$1"
-				# shellcheck disable=SC2046
-				do_expand_entries \
-					$(in_preset "$(get_entry "$1" | cut -c2-)")
+				call_with_lines do_expand_entries \
+					"$(in_preset "$(get_entry "$1" | cut -c2-)")"
 				;;
 			:*) # tags
-				# shellcheck disable=SC2046
-				do_expand_entries \
-					$(has_tag "$(get_entry "$1" | cut -c2-)")
+				call_with_lines do_expand_entries \
+					"$(has_tag "$(get_entry "$1" | cut -c2-)")"
 				;;
 			*) # modules
-				# shellcheck disable=SC2046
 				if [ "${expand_abstract_only:-0}" = 0 ]; then
-					do_expand_entries \
-						$(get_dependencies "$(get_entry "$1")")
+					call_with_lines do_expand_entries \
+						"$(get_dependencies "$(get_entry "$1")")"
 				fi
 				get_entry "$1"
 				;;
