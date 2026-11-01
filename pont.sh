@@ -907,11 +907,29 @@ $entries_selected"
 }
 
 has_tag() {
-	# Returns every dotmodule that contains any of the tags
+	# Returns every dotmodule whose tags file has a line with the tag. Blanks
+	# and a comment can follow the tag. The tag is compared as a string.
+	[ "$1" ] || return 0
+	_ht_tag=$1
+	# awk stops at the first file that it cannot open: pass only readable files
+	set --
+	for _ht_file in "$PONT_MODULES_HOME"/*/"$PONT_TAGSFILE_NAME"; do
+		if [ -f "$_ht_file" ] && [ -r "$_ht_file" ]; then
+			set -- "$@" "$_ht_file"
+		elif [ -e "$_ht_file" ] || [ -L "$_ht_file" ]; then
+			log_warning "Tags file not readable: $_ht_file"
+		fi
+	done
+	[ $# -gt 0 ] || return 0
 	# shellcheck disable=SC2016
-	grep -lRxEm 1 -- "$1 ?#?.*" \
-		"$PONT_MODULES_HOME"/*/"$PONT_TAGSFILE_NAME" |
-		sed -E 's_^.*/([^/]*)/[^/]*$_\1_g'
+	_ht_tag=$_ht_tag awk '
+		{
+			tag = $0
+			sub(/[ \t\r]*#.*$/, "", tag)
+			sub(/[ \t\r]+$/, "", tag)
+		}
+		tag == ENVIRON["_ht_tag"] && !seen[FILENAME]++ { print FILENAME }
+	' "$@" | sed -E 's_^.*/([^/]*)/[^/]*$_\1_g'
 }
 
 in_preset() {
