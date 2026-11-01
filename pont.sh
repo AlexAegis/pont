@@ -935,7 +935,7 @@ get_dependencies() {
 }
 
 get_entry() {
-	echo "$1" | cut -d '?' -f 1 | cut -d '#' -f 1 | sed 's/ $//'
+	echo "$1" | cut -d '?' -f 1 | cut -d '#' -f 1 | sed 's/[[:space:]]*$//'
 }
 
 get_condition() {
@@ -1119,13 +1119,16 @@ do_expand_entries() {
 			continue
 		fi
 
+		# Without its condition, so that each module, preset and tag
+		# resolves once, whatever condition its entries have
+		_dee_entry=$(get_entry "$1")
 		log_trace "Already resolved entries are: $resolved"
-		if [ "$(echo "$resolved" | grep -x "$1")" = "" ]; then
+		if ! printf '%s\n' "$resolved" | grep -qxF -- "$_dee_entry"; then
 			if [ -z "$resolved" ]; then
-				resolved="$1"
+				resolved="$_dee_entry"
 			else
 				resolved="$resolved
-$1"
+$_dee_entry"
 			fi
 			case "$1" in
 			+*) # presets

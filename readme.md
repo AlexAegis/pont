@@ -558,8 +558,9 @@ if with `+`. More about those in their own sections.
 > Simple [DFS](https://en.wikipedia.org/wiki/Depth-first_search)
 
 When installing a module, first every single dependency it has will be
-installed before. **It avoids circular dependencies** by simply stopping at
-entries that are already executed and moves on.
+installed before. **It avoids circular dependencies**: it expands each module,
+preset or tag at its first entry whose condition holds, and skips its later
+entries, whatever their condition.
 
 > Using the `-sm` or `--show-modules` flag, instead of installing (can be
 > turned back on) you only get the list of modules that are gonna be
