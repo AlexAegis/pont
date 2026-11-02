@@ -14,7 +14,8 @@ trap 'rm -rf "$module" "$first"' EXIT
 trap 'trap "" HUP INT TERM; exit 1' HUP INT TERM
 mkdir -p "$module" "$first" "$cwd"
 echo test >"$first/dummyfile"
-for script in 1.user.sh 10.user.sh 21.user.sh '2[1].user.sh'; do
+for script in 1.user.sh 10.user.sh 21.user.sh '2[1].user.sh' '2\b.user.sh' \
+	'4\b.user.fallback.sh'; do
 	cat >"$module/$script" <<'EOF'
 #!/bin/sh
 printf '%s\n' "${0##*/}" >>"$PONT_TARGET/literal_script_names.log"
@@ -32,7 +33,7 @@ printf '%s\n' 'case $- in *f*) exit 1 ;; esac' >"$module/1.user.sh.condition"
 : >"$cwd/21.user.sh"
 pont="$(pwd)/pont.sh"
 expected=$(printf '%s\n' init 1.user.sh 10.user.sh 21.user.sh \
-	'2[1].user.sh' | sort)
+	'2[1].user.sh' '2\b.user.sh' '4\b.user.fallback.sh' | sort)
 
 $COVERAGE ./pont.sh -fx literal_script_names_first literal_script_names \
 	>/dev/null

@@ -328,7 +328,7 @@ line != "" { print line }'
 
 module_exists() {
 	[ ! "$all_modules" ] && get_all_modules
-	echo "$all_modules" | grep -qxF -- "$1"
+	printf '%s\n' "$all_modules" | grep -qxF -- "$1"
 }
 
 get_all_modules() {
@@ -348,7 +348,7 @@ get_all_installed_modules() {
 			-mindepth 1 -type f -name "*$PONT_HASHFILE_NAME" -size +0c \
 			2>/dev/null | sed 's|.*/||' | while IFS= read -r _hashfile; do
 				_module=${_hashfile%"$PONT_HASHFILE_NAME"}
-				module_exists "$_module" && echo "$_module"
+				module_exists "$_module" && printf '%s\n' "$_module"
 			done | sort)
 	else
 		all_installed_modules=$(find "$PONT_MODULES_HOME" -maxdepth 2 \
@@ -446,35 +446,35 @@ ${1}"
 log_trace() {
 	# Visible at and under log level 0
 	[ "${PONT_LOG_LEVEL:-1}" -le 0 ] && \
-		echo "${C_CYAN}[  Trace  ]: $*${C_RESET}" >&2
+		printf '%s\n' "${C_CYAN}[  Trace  ]: $*${C_RESET}" >&2
 	return 0
 }
 
 log_info() {
 	# Visible at and under log level 1
 	[ "${PONT_LOG_LEVEL:-1}" -le 1 ] && \
-		echo "${C_BLUE}[  Info   ]: $*${C_RESET}" >&2
+		printf '%s\n' "${C_BLUE}[  Info   ]: $*${C_RESET}" >&2
 	return 0
 }
 
 log_warning() {
 	# Visible at and under log level 2
 	[ "${PONT_LOG_LEVEL:-1}" -le 2 ] && \
-		echo "${C_YELLOW}[ Warning ]: $*${C_RESET}" >&2
+		printf '%s\n' "${C_YELLOW}[ Warning ]: $*${C_RESET}" >&2
 	return 0
 }
 
 log_success() {
 	# Visible at and under log level 2, same as warning but green
 	[ "${PONT_LOG_LEVEL:-1}" -le 2 ] && \
-		echo "${C_GREEN}[ Success ]: $*${C_RESET}" >&2
+		printf '%s\n' "${C_GREEN}[ Success ]: $*${C_RESET}" >&2
 	return 0
 }
 
 log_error() {
 	# Visible at and under log level 3
 	[ "${PONT_LOG_LEVEL:-1}" -le 3 ] && \
-		echo "${C_RED}[  Error  ]: $*${C_RESET}" >&2
+		printf '%s\n' "${C_RED}[  Error  ]: $*${C_RESET}" >&2
 	return 0
 }
 
@@ -653,37 +653,37 @@ action_list_execution_queue() {
 action_list_installed_modules() {
 	log_trace "All installed modules:"
 	[ ! "$all_installed_modules" ] && get_all_installed_modules
-	echo "$all_installed_modules"
+	printf '%s\n' "$all_installed_modules"
 }
 
 action_list_deprecated() {
 	log_trace "All deprecated modules:"
 	[ ! "$all_deprecated_modules" ] && get_all_deprecated_modules
-	echo "$all_deprecated_modules"
+	printf '%s\n' "$all_deprecated_modules"
 }
 
 action_list_modules() {
 	log_trace "All available modules:"
 	[ ! "$all_modules" ] && get_all_modules
-	echo "$all_modules"
+	printf '%s\n' "$all_modules"
 }
 
 action_list_presets() {
 	log_trace "All available presets:"
 	[ ! "$all_presets" ] && get_all_presets
-	echo "$all_presets"
+	printf '%s\n' "$all_presets"
 }
 
 action_list_tags() {
 	log_trace "All available tags:"
 	[ ! "$all_tags" ] && get_all_tags
-	echo "$all_tags"
+	printf '%s\n' "$all_tags"
 }
 
 action_list_outdated() {
 	log_trace "Listing outdated modules:"
 	[ ! "$all_outdated_modules" ] && get_all_outdated_modules
-	echo "$all_outdated_modules"
+	printf '%s\n' "$all_outdated_modules"
 }
 
 action_list_environment() {
@@ -1006,7 +1006,8 @@ pull_dotfiles() {
 # Prints the condition segment of a script name
 get_script_condition() {
 	# at least 4 section long, so there is a condition
-	[ "$(echo "$1" | cut -d '.' -f 4)" ] && echo "$1" | cut -d '.' -f 3
+	[ "$(printf '%s\n' "$1" | cut -d '.' -f 4)" ] &&
+		printf '%s\n' "$1" | cut -d '.' -f 3
 }
 
 script_requires_package_manager() {
@@ -1073,9 +1074,9 @@ warn_unused_script_condition_files() {
 
 hashfile_of() {
 	if [ "$PONT_HASH_HOME" ]; then
-		echo "$PONT_HASH_HOME/$1$PONT_HASHFILE_NAME"
+		printf '%s\n' "$PONT_HASH_HOME/$1$PONT_HASHFILE_NAME"
 	else
-		echo "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME"
+		printf '%s\n' "$PONT_MODULES_HOME/$1/$PONT_HASHFILE_NAME"
 	fi
 }
 
@@ -1097,8 +1098,9 @@ execute_scripts_for_module() {
 			log_trace "Running $script..."
 
 			privilege='user'
-			[ "$(echo "$script" | grep -o '\.' | wc -w)" -gt 1 ] && \
-				privilege=$(echo "$script" | cut -d '.' -f 2 | sed 's/-.*//')
+			[ "$(printf '%s\n' "$script" | grep -o '\.' | wc -w)" -gt 1 ] && \
+				privilege=$(printf '%s\n' "$script" |
+					cut -d '.' -f 2 | sed 's/-.*//')
 			case "$privilege" in
 			root | sudo) root_script=1 ;;
 			*) root_script= ;;
@@ -1451,7 +1453,7 @@ stow_package() {
 		fi
 
 		log_trace "Do stowing $1"
-		do_stow "$(echo "${1%/*}" | sed 's|^$|/|')" \
+		do_stow "$(printf '%s\n' "${1%/*}" | sed 's|^$|/|')" \
 			"$(package_target "$(basename "$1")")" \
 			"$(basename "$1")" \
 			"$stow_mode"
@@ -1543,7 +1545,8 @@ install_module() {
 	scripts_in_module=$(get_install_scripts_in_module "$1")
 	log_trace "Scripts in module for $1 are:
 $scripts_in_module"
-	groups_in_module=$(echo "$scripts_in_module" | sed 's/\..*//g' | uniq)
+	groups_in_module=$(printf '%s\n' "$scripts_in_module" |
+		sed 's/\..*//g' | uniq)
 	pause_globbing
 	for group in $groups_in_module; do
 		resume_globbing
@@ -1561,8 +1564,8 @@ $scripts_in_module"
 				group_scripts_to_run="$group_scripts_to_run
 $script"
 			# at least 4 section long, so there is a condition
-			elif [ "$(echo "$script" | cut -d '.' -f 4)" ]; then
-				script_condition="$(echo "$script" | cut -d '.' -f 3)"
+			elif [ "$(printf '%s\n' "$script" | cut -d '.' -f 4)" ]; then
+				script_condition="$(printf '%s\n' "$script" | cut -d '.' -f 3)"
 				if [ "$script_condition" = "fallback" ]; then
 					log_trace "fallback script"
 					group_scripts_to_run="$group_scripts_to_run
@@ -1585,7 +1588,7 @@ $script"
 			fi
 		done
 		resume_globbing
-		group_scripts_without_fallback=$(echo "$group_scripts_to_run" |
+		group_scripts_without_fallback=$(printf '%s\n' "$group_scripts_to_run" |
 			 grep -v 'fallback')
 
 		log_trace "scripts to execute after conditions
@@ -1593,7 +1596,7 @@ $group_scripts_without_fallback"
 
 		execute_scripts_for_module "$1" "$group_scripts_without_fallback"
 
-		group_fallback_scripts=$(echo "$group_scripts_to_run" |
+		group_fallback_scripts=$(printf '%s\n' "$group_scripts_to_run" |
 			 grep 'fallback')
 		if [ "$successful_scripts" = 0 ] && [ "$group_fallback_scripts" ]; then
 			log_info "Installing group $group for $1 was not successful, \
@@ -1816,7 +1819,7 @@ $final_module_list"
 
 action_list_modules_to_install() {
 	log_info "List modules to install:"
-	echo "$final_module_list"
+	printf '%s\n' "$final_module_list"
 }
 
 action_remove_modules() {
@@ -1843,7 +1846,7 @@ do_yank() {
 	pause_globbing
 	for preset in $expanded_presets; do
 		resume_globbing
-		preset_file_name="$(echo "$preset" | cut -d '+' -f 2-).preset"
+		preset_file_name="$(printf '%s\n' "$preset" | cut -d '+' -f 2-).preset"
 		preset_file=$(find "$PONT_PRESETS_HOME" -type f \
 			-name "$(literal_pattern "$preset_file_name")")
 		if [ -z "$preset_file" ]; then
