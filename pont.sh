@@ -34,12 +34,12 @@
 # SOFTWARE.
 #
 
-C_RESET='\033[0m'
-C_RED='\033[0;31m'
-C_GREEN='\033[0;32m'
-C_YELLOW='\033[0;33m'
-C_BLUE='\033[0;34m'
-C_CYAN='\033[0;36m'
+C_RESET=$(printf '\033[0m')
+C_RED=$(printf '\033[0;31m')
+C_GREEN=$(printf '\033[0;32m')
+C_YELLOW=$(printf '\033[0;33m')
+C_BLUE=$(printf '\033[0;34m')
+C_CYAN=$(printf '\033[0;36m')
 
 # Make all the variables (except IFS) in this script available to the subshells
 set -a
