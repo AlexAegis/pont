@@ -544,8 +544,10 @@ are always executed using `user` privileges.
 
 > .dependencies
 
-This file lists all the dependencies the module has. It supports comments,
-lines starting with `#`.
+This file lists all the dependencies the module has, one on each line. A `#`
+starts a comment that ends with the line. Blanks (spaces, tabs and carriage
+returns) at either end of a line are ignored. A line that is empty after that
+is skipped.
 Every other line is a dependency and the first word can be the name of a
 [module](#Dotmodules) if its not prefixed with anything. It can also be a
 [tag](#Tags) if prefixed with `:` or a [preset](#Presets)
@@ -576,8 +578,8 @@ executed earlier.
 #### Conditional dependencies
 
 Dependencies can be conditional. After the dependency statement you can put
-a `?`. Everything after that will be `eval`d and then `test`ed. If it's not
-true, the dependency will be skipped.
+a `?`. Everything after the first `?`, up to a comment, will be `eval`d and
+then `test`ed. If it's not true, the dependency will be skipped.
 
 An example usecase for this would be the counterpart of the
 [fallback section](#Fallback). There I defined how that module should build
@@ -633,16 +635,19 @@ many others as a non-essential dependency. In a headless environment like
 some of your modules might end up depending on them for convinience.
 
 Instead of marking each dependency with a condition, the module itself can be.
-For this, create a file name `.condition` in the modules root. It's content
-will simply be `eval`d before executing anything in the module. So not even
-`init` will run if `.condition` is false. [Remove](#Remove) describes how `-r`
-handles an installed module whose `.condition` fails.
+For this, create a file name `.condition` in the modules root. Its lines, with
+comments and the blanks at either end removed as in
+[`.dependencies`](#Dependencies), will be `eval`d before executing anything in
+the module. So not even `init` will run if `.condition` is false.
+[Remove](#Remove) describes how `-r` handles an installed module whose
+`.condition` fails.
 
 ### Tags
 
 > .tags
 
-This file also supports comments, and each line defines a tag.
+Each line defines a tag. Comments and the blanks at either end of a line are
+removed as in [`.dependencies`](#Dependencies).
 This is used to define a module group on module level.
 
 Tags can be installed using the `:` prefix like so:

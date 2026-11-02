@@ -312,6 +312,20 @@ literal_pattern() {
 	printf '%s\n' "$1" | sed 's/[][*?\\]/\\&/g'
 }
 
+# awk code that sets line to the current line without its comment, which starts
+# at the first #, and without spaces, tabs and carriage returns at either end.
+# Every reader of entry, tag and condition lines starts its awk program with it.
+# shellcheck disable=SC2016
+awk_normalize_line='{
+	line = $0
+	sub(/#.*/, "", line)
+	sub(/^[ \t\r]+/, "", line)
+	sub(/[ \t\r]+$/, "", line)
+}'
+# awk program that prints each line that awk_normalize_line does not empty
+awk_print_normalized_lines="$awk_normalize_line"'
+line != "" { print line }'
+
 module_exists() {
 	[ ! "$all_modules" ] && get_all_modules
 	echo "$all_modules" | grep -qxF -- "$1"
@@ -372,9 +386,7 @@ get_all_deprecated_modules() {
 }
 
 get_all_tags() {
-	all_tags=$(find "$PONT_MODULES_HOME"/*/ -maxdepth 1 -mindepth 1 \
-		-type f -name '.tags' -exec cat {} + | \
-		sed -e 's/ *#.*$//' -e '/^$/d' | sort | uniq)
+	all_tags=$(awk_tags_files "$awk_print_normalized_lines" | sort | uniq)
 }
 
 rename_module() {
@@ -917,59 +929,65 @@ $entries_selected"
 	done
 }
 
-has_tag() {
-	# Returns every dotmodule whose tags file has a line with the tag. Blanks
-	# and a comment can follow the tag. The tag is compared as a string.
-	[ "$1" ] || return 0
-	_ht_tag=$1
+# Runs the awk program $1 on every readable tags file of the dotmodules
+awk_tags_files() {
+	_atf_program=$1
 	# awk stops at the first file that it cannot open: pass only readable files
 	set --
-	for _ht_file in "$PONT_MODULES_HOME"/*/"$PONT_TAGSFILE_NAME"; do
-		if [ -f "$_ht_file" ] && [ -r "$_ht_file" ]; then
-			set -- "$@" "$_ht_file"
-		elif [ -e "$_ht_file" ] || [ -L "$_ht_file" ]; then
-			log_warning "Tags file not readable: $_ht_file"
+	for _atf_file in "$PONT_MODULES_HOME"/*/"$PONT_TAGSFILE_NAME"; do
+		if [ -f "$_atf_file" ] && [ -r "$_atf_file" ]; then
+			set -- "$@" "$_atf_file"
+		elif [ -e "$_atf_file" ] || [ -L "$_atf_file" ]; then
+			log_warning "Tags file not readable: $_atf_file"
 		fi
 	done
 	[ $# -gt 0 ] || return 0
+	awk "$_atf_program" "$@"
+}
+
+has_tag() {
+	# Returns every dotmodule whose tags file has a line with the tag. The tag
+	# is compared as a string.
+	[ "$1" ] || return 0
+	_ht_tag=$1
+	export _ht_tag
 	# shellcheck disable=SC2016
-	_ht_tag=$_ht_tag awk '
-		{
-			tag = $0
-			sub(/[ \t\r]*#.*$/, "", tag)
-			sub(/[ \t\r]+$/, "", tag)
-		}
-		tag == ENVIRON["_ht_tag"] && !seen[FILENAME]++ { print FILENAME }
-	' "$@" | sed -E 's_^.*/([^/]*)/[^/]*$_\1_g'
+	awk_tags_files "$awk_normalize_line"'
+		line == ENVIRON["_ht_tag"] && !seen[FILENAME]++ { print FILENAME }
+	' | sed -E 's_^.*/([^/]*)/[^/]*$_\1_g'
 }
 
 in_preset() {
 	# returns every entry in a preset
 	find "$PONT_PRESETS_HOME" -mindepth 1 \
 		-name "$(literal_pattern "$1$PONT_PRESET_EXTENSION")" \
-		-type f -print0 | xargs -0 sed -e 's/ *#.*$//' -e '/^$/d'
+		-type f -exec awk "$awk_print_normalized_lines" {} +
 }
 
 get_clashes() {
 	if [ -f "$PONT_MODULES_HOME/$1/$PONT_CLASHFILE_NAME" ]; then
-		sed -e 's/ *#.*$//' -e '/^$/d' \
+		awk "$awk_print_normalized_lines" \
 			"$PONT_MODULES_HOME/$1/$PONT_CLASHFILE_NAME"
 	fi
 }
 
 get_dependencies() {
 	if [ -f "$PONT_MODULES_HOME/$1/$PONT_DEPENDENCIESFILE_NAME" ]; then
-		sed -e 's/ *#.*$//' -e '/^$/d' \
+		awk "$awk_print_normalized_lines" \
 			"$PONT_MODULES_HOME/$1/$PONT_DEPENDENCIESFILE_NAME"
 	fi
 }
 
+# Prints the entry of an entry line, without its condition
 get_entry() {
-	echo "$1" | cut -d '?' -f 1 | cut -d '#' -f 1 | sed 's/[[:space:]]*$//'
+	printf '%s\n' "$1" | awk "$awk_normalize_line"'
+		{ sub(/[ \t\r]*[?].*/, "", line); print line }'
 }
 
+# Prints the condition of an entry line: the text after its first ?
 get_condition() {
-	echo "$1" | cut -d '?' -s -f 2- | cut -d '#' -f 1  | sed 's/^ //'
+	printf '%s\n' "$1" | awk "$awk_normalize_line"'
+		sub(/^[^?]*[?][ \t\r]*/, "", line) { print line }'
 }
 
 pull_dotfiles() {
@@ -1163,7 +1181,7 @@ do_expand_entries() {
 				resolved="$resolved
 $_dee_entry"
 			fi
-			case "$1" in
+			case "$_dee_entry" in
 			+*) # presets
 				# printed for a yank action, expand_entries separates them
 				get_entry "$1"
@@ -1623,7 +1641,7 @@ hash_module() {
 check_module_condition() {
 	# Leaves the condition in $condition for the log of the caller
 	if [ -e "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME" ]; then
-		condition="$(sed -e 's/ *#.*$//' -e '/^$/d' \
+		condition="$(awk "$awk_print_normalized_lines" \
 			"$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
 		if ! eval "$condition"; then
 			return 1
