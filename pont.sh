@@ -338,7 +338,7 @@ get_all_modules() {
 
 get_all_presets() {
 	all_presets=$(find "$PONT_PRESETS_HOME/" -mindepth 1 \
-		-type f -name '*.preset' | sed -e 's|.*/||' -e 's/.preset//' | sort)
+		-type f -name '*.preset' | sed -e 's|.*/||' -e 's/\.preset$//' | sort)
 }
 
 get_all_installed_modules() {
