@@ -124,10 +124,23 @@ XDG_BIN_HOME=${XDG_BIN_HOME:-"$user_home/.local/bin"}
 
 # Environmental config
 
+# A name without a slash is in the current folder or, in bash, was found
+# through PATH. Keep the case out of $(...): bash 3.2 ends $(...) at the ) of
+# a case pattern.
+script_folder=.
+case $0 in
+*/*) script_folder=${0%/*} ;;
+*)
+	if ! [ -e "$0" ] && script_path=$(command -v -- "$0"); then
+		case $script_path in */*) script_folder=${script_path%/*} ;; esac
+	fi
+	;;
+esac
 script_location=$(
-	cd "${0%\/*}" || exit
+	cd "$script_folder" || exit
 	pwd
 )
+unset script_folder script_path
 # if it has been installed
 if [ -L "$script_location/pont" ]; then
 	script_link_location=$(readlink "$script_location/pont")
