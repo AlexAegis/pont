@@ -350,8 +350,13 @@ get_all_modules() {
 }
 
 get_all_presets() {
-	all_presets=$(find "$PONT_PRESETS_HOME/" -mindepth 1 \
-		-type f -name '*.preset' | sed -e 's|.*/||' -e 's/\.preset$//' | sort)
+	_gap_extension=$PONT_PRESET_EXTENSION
+	export _gap_extension
+	all_presets=$(find "$PONT_PRESETS_HOME/" -mindepth 1 -type f \
+		-name "*$(literal_pattern "$PONT_PRESET_EXTENSION")" | awk '{
+			sub(/.*\//, "")
+			print substr($0, 1, length($0) - length(ENVIRON["_gap_extension"]))
+		}' | sort)
 }
 
 get_all_installed_modules() {
@@ -1859,7 +1864,8 @@ do_yank() {
 	pause_globbing
 	for preset in $expanded_presets; do
 		resume_globbing
-		preset_file_name="$(printf '%s\n' "$preset" | cut -d '+' -f 2-).preset"
+		preset_file_name="$(printf '%s\n' "$preset" |
+			cut -d '+' -f 2-)$PONT_PRESET_EXTENSION"
 		preset_file=$(find "$PONT_PRESETS_HOME" -type f \
 			-name "$(literal_pattern "$preset_file_name")")
 		if [ -z "$preset_file" ]; then

@@ -199,6 +199,8 @@ PONT_PRESETS_HOME="$DOTFILES_HOME/presets"
 PONT_TEMPLATE_HOME="$DOTFILES_HOME/template"
 # Modules to always include regardless of selection
 PONT_BASE_MODULES="base sys"
+# The extension of preset files
+PONT_PRESET_EXTENSION=".preset"
 ```
 
 ```sh
@@ -668,7 +670,7 @@ pont :shell
 
 This will install every module that has a `.tags` file with the line `shell`.
 
-Tags can both appear in `.dependencies` files and in `*.preset` files.
+Tags can appear both in `.dependencies` files and in preset files.
 
 ### Listing available tags
 
@@ -714,10 +716,10 @@ check with `command -v` if that it's a valid executable.
 
 ## Presets
 
-Presets basically standalone dependency files without anything to install.
-They have to have a `.preset` extension and they are searched under
-`$PONT_PRESETS_FOLDER` which by default the `presets` directory in your
-dotfiles directory.
+Presets are standalone dependency files without anything to install.
+They have to have the extension in `$PONT_PRESET_EXTENSION`, by default
+`.preset`. They are searched under `$PONT_PRESETS_HOME`, by default the
+`presets` directory in your dotfiles directory, subdirectories included.
 
 They can handle everything a normal dependency file can.
 
