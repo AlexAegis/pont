@@ -372,6 +372,11 @@ you can also just put them into a separate folder.
 The first segment is used for ordering. If multiple scripts are in one
 order, they are considered a **script group**.
 
+The groups run in the order of their numbers, so `2` runs before `10`. Groups
+with the same number, such as `01` and `1`, run in byte order of the names.
+The scripts of a group, and the init, `e`, update and remove scripts, also run
+in byte order of their names, the same in every locale.
+
 The only mechanic related to this are `fallback` scripts, more on that in the
 [third segment](#Fallback)
 
