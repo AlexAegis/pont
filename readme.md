@@ -177,18 +177,28 @@ config file. Everything above that is overridable.
 These ones can be only configured through the files, or by hand, when
 executing `pont` like `PONT_TARGET="./target" pont <module1> <module2>...`
 
+A `${VAR:-default}` line has no effect on a variable that already has a
+nonempty default, such as `PONT_MODULES_HOME`, so assign the value directly. A
+value from a config file replaces the value from the environment, so copy only
+the lines that you change.
+
 ```sh
-# The default target of module packages
-PONT_TARGET=${PONT_TARGET:-"$HOME"}
-# Your dotfiles location. Not directly utilized, only through the next two
-DOTFILES_HOME=${DOTFILES_HOME:-"$HOME/.dotfiles"}
-# I suggest keeping these relative to DOTFILES_HOME
+# The target of module packages. Default: the home folder of SUDO_USER under
+# sudo, else of USER. It can differ from $HOME under sudo.
+PONT_TARGET="$HOME/target"
+# Your dotfiles location. Default: two levels above the folder of pont.sh,
+# such as ~/.dotfiles for ~/.dotfiles/modules/pont/pont.sh
+DOTFILES_HOME="$HOME/.dotfiles"
+# pont derives the module, preset and template folders from DOTFILES_HOME
+# before it reads this file, so set them again when you change it here.
 # Dotmodules will be searched here. Only direct descendant folders.
-DOT_MODULES_FOLDER=${DOT_MODULES_FOLDER:-"$DOTFILES_HOME/modules"}
+PONT_MODULES_HOME="$DOTFILES_HOME/modules"
 # Presets will be searched from here, recursively
-DOT_PRESETS_FOLDER=${DOT_PRESETS_FOLDER:-"$DOTFILES_HOME/presets"}
+PONT_PRESETS_HOME="$DOTFILES_HOME/presets"
+# The template that new modules are scaffolded from
+PONT_TEMPLATE_HOME="$DOTFILES_HOME/template"
 # Modules to always include regardless of selection
-DOT_BASE_MODULES="base sys"
+PONT_BASE_MODULES="base sys"
 ```
 
 ```sh
