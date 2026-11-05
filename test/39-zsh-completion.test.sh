@@ -59,3 +59,29 @@ result=$(
 )
 [ "$result" = "+mypreset" ] ||
 	{ echo "Completed with pont as a function: $result"; exit 1; }
+
+folders="$PONT_TARGET/folders"
+mkdir -p "$folders/one" "$folders/two"
+: >"$folders/file"
+ln -s one "$folders/link"
+for line in 'pont -t ' 'pont --target ' 'pont --target=' 'pont -y ' \
+	'pont --yank=' 'pont -Y ' 'pont --yank-expanded ' 'pont --yank-expanded='; do
+	result=$(cd "$folders" && list_completions "$line")
+	[ "$result" = "link
+one
+two" ] || { echo "Completed '$line' as: $result"; exit 1; }
+done
+for line in 'pont -l t' 'pont --log=t' 'pont --log-level t' \
+	'pont --log-level=t'; do
+	result=$(list_completions "$line")
+	[ "$result" = trace ] || { echo "Completed '$line' as: $result"; exit 1; }
+done
+for flag in -T --expand-selected --yank-expanded; do
+	result=$(list_completions "pont $flag")
+	case $result in
+	*'
+'* | '') echo "Completed $flag as: $result"; exit 1 ;;
+	"$flag "*) ;;
+	*) echo "Completed $flag as: $result"; exit 1 ;;
+	esac
+done
