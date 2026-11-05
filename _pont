@@ -1,32 +1,22 @@
-#compdef _pont pont
+#compdef pont
 
-DOTFILES_HOME=${DOTFILES_HOME:-~/.config/dotfiles}
-
-function __get_presets {
-	find ${PONT_PRESETS_HOME:-$DOTFILES_HOME/presets/*} -regex '.*.preset' \
-		-maxdepth 1 -mindepth 1 |
-		sed -e 's|.*/||' -e 's/.preset//' -e 's/^/+/' -e 's/$/ /'
-}
-
-function __get_tags {
-	find ${PONT_MODULES_HOME:-$DOTFILES_HOME/modules/*} \
-		-maxdepth 1 -mindepth 1 -name '.tags' \
-		-exec cat {} + | grep "^[^#;]" |
-		sort | uniq | sed -e 's/^/:/' -e 's/$/ /'
-}
-
+# The lists come from pont itself, which reads the pontrc files first
 function _pont_modules {
-	_path_files -S " " -r " " -/ -W ${PONT_MODULES_HOME:-$DOTFILES_HOME/modules}
+	local -a modules
+	modules=(${(f)"$(pont --list-modules 2>/dev/null)"})
+	compadd -a modules
 }
 
 function _pont_presets {
-	local presets=("${(@f)$(__get_presets)}")
-	_multi_parts " " 'presets'
+	local -a presets
+	presets=(${(f)"$(pont --list-presets 2>/dev/null)"})
+	compadd -- +${^presets}
 }
 
 function _pont_tags {
-	local tags=("${(@f)$(__get_tags)}")
-	_multi_parts " " 'tags'
+	local -a tags
+	tags=(${(f)"$(pont --list-tags 2>/dev/null)"})
+	compadd -- :${^tags}
 }
 
 function _pont_all {
@@ -88,3 +78,4 @@ function _pont {
        "*:: :{ _pont_all }"
 }
 
+_pont "$@"

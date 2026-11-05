@@ -144,7 +144,10 @@ alexaegis/pont
 > cause confusion
 
 Autocompletions will list all presets, tags and modules when triggered. When
-typing a `-`, triggering the autocompletion will list all flags.
+typing a `-`, triggering the autocompletion will list all flags. The lists come
+from `pont -A`, `pont -P` and `pont -T`, so the shell has to find `pont`, as a
+command on the path or as a function. Like every run of pont, these source the
+pontrc files, so a completion in a folder runs the `./.pontrc` there.
 
 ## Usage
 
