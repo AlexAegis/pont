@@ -14,7 +14,7 @@ PATH="$bin:$PATH"
 export PATH
 
 list_completions() {
-	timeout 10 zsh -f "$harness" "$1" ||
+	timeout 10 zsh -f "$harness" "$@" ||
 		{ echo "Completion of '$1' failed with status $?" >&2; exit 1; }
 }
 
@@ -64,24 +64,75 @@ folders="$PONT_TARGET/folders"
 mkdir -p "$folders/one" "$folders/two"
 : >"$folders/file"
 ln -s one "$folders/link"
-for line in 'pont -t ' 'pont --target ' 'pont --target=' 'pont -y ' \
-	'pont --yank=' 'pont -Y ' 'pont --yank-expanded ' 'pont --yank-expanded='; do
+for line in 'pont -t ' 'pont -t=' 'pont -vt ' 'pont --target ' \
+	'pont --target=' 'pont -y ' 'pont -y=' 'pont --yank=' 'pont -Y ' \
+	'pont -Y=' 'pont --yank-expanded ' 'pont --yank-expanded='; do
 	result=$(cd "$folders" && list_completions "$line")
 	[ "$result" = "link
 one
 two" ] || { echo "Completed '$line' as: $result"; exit 1; }
 done
-for line in 'pont -l t' 'pont --log=t' 'pont --log-level t' \
-	'pont --log-level=t'; do
+for line in 'pont -l t' 'pont -l=t' 'pont -vl=t' 'pont --log=t' \
+	'pont --log-level t' 'pont --log-level=t'; do
 	result=$(list_completions "$line")
 	[ "$result" = trace ] || { echo "Completed '$line' as: $result"; exit 1; }
 done
-for flag in -T --expand-selected --yank-expanded; do
-	result=$(list_completions "pont $flag")
+expect_option() {
+	result=$(list_completions "$1")
 	case $result in
 	*'
-'* | '') echo "Completed $flag as: $result"; exit 1 ;;
-	"$flag "*) ;;
-	*) echo "Completed $flag as: $result"; exit 1 ;;
+'* | '') echo "Completed '$1' as: $result"; exit 1 ;;
+	"$2 "*) ;;
+	*) echo "Completed '$1' as: $result"; exit 1 ;;
 	esac
+}
+expect_option 'pont --expand-selected' --expand-selected
+expect_option 'pont --yank-expanded' --yank-expanded
+expect_option 'pont -\?' '-?'
+expect_option 'pont -r --rem' --remove
+expect_option 'pont --ren' --rename
+expect_entries() {
+	entries_line=$1
+	entries_listed=$2
+	shift 2
+	result=$(list_completions "$entries_line")
+	printf '%s\n' "$result" | grep -qx -e "$entries_listed" || {
+		echo "Completed '$entries_line' without $entries_listed: $result"
+		exit 1
+	}
+	for unlisted; do
+		! printf '%s\n' "$result" | grep -qx -e "$unlisted" || {
+			echo "Completed '$entries_line' with $unlisted: $result"
+			exit 1
+		}
+	done
+}
+expect_entries 'pont -T' -v -T
+expect_entries 'pont -h -' -v '-?'
+expect_entries 'pont -? -' -v -h --help
+result=$(
+	# shellcheck disable=SC2089
+	COMPLETE_SETUP="zstyle ':completion:*:descriptions' format '<LC><RC>%d<EC>'"
+	# shellcheck disable=SC2090
+	export COMPLETE_SETUP
+	list_completions 'pont --rename '
+)
+[ "$result" = "module
+rc_one
+rc_two" ] || { echo "Completed 'pont --rename ' as: $result"; exit 1; }
+result=$(list_completions 'pont --rename=')
+[ "$result" = "rc_one
+rc_two" ] || { echo "Completed 'pont --rename=' as: $result"; exit 1; }
+for line in 'pont -t' 'pont -vt' 'pont -l' 'pont -y' 'pont -Y'; do
+	result=$(cd "$folders" && list_completions "$line" --insert)
+	[ "$result" = "$line X" ] ||
+		{ echo "Inserted after '$line': $result"; exit 1; }
+done
+result=$(cd "$folders" && list_completions 'pont -to' --insert)
+[ "$result" = 'pont -toX' ] ||
+	{ echo "Inserted after 'pont -to': $result"; exit 1; }
+for line in 'pont -t' 'pont -to' 'pont -vto' 'pont -lt' 'pont -yo' \
+	'pont -Yo' 'pont --scaffold ' 'pont --cpt one ' 'pont --rename rc_one '; do
+	result=$(cd "$folders" && list_completions "$line")
+	[ -z "$result" ] || { echo "Completed '$line' as: $result"; exit 1; }
 done

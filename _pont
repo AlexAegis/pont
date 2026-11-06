@@ -4,7 +4,7 @@
 function _pont_modules {
 	local -a modules
 	modules=(${(f)"$(pont --list-modules 2>/dev/null)"})
-	compadd -a modules
+	compadd "$@" -a modules
 }
 
 function _pont_presets {
@@ -25,17 +25,26 @@ function _pont_all {
 	_pont_tags
 }
 
+# pont splits -tdir into the flags -t -d -i -r, so a value of a short option
+# completes only after a space or a =. Right after the letter, a TAB adds the
+# space.
+function _pont_handle_stuck_value {
+	[[ $IPREFIX == -[^-=]## ]] || return 1
+	[[ -z $PREFIX$SUFFIX ]] && compadd -S ' ' -- ''
+	return 0
+}
+
 function _pont {
-    _arguments -S -C \
-       '(-h --help)'{-h,--help}'[Print information on usage and flags then exit]' \
+    _arguments -s -S -C \
+       '(-h -? --help)'{-h,-\?,--help}'[Print information on usage and flags then exit]' \
        '(-V --version)'{-V,--version}'[Print script version then exit]' \
-       '(-l --log --log-level)'{-l,--log=,--log-level=}'[set log level, possible values are:
+       '(-l --log --log-level)'{-l=,--log=,--log-level=}'[set log level, possible values are:
 	0, trace, TRACE
 	1, info, INFO
 	2, warning, WARNING, success, SUCCESS
 	3, error, ERROR
 	4, none, NONE
-	   each option in a line mean the same thing]:log level:(0 1 2 3 4 trace info warning success error none TRACE INFO WARNING SUCCESS ERROR NONE)'\
+	   each option in a line mean the same thing]:log level:{ _pont_handle_stuck_value || compadd "$expl[@]" - 0 1 2 3 4 trace info warning success error none TRACE INFO WARNING SUCCESS ERROR NONE }'\
 	   '(-v --verbose)'{-v,--verbose}'[log level 0 (trace)]' \
 	   '(-q --quiet)'{-q,--quiet}'[log level 3 (error)]' \
 	   '(-I --list-installed)'{-I,--list-installed}'[List all installed modules then exit]' \
@@ -52,7 +61,7 @@ function _pont {
 	   '(-p --pull-dotfiles)'{-p,--pull-dotfiles}'[Perform git pull on the dotfiles home folder]' \
 	   '(-u --update)'{-u,--update}'[Run all scrips starting with u in the selected modules.]' \
 	   '(-x --execute --install)'{-x,--execute,--install}'[Run init scripts, stow configs, then run scripts starting with a number and the Makefile in all the selected modules.]' \
-	   '(-r --remove)'{-r,--remove}'[Unstows every stow package in the selected modules. If this flag is added twice it will also run all scrips starting with r in the selected modules.]' \
+	   '*'{-r,--remove}'[Unstows every stow package in the selected modules. If this flag is added twice it will also run all scrips starting with r in the selected modules.]' \
 	   '(-n --expand-none)'{-n,--expand-none}'[Expands only the abstract entries in the direct selection. No dependencies are resolved]' \
 	   '(-e --expand-selected)'{-e,--expand-selected}'[Expands the original selection (the argument list) down to its dependencies recursively. Use this for regular installations.]' \
 	   '(-a --expand-all)'{-a,--expand-all}'[Expands every module regardless of the current selection.]' \
@@ -71,10 +80,11 @@ function _pont {
 	   '(-S --skip-scripts)'{-S,--skip-scripts}'[Disables script execution. Its like dry execution but with stowing enabled.]' \
 	   '(-m --make)'{-m,--make}'[Enables Makefile execution. On by default.]' \
 	   '(-M --skip-make)'{-M,--skip-make}'[Disables Makefile execution.]' \
-	   '(-t --target)'{-t,--target=}'[Its value will specify PONT_TARGET for this execution.]:target folder:_files -/' \
-	   '(--scaffold --cpt)'{--scaffold,--cpt}'[Instead of executing modules, the selection now will used to scaffold modules based on a template folder at PONT_TEMPLATE_HOME]' \
-	   '(-y --yank)'{-y,--yank=}'[will yank the selection (with none expansion by default) to the target folder. Useful for copying modules along with their dependencies. (Used presets are also copied!)]:yank folder:_files -/' \
-	   '(-Y --yank-expanded)'{-Y,--yank-expanded=}'[will yank the expanded selection (same as -ey) to the target folder.]:yank folder:_files -/' \
+	   '(-t --target)'{-t=,--target=}'[Its value will specify PONT_TARGET for this execution.]:target folder:{ _pont_handle_stuck_value || _files "$expl[@]" -/ }' \
+	   '(--scaffold --cpt)'{--scaffold,--cpt}'[Instead of executing modules, the selection now will used to scaffold modules based on a template folder at PONT_TEMPLATE_HOME]:*:module name: ' \
+	   '(-y --yank)'{-y=,--yank=}'[will yank the selection (with none expansion by default) to the target folder. Useful for copying modules along with their dependencies. (Used presets are also copied!)]:yank folder:{ _pont_handle_stuck_value || _files "$expl[@]" -/ }' \
+	   '--rename=[Renames a module. Not implemented yet.]:module:_pont_modules:new module name: ' \
+	   '(-Y --yank-expanded)'{-Y=,--yank-expanded=}'[will yank the expanded selection (same as -ey) to the target folder.]:yank folder:{ _pont_handle_stuck_value || _files "$expl[@]" -/ }' \
        "*:: :{ _pont_all }"
 }
 
