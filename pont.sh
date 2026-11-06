@@ -496,6 +496,12 @@ log_error() {
 	return 0
 }
 
+# Logs the error and stops pont
+die() {
+	log_error "$@"
+	exit 1
+}
+
 show_help() {
 	echo "$(show_version)
 -h, --help                    -- Print information on usage and flags then
@@ -840,7 +846,7 @@ interpret_args() {
 					'success' | 'SUCCESS') PONT_LOG_LEVEL='2' ;;
 					'error' | 'ERROR' | '3') PONT_LOG_LEVEL='3' ;;
 					'none' | 'NONE' | '4') PONT_LOG_LEVEL='4' ;;
-					*) log_error "Invalid loglevel: $2"; exit 1 ;;
+					*) die "Invalid loglevel: $2" ;;
 				esac
 				shift
 				;;
@@ -894,7 +900,7 @@ interpret_args() {
 				if [ -d "$2" ]; then
 					PONT_TARGET="$2"
 				else
-					log_error "Invalid target: $2"; exit 1
+					die "Invalid target: $2"
 				fi
 				shift
 				;;
@@ -908,7 +914,7 @@ interpret_args() {
 				if [ -d "$2" ]; then
 					yank_target="$2"
 				else
-					log_error "Invalid target: $2"; exit 1
+					die "Invalid target: $2"
 				fi
 				log_trace "yank_target $yank_target"
 				shift
@@ -918,7 +924,7 @@ interpret_args() {
 				if [ -d "$2" ]; then
 					yank_target="$2"
 				else
-					log_error "Invalid target: $2"; exit 1
+					die "Invalid target: $2"
 				fi
 				shift
 				;;
@@ -1385,15 +1391,13 @@ do_stow() {
 	log_trace "Stowing package $3 to $2 from $1"
 
 	if ! is_installed stow; then
-		log_error "stow is not installed!"
-		exit 1
+		die "stow is not installed!"
 	fi
 	if [ ! -d "$1" ]; then
-		log_error "package not found!
+		die "package not found!
 	$1
 	$2
 	$3"
-		exit 1
 	fi
 	if [ "$2" ] && [ ! -d "$2" ]; then
 		log_warning "target directory does not exist, creating!
@@ -1403,11 +1407,10 @@ do_stow() {
 		mkdir -p "$2"
 	fi
 	if [ ! "$3" ]; then
-		log_error "no package name!
+		die "no package name!
 	$1
 	$2
 	$3"
-		exit 1
 	fi
 
 	if [ "${PONT_DRY_FLAG:-0}" != 1 ]; then
@@ -1907,8 +1910,7 @@ ask_checklist() {
 }
 
 ask_entries() {
-	! is_installed whiptail && log_error "No whiptail installed" \
-		&& exit 1
+	is_installed whiptail || die "No whiptail installed"
 
 	[ ! "$all_modules" ] && get_all_modules
 	[ ! "$all_tags" ] && get_all_tags
