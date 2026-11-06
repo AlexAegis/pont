@@ -13,11 +13,11 @@ is_installed() {
 	fi
 	command -v "$1" 2>/dev/null 1>/dev/null
 }
-' > .pontrc
+' >.pontrc
 result=$(./pont.sh -q systemd)
 rm .pontrc
 
 # Assertions
 sync
 [ "$result" = "systemd script" ] ||
- 	fail "Result is empty, systemd script did not run!"
+	fail "Result is empty, systemd script did not run!"

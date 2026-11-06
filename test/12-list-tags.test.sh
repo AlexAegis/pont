@@ -8,4 +8,4 @@ result=$(./pont.sh -T)
 # Assertions
 sync
 [ "$result" = "basetag" ] ||
- 	fail "Not all tags have been listed!"
+	fail "Not all tags have been listed!"

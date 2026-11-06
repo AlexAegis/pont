@@ -32,7 +32,7 @@ result=$(./pont.sh -nL +ext_outer)
 mkdir -p "$target"
 errors=$(./pont.sh -y "$target" +ext_outer 2>&1 >/dev/null)
 case $errors in
-*'not found'*) fail "-y missed a preset: $errors" ;;
+	*'not found'*) fail "-y missed a preset: $errors" ;;
 esac
 for copy in preset_extension/ "ext_outer$extension" "ext_inner$extension"; do
 	[ -e "$target/$copy" ] || fail "-y did not copy $copy"

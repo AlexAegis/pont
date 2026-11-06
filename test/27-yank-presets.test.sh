@@ -38,9 +38,9 @@ done
 
 errors=$(./pont.sh -y "$target" +yank_missing 2>&1 >/dev/null)
 case $errors in
-*'yank_missing.preset not found'*) ;;
-*) fail "-y named no missing preset: $errors" ;;
+	*'yank_missing.preset not found'*) ;;
+	*) fail "-y named no missing preset: $errors" ;;
 esac
 case $errors in
-*cp:*) fail "-y ran cp for a missing preset: $errors" ;;
+	*cp:*) fail "-y ran cp for a missing preset: $errors" ;;
 esac

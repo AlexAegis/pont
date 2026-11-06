@@ -24,8 +24,9 @@ done
 lines() {
 	printf '%b' "$2" >"$PONT_MODULES_HOME/$1"
 }
-lines entry_lines_root/.dependencies '\tentry_lines_crlf ? true\r\n'\
-'  +entry_lines_preset\r\n \t# comment\r\n :entry_lines_tag # comment\r\n'
+deps='\tentry_lines_crlf ? true\r\n  +entry_lines_preset\r\n'
+deps=$deps' \t# comment\r\n :entry_lines_tag # comment\r\n'
+lines entry_lines_root/.dependencies "$deps"
 printf '%b' '  entry_lines_member \r\n\t \r\n' >"$preset"
 lines entry_lines_tagged/.tags ' entry_lines_tag\r\n'
 lines entry_lines_one/.tags 'entry_lines_one'

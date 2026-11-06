@@ -32,7 +32,7 @@ $COVERAGE ./pont.sh -q -fx scoped_clean scoped_clean_link
 
 sync
 case $errors in
-*rm:*) fail "Cleanup printed an rm error: $errors" ;;
+	*rm:*) fail "Cleanup printed an rm error: $errors" ;;
 esac
 for link in $at_package_paths; do
 	[ -e "$PONT_TARGET/$link" ] ||

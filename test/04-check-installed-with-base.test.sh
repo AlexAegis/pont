@@ -8,9 +8,9 @@ export PONT_BASE_MODULES="base"
 $COVERAGE ./pont.sh -q symlinks
 expected_installed="base
 symlinks"
-$COVERAGE ./pont.sh -I > /dev/null
+$COVERAGE ./pont.sh -I >/dev/null
 installed=$(./pont.sh -I)
 # Assertions
 sync
-[ "$installed" =  "$expected_installed" ] ||
- 	fail "Installed list not correct"
+[ "$installed" = "$expected_installed" ] ||
+	fail "Installed list not correct"

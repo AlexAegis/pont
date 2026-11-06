@@ -13,4 +13,4 @@ sync
 [ -e "$PONT_TARGET/dolinkme" ] ||
 	fail "Allowed conditional not linked"
 [ ! -e "$PONT_TARGET/dontlinkme" ] ||
- 	fail "Disallowed conditional linked"
+	fail "Disallowed conditional linked"

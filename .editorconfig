@@ -18,3 +18,14 @@ indent_size = 2
 
 [*.txt]
 insert_final_newline = false
+
+# shfmt reads these, also for scripts with a shebang and no extension
+[[shell]]
+indent_style = tab
+switch_case_indent = true
+
+# shfmt 3.14 changes the meaning of some zsh expansions, such as $((...))
+# inside ${${(M)...}}. This section keeps the zsh scripts out of a shfmt walk of
+# the tree. The make targets list no zsh script.
+[*.zsh]
+ignore = true

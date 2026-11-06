@@ -63,9 +63,9 @@ done
 for tag in exact.tag 'exact|tag' exact_tag++; do
 	result=$(./pont.sh -nL ":$tag" 2>/dev/null | tr '\n' ' ')
 	case $tag in
-	exact.tag) expected='exact_tags_d ' ;;
-	'exact|tag') expected='exact_tags_h ' ;;
-	exact_tag++) expected='exact_tags_i ' ;;
+		exact.tag) expected='exact_tags_d ' ;;
+		'exact|tag') expected='exact_tags_h ' ;;
+		exact_tag++) expected='exact_tags_i ' ;;
 	esac
 	[ "$result" = "$expected" ] ||
 		fail "The tag $tag selected: $result"

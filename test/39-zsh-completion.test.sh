@@ -84,10 +84,10 @@ done
 expect_option() {
 	result=$(list_completions "$1")
 	case $result in
-	*'
+		*'
 '* | '') fail "Completed '$1' as: $result" ;;
-	"$2 "*) ;;
-	*) fail "Completed '$1' as: $result" ;;
+		"$2 "*) ;;
+		*) fail "Completed '$1' as: $result" ;;
 	esac
 }
 expect_option 'pont --expand-selected' --expand-selected

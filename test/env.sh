@@ -34,7 +34,7 @@ fail() {
 # Constructs a temporary module
 make_dummy_module() {
 	mkdir -p "${PONT_MODULES_HOME}/${1:-dummy}"
-	echo "${2:-test}" > "${PONT_MODULES_HOME}/${1:-dummy}/dummyfile"
+	echo "${2:-test}" >"${PONT_MODULES_HOME}/${1:-dummy}/dummyfile"
 }
 
 clear_dummy_module() {

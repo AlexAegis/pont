@@ -3,7 +3,7 @@ set -e
 # shellcheck disable=SC1091
 . ./test/env.sh
 # This test checks if the script can find all modules
-$COVERAGE ./pont.sh -A > /dev/null
+$COVERAGE ./pont.sh -A >/dev/null
 result=$(./pont.sh -A)
 # Assertions
 sync
@@ -18,4 +18,4 @@ scoped_clean
 scoped_clean_link
 symlinks
 systemd" ] ||
- 	fail "Not all modules have been listed!"
+	fail "Not all modules have been listed!"

@@ -15,4 +15,4 @@ sync
 [ "$result" = "a
 b
 list_presets_preset" ] ||
- 	fail "Not all presets have been listed!"
+	fail "Not all presets have been listed!"

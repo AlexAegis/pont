@@ -22,7 +22,7 @@ for shell in sh dash bash; do
 	logs="$logs
 $("$shell" "$pont" -v -x log_colors 2>&1 >/dev/null)"
 	case $logs in
-	*'\033'*) fail "$shell logged the text \\033: $logs" ;;
+		*'\033'*) fail "$shell logged the text \\033: $logs" ;;
 	esac
 	success="Successfully installed log_colors"
 	for text in "${esc}[0;36m[  Trace  ]: ${esc}[0;31mhash mismatch" \

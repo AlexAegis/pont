@@ -15,4 +15,4 @@ clear_dummy_module dummy
 # Assertions
 sync
 [ "$result" = "dummy" ] ||
- 	fail "Not all outdated modules have been listed!"
+	fail "Not all outdated modules have been listed!"

@@ -10,10 +10,10 @@ set -e
 $COVERAGE ./pont.sh -q symlinks conditional_symlinks
 expected_installed="conditional_symlinks
 symlinks"
-$COVERAGE ./pont.sh -I > /dev/null
+$COVERAGE ./pont.sh -I >/dev/null
 installed=$(./pont.sh -I)
 echo "installed $installed"
 # Assertions
 sync
-[ "$installed" =  "$expected_installed" ] ||
- 	fail "Installed list not correct"
+[ "$installed" = "$expected_installed" ] ||
+	fail "Installed list not correct"

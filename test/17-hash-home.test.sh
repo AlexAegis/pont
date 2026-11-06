@@ -9,7 +9,8 @@ export PONT_HASH_HOME="$PONT_TARGET/hashes"
 make_dummy_module dummy test1
 $COVERAGE ./pont.sh -q dummy
 module_hash_written=$(if [ -e "$PONT_MODULES_HOME/dummy/.tarhash" ]; then
-	echo 1; fi)
+	echo 1
+fi)
 installed=$(./pont.sh -I)
 make_dummy_module dummy test2
 outdated=$(./pont.sh -O)
@@ -35,9 +36,9 @@ sync
 	fail "Installed module ran again"
 
 # Files that are not hashes of existing modules are neither listed nor removed
-echo hash > "$PONT_HASH_HOME/ghost.tarhash"
-echo note > "$PONT_HASH_HOME/notes"
-echo kept > "$PONT_TARGET/victim.tarhash"
+echo hash >"$PONT_HASH_HOME/ghost.tarhash"
+echo note >"$PONT_HASH_HOME/notes"
+echo kept >"$PONT_TARGET/victim.tarhash"
 installed=$(./pont.sh -I)
 $COVERAGE ./pont.sh -q -r ../victim
 sync
@@ -54,8 +55,8 @@ sync
 	fail "Install wrote a hash outside PONT_HASH_HOME"
 
 # . and .. are not modules, also without PONT_HASH_HOME
-echo kept > "$PONT_MODULES_HOME/.tarhash"
-echo kept > "$PONT_MODULES_HOME/../.tarhash"
+echo kept >"$PONT_MODULES_HOME/.tarhash"
+echo kept >"$PONT_MODULES_HOME/../.tarhash"
 PONT_HASH_HOME='' $COVERAGE ./pont.sh -q -r .
 PONT_HASH_HOME='' $COVERAGE ./pont.sh -q -r ..
 sync

@@ -94,8 +94,8 @@ unset STOW_FAILURE_EMPTY
 $COVERAGE ./pont.sh -q -fx stow_failure_empty 2>/dev/null
 errors=$(./pont.sh -q -fx stow_failure_empty 2>&1 >/dev/null)
 case $errors in
-*'Target variable STOW_FAILURE_EMPTY of '*) ;;
-*) fail "The error does not name the target variable: $errors" ;;
+	*'Target variable STOW_FAILURE_EMPTY of '*) ;;
+	*) fail "The error does not name the target variable: $errors" ;;
 esac
 [ ! -e "$empty_module/.tarhash" ] ||
 	fail "A module with an unset target variable got a hash"
@@ -110,8 +110,8 @@ if [ "$(id -u)" != 0 ]; then
 	errors=$(./pont.sh -q -fx stow_failure_ok 2>&1 >/dev/null)
 	chmod u+w "$real_dir"
 	case $errors in
-	*'Could not remove link'*) ;;
-	*) fail "The unstow did not fail: $errors" ;;
+		*'Could not remove link'*) ;;
+		*) fail "The unstow did not fail: $errors" ;;
 	esac
 	[ -e "$ok_hash" ] || fail "A failed unstow failed the module"
 fi

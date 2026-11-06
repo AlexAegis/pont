@@ -4,10 +4,10 @@ set -e
 . ./test/env.sh
 # This test tries to install the `permissions` module.
 # faking wsl
-echo "export wsl=1" > .pontrc
+echo "export wsl=1" >.pontrc
 result=$(./pont.sh -q systemd)
 rm .pontrc
 # Assertions
 sync
 [ "$result" = "" ] ||
- 	fail "Result is not empty, systemd script ran on wsl"
+	fail "Result is not empty, systemd script ran on wsl"

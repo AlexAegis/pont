@@ -22,7 +22,7 @@ pont" ] ||
 }
 
 for shell in sh dash bash zsh; do
-	command -v "$shell" > /dev/null || continue
+	command -v "$shell" >/dev/null || continue
 	expect_modules "$(cd "$dots/modules/pont" &&
 		PATH="$decoy/modules/pont:$PATH" "$shell" pont.sh -A)" "$shell pont.sh"
 	expect_modules "$(cd "$dots" && "$shell" modules/pont/pont.sh -A)" \
