@@ -815,6 +815,7 @@ parse_args() {
 }
 
 _args_with_params='-l
+--log
 --log-level
 -t
 --target
