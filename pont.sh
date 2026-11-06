@@ -1052,6 +1052,18 @@ get_condition() {
 		sub(/^[^?]*[?][ \t\r]*/, "", line) { print line }'
 }
 
+# Runs the condition $1 in a subshell, so that an exit or a syntax error in it
+# cannot stop pont. Returns 0 if true, 1 if false, 2 on a syntax error.
+eval_condition() {
+	_ec_code=$1
+	shift
+	[ "$_ec_code" ] || return 0
+	(eval "$_ec_code") && return 0
+	# eval already printed the error
+	/bin/sh -n -c "$_ec_code" 2>/dev/null || return 2
+	return 1
+}
+
 pull_dotfiles() {
 	log_trace "Performing git pull on DOTFILES_HOME ($DOTFILES_HOME)"
 	if [ -d "$DOTFILES_HOME/.git" ]; then
@@ -1240,8 +1252,16 @@ do_expand_entries() {
 
 		[ "$condition" ] && log_trace "...with condition $condition..."
 
-		if ! eval "$condition"; then
-			log_info "Condition ($condition) for $1 did not met, skipping"
+		_dee_condition_status=0
+		eval_condition "$condition" "$@" || _dee_condition_status=$?
+		if [ "$_dee_condition_status" = 2 ]; then
+			_dee_entry=$(get_entry "$1")
+			log_error "Syntax error in the condition of entry $_dee_entry. \
+Skipping. $condition"
+			shift
+			continue
+		elif [ "$_dee_condition_status" != 0 ]; then
+			log_info "Condition ($condition) for $1 was not met, skipping"
 			shift
 			continue
 		fi
@@ -1361,7 +1381,7 @@ update_modules() {
 			continue
 		fi
 		if ! check_module_condition "$1"; then
-			log_info "Condition on $1 failed. Skipping. $condition"
+			log_module_condition_skip "$1"
 			shift
 			continue
 		fi
@@ -1389,9 +1409,11 @@ remove_modules() {
 		module_applies=1
 		if ! check_module_condition "$1"; then
 			# An installed module keeps its links and its hash, so -r removes
-			# them without its remove scripts
-			if [ ! -e "$(hashfile_of "$1")" ]; then
-				log_info "Condition on $1 failed. Skipping. $condition"
+			# them without its remove scripts. A syntax error leaves the
+			# module as it is.
+			if [ "$condition_status" = 2 ] ||
+				[ ! -e "$(hashfile_of "$1")" ]; then
+				log_module_condition_skip "$1"
 				shift
 				continue
 			fi
@@ -1726,15 +1748,24 @@ hash_module() {
 }
 
 check_module_condition() {
-	# Leaves the condition in $condition for the log of the caller
+	# Sets condition and condition_status, the return of eval_condition
+	condition=
+	condition_status=0
 	if [ -e "$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME" ]; then
 		condition="$(awk "$awk_print_normalized_lines" \
 			"$PONT_MODULES_HOME/$1/$PONT_CONDITIONFILE_NAME")"
-		if ! eval "$condition"; then
-			return 1
-		fi
+		eval_condition "$condition" "$1" || condition_status=$?
 	fi
-	return 0
+	[ "$condition_status" = 0 ]
+}
+
+# Logs why module $1 is skipped, after check_module_condition failed
+log_module_condition_skip() {
+	if [ "$condition_status" = 2 ]; then
+		log_error "Syntax error in the condition of $1. Skipping. $condition"
+	else
+		log_info "Condition on $1 failed. Skipping. $condition"
+	fi
 }
 
 execute_modules() {
@@ -1750,7 +1781,7 @@ execute_modules() {
 		fi
 
 		if ! check_module_condition "$1"; then
-			log_info "Condition on $1 failed. Skipping. $condition"
+			log_module_condition_skip "$1"
 			shift
 			continue
 		fi
