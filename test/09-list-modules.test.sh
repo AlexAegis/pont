@@ -2,7 +2,7 @@
 set -e
 # shellcheck disable=SC1091
 . ./test/env.sh
-# This test checks if the script can find all presets
+# This test checks if the script can find all modules
 $COVERAGE ./pont.sh -A > /dev/null
 result=$(./pont.sh -A)
 # Assertions
@@ -18,4 +18,4 @@ scoped_clean
 scoped_clean_link
 symlinks
 systemd" ] ||
- 	{ echo "Not all presets have been listed!"; exit 1; }
+ 	{ echo "Not all modules have been listed!"; exit 1; }
