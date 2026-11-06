@@ -30,12 +30,11 @@ list_all_lint_formats:
 	@echo $(all_lint_formats)
 
 %.lint:
-	@git ls-tree -r master --name-only | \
+	@git ls-files | \
 		grep -e '\.sh$$' -e '\.bash$$' -e '\.ksh$$' -e '\.bashrc$$' -e \
 		'\.bash_profile$$' -e '\.bash_login$$' -e '\.bash_logout$$' | \
-		xargs shellcheck && \
-		echo "Lint $(basename $@) successful" || \
-		echo "Lint $@ failed"
+		xargs shellcheck -s $* && \
+		echo "Lint $(basename $@) successful"
 
 lint_all: $(all_lint_formats)
 

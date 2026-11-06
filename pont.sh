@@ -269,11 +269,11 @@ fedora=$(if [ "$distribution" = 'Fedora' ]; then echo 1; fi)
 export fedora
 
 # Config file sourcing
-# shellcheck disable=SC1090
+# shellcheck source=/dev/null
 [ -e "$XDG_CONFIG_HOME/pont/pontrc" ] && . "$XDG_CONFIG_HOME/pont/pontrc"
-# shellcheck disable=SC1090
+# shellcheck source=/dev/null
 [ -e "$XDG_CONFIG_HOME/pontrc" ] && . "$XDG_CONFIG_HOME/pontrc"
-# shellcheck disable=SC1090
+# shellcheck source=/dev/null
 [ -e "$user_home/.pontrc" ] && . "$user_home/.pontrc"
 # shellcheck disable=SC1091
 [ -e "./.pontrc" ] && . "./.pontrc"
@@ -369,6 +369,7 @@ get_all_installed_modules() {
 				module_exists "$_module" && printf '%s\n' "$_module"
 			done | sort)
 	else
+		# shellcheck disable=SC2016 # a sed expression
 		all_installed_modules=$(find "$PONT_MODULES_HOME" -maxdepth 2 \
 			-mindepth 2 -type f -name "$PONT_HASHFILE_NAME" -size +0c | \
 			sed -E 's_^.*/([^/]*)/[^/]*$_\1_g' | sort)
