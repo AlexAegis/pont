@@ -438,9 +438,16 @@ name my script like `1.user.$wsl.sh`.
 > 0.user.**fallback**.sh
 
 There is an extra special dependency setting called `fallback`, and this is
-where `script groups` come into play. If in a script group (Defined by a
-common ordering segment) none got executed, `fallback` will. If `fallback` is
-alone it will also be executed.
+where `script groups` come into play. A script group is the scripts with the
+same ordering segment.
+
+- The `fallback` scripts of a group run when no other script of the group
+  succeeds.
+  - Not a success: a script that fails, or that its third segment excludes.
+  - A success: a script that `pont` skips as done, such as after
+    `--skip-root` or a condition file that exits with 1.
+- The result of the fallbacks replaces the result of the group. A group whose
+  fallbacks all succeed does not fail the module.
 
 > A usecase for this is the AUR. A lot of packages are available there, so on
 > `arch` systems you can probably install anyting using `pacman` or with an
