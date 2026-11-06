@@ -16,4 +16,4 @@ echo "installed $installed"
 # Assertions
 sync
 [ "$installed" =  "$expected_installed" ] ||
- 	{ echo "Installed list not correct"; exit 1; }
+ 	fail "Installed list not correct"

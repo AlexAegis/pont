@@ -20,4 +20,4 @@ rm .pontrc
 # Assertions
 sync
 [ "$result" = "systemd script" ] ||
- 	{ echo "Result is empty, systemd script did not run!"; exit 1; }
+ 	fail "Result is empty, systemd script did not run!"

@@ -12,15 +12,15 @@ $COVERAGE ./pont.sh -q symlinks
 sync
 echo "$PONT_TARGET/base"
 [ -e "$PONT_TARGET/symlinksfile" ] ||
-	{ echo "Base not linked"; exit 1; }
+	fail "Base not linked"
 [ -e "$PONT_TARGET/symlinks/target_relative/relative" ] ||
-	{ echo "Relative not linked"; exit 1; }
+	fail "Relative not linked"
 [ -e "$PONT_TARGET/symlinks/target_absolute/absolute" ] ||
-	{ echo "Absolute not linked"; exit 1; }
+	fail "Absolute not linked"
 
 # A & in PONT_TARGET stays in the path of a relative target
 amp_target="$PONT_TARGET/a&b"
 PONT_TARGET="$amp_target" $COVERAGE ./pont.sh -q -fx symlinks
 sync
 [ -e "$amp_target/symlinks/target_relative/relative" ] ||
-	{ echo "Relative not linked under a target with a &"; exit 1; }
+	fail "Relative not linked under a target with a &"

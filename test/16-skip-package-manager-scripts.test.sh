@@ -11,36 +11,36 @@ out="$PONT_TARGET/package_manager_scripts"
 $COVERAGE ./pont.sh -q --skip-package-manager-scripts package_manager_scripts
 sync
 [ -e "$out/plain" ] ||
-	{ echo "Script without a condition did not run"; exit 1; }
+	fail "Script without a condition did not run"
 [ ! -e "$out/package" ] ||
-	{ echo "Package manager script ran when skipped"; exit 1; }
+	fail "Package manager script ran when skipped"
 [ ! -e "$out/fallback" ] ||
-	{ echo "Fallback ran after a skipped package manager script"; exit 1; }
+	fail "Fallback ran after a skipped package manager script"
 [ ! -e "$out/absent-fallback" ] ||
-	{ echo "Fallback ran after a skipped script of a missing manager"; exit 1; }
+	fail "Fallback ran after a skipped script of a missing manager"
 
 rm -r "${out:?}"
 $COVERAGE ./pont.sh -q -fx package_manager_scripts
 sync
 [ -e "$out/package" ] ||
-	{ echo "Package manager script did not run by default"; exit 1; }
+	fail "Package manager script did not run by default"
 [ ! -e "$out/fallback" ] ||
-	{ echo "Fallback ran after a successful package manager script"; exit 1; }
+	fail "Fallback ran after a successful package manager script"
 [ -e "$out/absent-fallback" ] ||
-	{ echo "Fallback of a missing manager did not run by default"; exit 1; }
+	fail "Fallback of a missing manager did not run by default"
 
 rm -r "${out:?}"
 $COVERAGE ./pont.sh -q -fxR package_manager_scripts
 sync
 [ ! -e "$out/package" ] ||
-	{ echo "Package manager script ran with --skip-root"; exit 1; }
+	fail "Package manager script ran with --skip-root"
 [ ! -e "$out/fallback" ] ||
-	{ echo "Fallback ran after --skip-root"; exit 1; }
+	fail "Fallback ran after --skip-root"
 [ ! -e "$out/absent-fallback" ] ||
-	{ echo "Fallback of a missing manager ran after --skip-root"; exit 1; }
+	fail "Fallback of a missing manager ran after --skip-root"
 
 rm -r "${out:?}"
 $COVERAGE ./pont.sh -q -fxR --package-manager-scripts package_manager_scripts
 sync
 [ -e "$out/package" ] ||
-	{ echo "Package manager script did not run when enabled"; exit 1; }
+	fail "Package manager script did not run when enabled"

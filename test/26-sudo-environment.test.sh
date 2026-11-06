@@ -28,8 +28,6 @@ PONT_TEST_KEPT=kept PYTHONPATH=/python PERL5LIB=/perl \
 	PONT_TEST_FUNCTION='() { :; }' TZ=../../etc/passwd \
 	$COVERAGE ./pont.sh -q -fx sudo_environment
 expected=$(printf '%s\n' LOGNAME=root PONT_TEST_KEPT=kept USER=root)
-[ "$(cat "$PONT_TARGET/sudo_environment")" = "$expected" ] || {
-	echo "The root script got the wrong environment:"
-	cat "$PONT_TARGET/sudo_environment"
-	exit 1
-}
+[ "$(cat "$PONT_TARGET/sudo_environment")" = "$expected" ] ||
+	fail "The root script got the wrong environment:
+$(cat "$PONT_TARGET/sudo_environment")"

@@ -8,4 +8,4 @@ result=$(./pont.sh -D)
 # Assertions
 sync
 [ "$result" = "deprecated" ] ||
- 	{ echo "Not all deprecated modules have been listed!"; exit 1; }
+ 	fail "Not all deprecated modules have been listed!"

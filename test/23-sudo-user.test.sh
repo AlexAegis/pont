@@ -37,20 +37,16 @@ owner() {
 sudo -n --preserve-env="$test_variables" ./pont.sh -q -fx sudo_user
 sync
 # SUDO_USER is root in both steps, because pont itself runs as root
-[ "$(cat "$PONT_TARGET/sudo_user_user")" = "$user $user $user root" ] || {
-	echo "The user script got the wrong identity:"
-	cat "$PONT_TARGET/sudo_user_user"
-	exit 1
-}
-[ "$(cat "$PONT_TARGET/sudo_user_root")" = "root root root root" ] || {
-	echo "The root script got the wrong identity:"
-	cat "$PONT_TARGET/sudo_user_root"
-	exit 1
-}
+[ "$(cat "$PONT_TARGET/sudo_user_user")" = "$user $user $user root" ] ||
+	fail "The user script got the wrong identity:
+$(cat "$PONT_TARGET/sudo_user_user")"
+[ "$(cat "$PONT_TARGET/sudo_user_root")" = "root root root root" ] ||
+	fail "The root script got the wrong identity:
+$(cat "$PONT_TARGET/sudo_user_root")"
 [ -L "$PONT_TARGET/sudo_user_file" ] ||
-	{ echo "The package is not linked"; exit 1; }
+	fail "The package is not linked"
 [ "$(owner "$PONT_TARGET/sudo_user_file")" = "$user" ] ||
-	{ echo "The link does not belong to $user"; exit 1; }
-[ -e "$module/.tarhash" ] || { echo "The module got no hash"; exit 1; }
+	fail "The link does not belong to $user"
+[ -e "$module/.tarhash" ] || fail "The module got no hash"
 [ "$(owner "$module/.tarhash")" = "$user" ] ||
-	{ echo "The hash does not belong to $user"; exit 1; }
+	fail "The hash does not belong to $user"

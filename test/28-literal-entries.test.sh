@@ -33,5 +33,5 @@ for shell in sh dash bash; do
 	[ "$result" = "literal_entries_dependency
 literal_entries
 literal_entries_tagged[1]" ] ||
-		{ echo "$shell expanded an entry as a glob: $result"; exit 1; }
+		fail "$shell expanded an entry as a glob: $result"
 done

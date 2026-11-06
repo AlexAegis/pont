@@ -8,6 +8,6 @@ $COVERAGE ./pont.sh -q fallback
 # Assertions
 sync
 [ -e "$PONT_TARGET/fallback/output" ] ||
-	{ echo "Fallback script did not run"; exit 1; }
+	fail "Fallback script did not run"
 [ ! -e "$PONT_TARGET/fallback/unavailable" ] ||
-	{ echo "Unavailable script ran"; exit 1; }
+	fail "Unavailable script ran"

@@ -18,7 +18,7 @@ set -e
 sync
 var="1"
 [ 1 = "$var" ] ||
-	{ echo "Base not linked"; exit 1; }
+	fail "Base not linked"
 
 # This example test always succeeds, you can use it to trigger cleanup
 # through `make`

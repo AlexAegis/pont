@@ -43,9 +43,7 @@ for shell in sh dash bash; do
 	(cd "$cwd" && "$shell" "$pont" -fx literal_script_names_first \
 		literal_script_names >/dev/null)
 	result=$(sort "$log")
-	[ "$result" = "$expected" ] || {
-		echo "$shell ran other scripts:"
-		cat "$log"
-		exit 1
-	}
+	[ "$result" = "$expected" ] ||
+		fail "$shell ran other scripts:
+$(cat "$log")"
 done

@@ -22,25 +22,25 @@ for flag in -y -Y; do
 	$COVERAGE ./pont.sh "$flag" "$target" +yank_outer >/dev/null
 	for copy in yank_presets/ yank_outer.preset yank_inner.preset; do
 		[ -e "$target/$copy" ] ||
-			{ echo "$flag did not copy $copy"; exit 1; }
+			fail "$flag did not copy $copy"
 	done
 	cmp -s "$inner" "$target/yank_inner.preset" ||
-		{ echo "$flag copied another yank_inner.preset"; exit 1; }
+		fail "$flag copied another yank_inner.preset"
 	[ ! -e "$target/yank_skipped.preset" ] ||
-		{ echo "$flag copied a preset whose condition failed"; exit 1; }
+		fail "$flag copied a preset whose condition failed"
 done
 
 for flag in -nL -eL; do
 	result=$(./pont.sh "$flag" +yank_outer)
 	[ "$result" = yank_presets ] ||
-		{ echo "$flag listed presets as modules: $result"; exit 1; }
+		fail "$flag listed presets as modules: $result"
 done
 
 errors=$(./pont.sh -y "$target" +yank_missing 2>&1 >/dev/null)
 case $errors in
 *'yank_missing.preset not found'*) ;;
-*) echo "-y named no missing preset: $errors"; exit 1 ;;
+*) fail "-y named no missing preset: $errors" ;;
 esac
 case $errors in
-*cp:*) echo "-y ran cp for a missing preset: $errors"; exit 1 ;;
+*cp:*) fail "-y ran cp for a missing preset: $errors" ;;
 esac

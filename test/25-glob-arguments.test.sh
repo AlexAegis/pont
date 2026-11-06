@@ -7,7 +7,7 @@ for shell in sh dash bash; do
 	command -v "$shell" >/dev/null || continue
 	result=$("$shell" ./pont.sh -nL 'pont.*')
 	[ "$result" = "pont.*" ] ||
-		{ echo "$shell expanded the argument pont.*: $result"; exit 1; }
+		fail "$shell expanded the argument pont.*: $result"
 done
 
 pont="$(pwd)/pont.sh"
@@ -15,5 +15,5 @@ pont="$(pwd)/pont.sh"
 for shell in sh dash bash; do
 	command -v "$shell" >/dev/null || continue
 	(cd "$PONT_TARGET" && "$shell" "$pont" '-nL?' x) | grep -q -- '--help' ||
-		{ echo "$shell expanded the flag -? in a short flag group"; exit 1; }
+		fail "$shell expanded the flag -? in a short flag group"
 done

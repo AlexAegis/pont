@@ -18,7 +18,7 @@ expect_modules() {
 	sync
 	[ "$1" = "bare_name_module
 pont" ] ||
-		{ echo "$2 listed: $1"; exit 1; }
+		fail "$2 listed: $1"
 }
 
 for shell in sh dash bash zsh; do

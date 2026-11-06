@@ -26,7 +26,7 @@ echo 'echo plain' >"$plain"
 chmod 644 "$plain"
 
 $COVERAGE ./pont.sh -X -L
-[ -x "$plain" ] || { echo "Module script was not made executable"; exit 1; }
+[ -x "$plain" ] || fail "Module script was not made executable"
 
 for sub in sub_a 'sub b'; do
 	git -C "$DOTFILES_HOME" -c protocol.file.allow=always \
@@ -39,16 +39,16 @@ chmod 644 "$plain" "$PONT_MODULES_HOME/plain/clone/clone.sh"
 
 $COVERAGE ./pont.sh -X -L
 [ -x "$plain" ] ||
-	{ echo "Module script next to submodules was not made executable"; exit 1; }
+	fail "Module script next to submodules was not made executable"
 for sub in sub_a 'sub b'; do
 	[ ! -x "$PONT_MODULES_HOME/$sub/sub.sh" ] ||
-		{ echo "Script in submodule $sub was made executable"; exit 1; }
+		fail "Script in submodule $sub was made executable"
 done
 [ ! -x "$PONT_MODULES_HOME/plain/clone/clone.sh" ] ||
-	{ echo "Script in a nested repository was made executable"; exit 1; }
+	fail "Script in a nested repository was made executable"
 
 git init -q "$PONT_MODULES_HOME"
 chmod 644 "$plain"
 $COVERAGE ./pont.sh -X -L
 [ -x "$plain" ] ||
-	{ echo "Script was not made executable when modules has a .git"; exit 1; }
+	fail "Script was not made executable when modules has a .git"

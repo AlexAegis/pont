@@ -18,4 +18,4 @@ scoped_clean
 scoped_clean_link
 symlinks
 systemd" ] ||
- 	{ echo "Not all modules have been listed!"; exit 1; }
+ 	fail "Not all modules have been listed!"

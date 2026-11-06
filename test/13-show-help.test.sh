@@ -11,4 +11,4 @@ version_result=$(./pont.sh -V)
 # Assertions
 sync
 [ "$help_result" = "$version_result" ] ||
- 	{ echo "Help and version mismatch!"; exit 1; }
+ 	fail "Help and version mismatch!"

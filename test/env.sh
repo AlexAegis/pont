@@ -25,6 +25,12 @@ test_variables=$test_variables,PONT_BASE_MODULES,XDG_CONFIG_HOME
 
 mkdir -p "$PONT_TARGET"
 
+# Prints the reason of a failed check and stops the test
+fail() {
+	printf '%s\n' "$*"
+	exit 1
+}
+
 # Constructs a temporary module
 make_dummy_module() {
 	mkdir -p "${PONT_MODULES_HOME}/${1:-dummy}"

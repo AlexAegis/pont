@@ -23,19 +23,19 @@ $COVERAGE ./pont.sh -P
 result=$(./pont.sh -P)
 [ "$result" = "ext_inner
 ext_outer" ] ||
-	{ echo "-P listed other presets: $result"; exit 1; }
+	fail "-P listed other presets: $result"
 
 result=$(./pont.sh -nL +ext_outer)
 [ "$result" = preset_extension ] ||
-	{ echo "+ext_outer expanded to: $result"; exit 1; }
+	fail "+ext_outer expanded to: $result"
 
 mkdir -p "$target"
 errors=$(./pont.sh -y "$target" +ext_outer 2>&1 >/dev/null)
 case $errors in
-*'not found'*) echo "-y missed a preset: $errors"; exit 1 ;;
+*'not found'*) fail "-y missed a preset: $errors" ;;
 esac
 for copy in preset_extension/ "ext_outer$extension" "ext_inner$extension"; do
-	[ -e "$target/$copy" ] || { echo "-y did not copy $copy"; exit 1; }
+	[ -e "$target/$copy" ] || fail "-y did not copy $copy"
 done
 [ ! -e "$target/ext_decoy.set" ] ||
-	{ echo "-y copied a file that only matches the extension as a pattern"; exit 1; }
+	fail "-y copied a file that only matches the extension as a pattern"

@@ -23,11 +23,9 @@ done
 
 expect_log() {
 	result=$(cat "$log")
-	[ "$result" = "$(printf '%s\n' "$@")" ] || {
-		echo "pont -$flags in locale $locale ran the scripts in this order:"
-		echo "$result"
-		exit 1
-	}
+	[ "$result" = "$(printf '%s\n' "$@")" ] ||
+		fail "pont -$flags in locale $locale ran the scripts in this order:
+$result"
 }
 
 $COVERAGE ./pont.sh -fx script_order >/dev/null

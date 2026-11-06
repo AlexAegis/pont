@@ -46,12 +46,12 @@ for shell in sh dash bash; do
 		$0 == "--checklist" { list = 1 }
 		END { exit !separate }
 	' "$SELECTOR_ENTRIES_ARGUMENTS" ||
-		{ echo "$shell asked for the selection on one line"; exit 1; }
+		fail "$shell asked for the selection on one line"
 	for entry in '+selector_entries[1]' ':selector_entries_tag[1]' \
 		"$module_name"; do
 		has_checklist_item "$entry" ||
-			{ echo "$shell did not list $entry as an item"; exit 1; }
+			fail "$shell did not list $entry as an item"
 	done
 	[ "$result" = "$module_name" ] ||
-		{ echo "$shell selected other modules: $result"; exit 1; }
+		fail "$shell selected other modules: $result"
 done

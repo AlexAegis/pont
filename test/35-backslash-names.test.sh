@@ -26,35 +26,33 @@ for shell in sh dash bash; do
 	for entry in ':backslash_names\btag' '+backslash_names\bpreset'; do
 		result=$("$shell" "$pont" -nL "$entry" 2>/dev/null)
 		[ "$result" = "$name" ] ||
-			{ printf '%s\n' "$shell selected for $entry: $result"; exit 1; }
+			fail "$shell selected for $entry: $result"
 	done
 	for list in '-T backslash_names\btag' '-P backslash_names\bpreset' \
 		"-A $name" "-D $name" "-I $name" "-O $name"; do
 		"$shell" "$pont" "${list%% *}" | grep -qxF -- "${list#* }" ||
-			{ printf '%s\n' "$shell $list: not listed"; exit 1; }
+			fail "$shell $list: not listed"
 	done
 	for flag in -I -O; do
 		PONT_HASH_HOME=$hash_home "$shell" "$pont" "$flag" |
-			grep -qxF -- "$name" || {
-			printf '%s\n' "$shell $flag with PONT_HASH_HOME: $name not listed"
-			exit 1
-		}
+			grep -qxF -- "$name" ||
+			fail "$shell $flag with PONT_HASH_HOME: $name not listed"
 	done
 	yank="$PONT_TARGET/backslash_names_yank_$shell"
 	mkdir -p "$yank"
 	"$shell" "$pont" -y "$yank" '+backslash_names\bpreset' >/dev/null 2>&1
 	[ -e "$yank/backslash_names\\bpreset.preset" ] ||
-		{ echo "$shell did not copy the preset"; exit 1; }
+		fail "$shell did not copy the preset"
 	logs=$("$shell" "$pont" -v -nL ':backslash_names\btag' 2>&1 >/dev/null)
 	logs="$logs
 $("$shell" "$pont" -fx "$name" 2>&1 >/dev/null || true)
 $("$shell" "$pont" -y "$yank" '+backslash_names\bmissing' 2>&1 >/dev/null)"
 	printf '%s\n' "$logs" | grep -qxF -- "$name$(printf '\033[0m')" ||
-		{ printf '%s\n' "$shell did not log the module list: $logs"; exit 1; }
+		fail "$shell did not log the module list: $logs"
 	for text in 'Trying to expand :backslash_names\btag...' \
 		"Module $name not found. Skipping" \
 		'Preset backslash_names\bmissing.preset not found, not yanked'; do
 		printf '%s\n' "$logs" | grep -qF -- "$text" ||
-			{ printf '%s\n' "$shell did not log: $text"; exit 1; }
+			fail "$shell did not log: $text"
 	done
 done

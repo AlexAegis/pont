@@ -32,16 +32,16 @@ $COVERAGE ./pont.sh -q -fx scoped_clean scoped_clean_link
 
 sync
 case $errors in
-*rm:*) echo "Cleanup printed an rm error: $errors"; exit 1 ;;
+*rm:*) fail "Cleanup printed an rm error: $errors" ;;
 esac
 for link in $at_package_paths; do
 	[ -e "$PONT_TARGET/$link" ] ||
-		{ echo "Broken link $link was not replaced"; exit 1; }
+		fail "Broken link $link was not replaced"
 done
-[ -L "$PONT_TARGET/fold" ] || { echo "fold was not linked"; exit 1; }
+[ -L "$PONT_TARGET/fold" ] || fail "fold was not linked"
 for link in $elsewhere; do
 	[ -L "$PONT_TARGET/$link" ] ||
-		{ echo "Broken link $link outside the package was removed"; exit 1; }
+		fail "Broken link $link outside the package was removed"
 done
 
 # fold is a link into the package, so a broken link under it is module source
@@ -50,7 +50,7 @@ ln -s missing "$dangling"
 $COVERAGE ./pont.sh -q -fx scoped_clean
 sync
 [ -L "$dangling" ] ||
-	{ echo "A broken link in the module source was removed"; exit 1; }
+	fail "A broken link in the module source was removed"
 
 # Nor when that link is the target directory of another package
 mkdir -p "$fold_module/SCOPED_CLEAN_FOLD.scoped_clean_fold/inner"
@@ -58,7 +58,7 @@ mkdir -p "$fold_module/SCOPED_CLEAN_FOLD.scoped_clean_fold/inner"
 SCOPED_CLEAN_FOLD="$PONT_TARGET/fold" $COVERAGE ./pont.sh -q scoped_clean_fold
 sync
 [ "$(readlink "$dangling")" = missing ] ||
-	{ echo "A target directory that is a link was entered"; exit 1; }
+	fail "A target directory that is a link was entered"
 
 # A valid link at a package path stays. stow reports it as a conflict.
 rm "$PONT_TARGET/topfile"
@@ -66,7 +66,7 @@ ln -s "$PONT_TARGET/other" "$PONT_TARGET/topfile"
 $COVERAGE ./pont.sh -q -fx scoped_clean
 sync
 [ "$(readlink "$PONT_TARGET/topfile")" = "$PONT_TARGET/other" ] ||
-	{ echo "A valid link at a package path was removed"; exit 1; }
+	fail "A valid link at a package path was removed"
 
 # Unstow also removes a foreign broken link at a package path, which stow -D
 # leaves
@@ -74,20 +74,20 @@ rm "$PONT_TARGET/topfile"
 ln -s "$PONT_TARGET/missing" "$PONT_TARGET/topfile"
 $COVERAGE ./pont.sh -q -r scoped_clean
 sync
-[ ! -L "$PONT_TARGET/topfile" ] || { echo "Unstow kept topfile"; exit 1; }
+[ ! -L "$PONT_TARGET/topfile" ] || fail "Unstow kept topfile"
 for link in $elsewhere; do
 	[ -L "$PONT_TARGET/$link" ] ||
-		{ echo "Unstow removed the broken link $link"; exit 1; }
+		fail "Unstow removed the broken link $link"
 done
 
 $COVERAGE ./pont.sh -q -C -fx scoped_clean
 sync
 for link in $elsewhere; do
 	[ ! -L "$PONT_TARGET/$link" ] ||
-		{ echo "-C kept the broken link $link"; exit 1; }
+		fail "-C kept the broken link $link"
 done
 [ -L "$dangling" ] ||
-	{ echo "-C removed a broken link in the module source"; exit 1; }
+	fail "-C removed a broken link in the module source"
 
 # With an unset target variable, the cleanup does not start from /. The
 # package mirrors PONT_TARGET from /, so a walk from / would reach probe.
@@ -97,4 +97,4 @@ ln -s "$PONT_TARGET/missing" "$PONT_TARGET/probe"
 $COVERAGE ./pont.sh -q scoped_clean_unset
 sync
 [ -L "$PONT_TARGET/probe" ] ||
-	{ echo "The cleanup started from / for an unset target"; exit 1; }
+	fail "The cleanup started from / for an unset target"

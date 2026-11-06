@@ -43,26 +43,26 @@ result=$(./pont.sh -eL entry_lines_root 2>/dev/null)
 entry_lines_member
 entry_lines_tagged
 entry_lines_root" ] ||
-	{ echo "The dependencies of entry_lines_root are: $result"; exit 1; }
+	fail "The dependencies of entry_lines_root are: $result"
 
 result=$(./pont.sh -nL 'entry_lines_crlf # why? false' 2>/dev/null)
 [ "$result" = entry_lines_crlf ] ||
-	{ echo "A ? in a comment made a condition: $result"; exit 1; }
+	fail "A ? in a comment made a condition: $result"
 result=$(./pont.sh -nL '  +entry_lines_preset' 2>/dev/null)
 [ "$result" = entry_lines_member ] ||
-	{ echo "The preset with leading blanks selected: $result"; exit 1; }
+	fail "The preset with leading blanks selected: $result"
 
 $COVERAGE ./pont.sh -T >/dev/null
 tags=$(./pont.sh -T)
 for tag in entry_lines_one entry_lines_two entry_lines_tag; do
 	count=$(printf '%s\n' "$tags" | grep -cxF -- "$tag" || true)
 	[ "$count" = 1 ] ||
-		{ echo "-T listed $tag $count times: $tags"; exit 1; }
+		fail "-T listed $tag $count times: $tags"
 done
 result=$(./pont.sh -nL :entry_lines_one 2>/dev/null | tr '\n' ' ')
 [ "$result" = 'entry_lines_one entry_lines_two ' ] ||
-	{ echo "The tag entry_lines_one selected: $result"; exit 1; }
+	fail "The tag entry_lines_one selected: $result"
 
 $COVERAGE ./pont.sh -fx entry_lines_condition >/dev/null 2>&1
 [ -e "$PONT_TARGET/entry_lines_condition.ran" ] ||
-	{ echo "The condition with a CR failed"; exit 1; }
+	fail "The condition with a CR failed"

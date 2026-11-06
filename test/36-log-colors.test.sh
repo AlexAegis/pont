@@ -22,13 +22,13 @@ for shell in sh dash bash; do
 	logs="$logs
 $("$shell" "$pont" -v -x log_colors 2>&1 >/dev/null)"
 	case $logs in
-	*'\033'*) printf '%s\n' "$shell logged the text \\033: $logs"; exit 1 ;;
+	*'\033'*) fail "$shell logged the text \\033: $logs" ;;
 	esac
 	success="Successfully installed log_colors"
 	for text in "${esc}[0;36m[  Trace  ]: ${esc}[0;31mhash mismatch" \
 		"${esc}[0;36m[  Trace  ]: ${esc}[0;32mhash match" \
 		"${esc}[0;32m[ Success ]: $success${esc}[0m"; do
 		printf '%s\n' "$logs" | grep -qF -- "$text" ||
-			{ printf '%s\n' "$shell did not log: $text"; exit 1; }
+			fail "$shell did not log: $text"
 	done
 done

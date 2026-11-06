@@ -57,34 +57,32 @@ lists_module_without_lookalike() {
 check_selected_lists() {
 	result=$(pont_in_cwd -aL)
 	lists_module_without_lookalike "$result" ||
-		{ echo "$shell -aL expanded a module name as a glob: $result"; exit 1; }
+		fail "$shell -aL expanded a module name as a glob: $result"
 	result=$(PONT_BASE_MODULES='literal_names_base[1]' pont_in_cwd -eL \
 		"$module_name")
 	[ "$result" = "literal_names_base[1]
 $module_name" ] ||
-		{ echo "$shell -eL expanded a base module as a glob: $result"; exit 1; }
+		fail "$shell -eL expanded a base module as a glob: $result"
 	for suffix in '[1]' '*'; do
 		result=$(pont_in_cwd -eL "+literal_names_preset$suffix")
-		[ "$result" = "$module_name" ] || {
-			echo "$shell -eL read another preset for $suffix: $result"
-			exit 1
-		}
+		[ "$result" = "$module_name" ] ||
+			fail "$shell -eL read another preset for $suffix: $result"
 	done
 }
 
 check_lists_after_install() {
 	result=$(pont_in_cwd -iL)
 	lists_module_without_lookalike "$result" ||
-		{ echo "$shell -iL expanded a module name as a glob: $result"; exit 1; }
+		fail "$shell -iL expanded a module name as a glob: $result"
 	result=$(pont_in_cwd -oL)
 	! lists_module "$result" ||
-		{ echo "$shell -oL listed a module right after $1"; exit 1; }
+		fail "$shell -oL listed a module right after $1"
 }
 
 check_lists_after_change() {
 	result=$(pont_in_cwd -oL)
 	lists_module_without_lookalike "$result" ||
-		{ echo "$shell -oL did not list a changed module: $result"; exit 1; }
+		fail "$shell -oL did not list a changed module: $result"
 }
 
 check_yank() {
@@ -93,7 +91,7 @@ check_yank() {
 	pont_in_cwd -y "$yank" '+literal_names_preset[1]' >/dev/null
 	cmp -s "$presets/literal_names_preset[1].preset" \
 		"$yank/literal_names_preset[1].preset" ||
-		{ echo "$shell -y copied another preset"; exit 1; }
+		fail "$shell -y copied another preset"
 }
 
 check_packages() {
@@ -101,13 +99,12 @@ check_packages() {
 	if [ ! -L "$PONT_TARGET/literal_packages_file" ] ||
 		[ -L "$PONT_TARGET/literal_packages_inner_lookalike_file" ] ||
 		[ -L "$PONT_TARGET/literal_packages_lookalike_file" ]; then
-		echo "$shell -fx stowed other packages:"
-		ls -A "$PONT_TARGET"
-		exit 1
+		fail "$shell -fx stowed other packages:
+$(ls -A "$PONT_TARGET")"
 	fi
 	pont_in_cwd -r 'literal_packages[1]' >/dev/null
 	[ ! -L "$PONT_TARGET/literal_packages_file" ] ||
-		{ echo "$shell -r did not unstow a package"; exit 1; }
+		fail "$shell -r did not unstow a package"
 }
 
 $COVERAGE ./pont.sh -aL >/dev/null

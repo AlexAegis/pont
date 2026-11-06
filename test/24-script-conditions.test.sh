@@ -101,43 +101,43 @@ echo true >"$suffix/orphan.cond"
 $COVERAGE ./pont.sh -q -fx script_conditions
 sync
 [ -e "$out/first" ] && [ -e "$out/second" ] ||
-	{ echo "Script with true condition did not run"; exit 1; }
+	fail "Script with true condition did not run"
 [ ! -e "$out/condition-as-script" ] ||
-	{ echo "Condition file ran as a script"; exit 1; }
+	fail "Condition file ran as a script"
 [ ! -e "$out/third" ] ||
-	{ echo "Script with false condition ran"; exit 1; }
+	fail "Script with false condition ran"
 [ ! -e "$out/fallback" ] ||
-	{ echo "Fallback ran after a false condition"; exit 1; }
+	fail "Fallback ran after a false condition"
 [ -e "$out/root-condition" ] ||
-	{ echo "Root script condition did not run"; exit 1; }
+	fail "Root script condition did not run"
 grep -q '/5\.root\.sh$' "$out/sudo-calls" ||
-	{ echo "Root script with true condition did not call sudo"; exit 1; }
+	fail "Root script with true condition did not call sudo"
 ! grep -q '/4\.root\.sh$' "$out/sudo-calls" ||
-	{ echo "Root script with false condition called sudo"; exit 1; }
+	fail "Root script with false condition called sudo"
 [ -e "$out/default-ifs" ] ||
-	{ echo "Condition did not get the default IFS"; exit 1; }
+	fail "Condition did not get the default IFS"
 [ "$(cat "$out/env")" = "unset 1 1 unset" ] ||
-	{ echo "Wrong env after env and init conditions: $(cat "$out/env")"; exit 1; }
+	fail "Wrong env after env and init conditions: $(cat "$out/env")"
 [ -e "$module/.tarhash" ] ||
-	{ echo "Module got no hash"; exit 1; }
+	fail "Module got no hash"
 
 $COVERAGE ./pont.sh -q -fu script_conditions
 sync
 [ -e "$out/update-plain" ] ||
-	{ echo "Update script without condition did not run"; exit 1; }
+	fail "Update script without condition did not run"
 [ ! -e "$out/update" ] ||
-	{ echo "Update script with false condition ran"; exit 1; }
+	fail "Update script with false condition ran"
 [ ! -e "$out/condition-as-script" ] ||
-	{ echo "Condition file ran as an update script"; exit 1; }
+	fail "Condition file ran as an update script"
 
 for flags in -fxR -fxS -fxd; do
 	rm -f "$out/root-condition" "$out/sudo-calls"
 	$COVERAGE ./pont.sh -q "$flags" script_conditions
 	sync
 	[ ! -e "$out/root-condition" ] ||
-		{ echo "Root script condition ran with $flags"; exit 1; }
+		fail "Root script condition ran with $flags"
 	[ ! -e "$out/sudo-calls" ] ||
-		{ echo "Root script called sudo with $flags"; exit 1; }
+		fail "Root script called sudo with $flags"
 done
 
 for flags in --skip-package-manager-scripts -R; do
@@ -146,46 +146,46 @@ for flags in --skip-package-manager-scripts -R; do
 		$COVERAGE ./pont.sh -q -fx "$flags" script_conditions
 	sync
 	[ ! -e "$out/package-manager-condition" ] ||
-		{ echo "Package manager script condition ran with $flags"; exit 1; }
+		fail "Package manager script condition ran with $flags"
 done
 
 ./pont.sh -fx script_conditions >"$out/stdout" 2>"$out/log"
 grep -qF "condition output in $PONT_TARGET" "$out/stdout" ||
-	{ echo "Condition output missing"; exit 1; }
+	fail "Condition output missing"
 grep -q 'No script for condition file .*/9\.user\.sh\.condition' "$out/log" ||
-	{ echo "No warning for condition file without script"; exit 1; }
+	fail "No warning for condition file without script"
 grep -q 'No script for condition file .*/notes\.txt\.condition' "$out/log" ||
-	{ echo "No warning for condition file of a non-script"; exit 1; }
+	fail "No warning for condition file of a non-script"
 ! grep -q 'condition file .*/5\.root\.sh\.condition' "$out/log" ||
-	{ echo "Warning for condition file with a script"; exit 1; }
+	fail "Warning for condition file with a script"
 
 $COVERAGE ./pont.sh -q -rr script_conditions
 sync
 [ -e "$out/remove-plain" ] ||
-	{ echo "Remove script without condition did not run"; exit 1; }
+	fail "Remove script without condition did not run"
 [ ! -e "$out/remove" ] ||
-	{ echo "Remove script with false condition ran"; exit 1; }
+	fail "Remove script with false condition ran"
 [ ! -e "$out/condition-as-script" ] ||
-	{ echo "Condition file ran as a remove script"; exit 1; }
+	fail "Condition file ran as a remove script"
 
 $COVERAGE ./pont.sh -q -fx script_condition_error
 sync
 [ ! -e "$out/failing-status" ] ||
-	{ echo "Script ran after condition exit 2"; exit 1; }
+	fail "Script ran after condition exit 2"
 [ ! -e "$out/failing-command" ] ||
-	{ echo "Script ran after condition with missing command"; exit 1; }
+	fail "Script ran after condition with missing command"
 [ ! -e "$failing/.tarhash" ] ||
-	{ echo "Module with failed condition got a hash"; exit 1; }
+	fail "Module with failed condition got a hash"
 
 PONT_CONDITIONFILE_NAME=cond $COVERAGE ./pont.sh -q -fx script_condition_suffix
 sync
 [ -e "$out/suffix-like-name" ] ||
-	{ echo "Script named like the suffix did not run"; exit 1; }
+	fail "Script named like the suffix did not run"
 [ ! -e "$out/suffix-condition" ] ||
-	{ echo "Condition file with custom suffix ignored"; exit 1; }
+	fail "Condition file with custom suffix ignored"
 PONT_CONDITIONFILE_NAME=cond ./pont.sh -fx script_condition_suffix \
 	>/dev/null 2>"$out/suffix-log"
 grep -q 'No script for condition file .*/orphan\.cond' "$out/suffix-log" ||
-	{ echo "No warning for condition file with custom suffix"; exit 1; }
+	fail "No warning for condition file with custom suffix"
 ! grep -q '1\.user\.second' "$out/suffix-log" ||
-	{ echo "Warning for script named like the suffix"; exit 1; }
+	fail "Warning for script named like the suffix"

@@ -7,9 +7,8 @@ set -e
 for option in -l --log --log-level -t --target -y --yank -Y --yank-expanded \
 	--rename; do
 	if result=$(./pont.sh "$option" -A 2>&1); then
-		echo "$option took -A as its value: $result"
-		exit 1
+		fail "$option took -A as its value: $result"
 	fi
 	[ "$result" = "$option is missing its parameter!" ] ||
-		{ echo "$option -A failed with: $result"; exit 1; }
+		fail "$option -A failed with: $result"
 done

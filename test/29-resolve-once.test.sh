@@ -52,27 +52,27 @@ resolve_once_a
 resolve_once_b
 resolve_once_c
 resolve_once_d" ] ||
-	{ echo "A module resolved more than once: $result"; exit 1; }
+	fail "A module resolved more than once: $result"
 
 result=$(timeout 10 ./pont.sh -eL resolve_cycle_a) ||
-	{ echo "The expansion of a dependency cycle did not end"; exit 1; }
+	fail "The expansion of a dependency cycle did not end"
 [ "$result" = "resolve_cycle_b
 resolve_cycle_a" ] ||
-	{ echo "A module of a dependency cycle resolved twice: $result"; exit 1; }
+	fail "A module of a dependency cycle resolved twice: $result"
 
 result=$(timeout 10 ./pont.sh -nL +resolve_cycle_p1) ||
-	{ echo "The expansion of a preset cycle did not end"; exit 1; }
+	fail "The expansion of a preset cycle did not end"
 [ "$result" = "resolve_once_b
 resolve_once_a" ] ||
-	{ echo "A preset of a preset cycle resolved twice: $result"; exit 1; }
+	fail "A preset of a preset cycle resolved twice: $result"
 
 # The module list hides a repeated tag, so the trace shows the skipped entry
 skipped=$(PONT_LOG_LEVEL=0 ./pont.sh -eL resolve_tag_user 2>&1 >/dev/null |
 	grep -c 'already resolved :resolve_tag' || true)
 [ "$skipped" = 1 ] ||
-	{ echo "A tag resolved more than once: $skipped skipped"; exit 1; }
+	fail "A tag resolved more than once: $skipped skipped"
 
 result=$(./pont.sh -eL resolveXonce resolve.once)
 [ "$result" = "resolveXonce
 resolve.once" ] ||
-	{ echo "A module name matched another as a pattern: $result"; exit 1; }
+	fail "A module name matched another as a pattern: $result"

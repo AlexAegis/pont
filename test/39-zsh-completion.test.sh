@@ -5,7 +5,7 @@ set -e
 # The zsh completion lists the modules, presets and tags that pont lists, also
 # when only a pontrc names their folders, from the first completion of a shell
 
-command -v zsh >/dev/null || { echo "zsh is not installed"; exit 1; }
+command -v zsh >/dev/null || fail "zsh is not installed"
 harness="$PWD/test/complete.zsh"
 bin="$PONT_TARGET/bin"
 mkdir -p "$bin"
@@ -15,7 +15,7 @@ export PATH
 
 list_completions() {
 	timeout 10 zsh -f "$harness" "$@" ||
-		{ echo "Completion of '$1' failed with status $?" >&2; exit 1; }
+		fail "Completion of '$1' failed with status $?" >&2
 }
 
 result=$(list_completions 'pont ')
@@ -25,7 +25,10 @@ expected=$({
 	./pont.sh -T | sed 's/^/:/'
 } | LC_ALL=C sort)
 [ "$result" = "$expected" ] ||
-	{ printf 'Completed:\n%s\nExpected:\n%s\n' "$result" "$expected"; exit 1; }
+	fail "Completed:
+$result
+Expected:
+$expected"
 
 rc_home="$PONT_TARGET/rc_home"
 mkdir -p "$rc_home/presets/sub" "$rc_home/modules/rc_one" \
@@ -46,7 +49,8 @@ rc_one
 rc_two'
 result=$(list_completions 'pont ')
 [ "$result" = "$expected" ] ||
-	{ printf 'Completed with the pontrc:\n%s\n' "$result"; exit 1; }
+	fail "Completed with the pontrc:
+$result"
 
 result=$(
 	PATH=${PATH#"$bin:"}
@@ -58,7 +62,7 @@ result=$(
 	list_completions 'pont +'
 )
 [ "$result" = "+mypreset" ] ||
-	{ echo "Completed with pont as a function: $result"; exit 1; }
+	fail "Completed with pont as a function: $result"
 
 folders="$PONT_TARGET/folders"
 mkdir -p "$folders/one" "$folders/two"
@@ -70,20 +74,20 @@ for line in 'pont -t ' 'pont -t=' 'pont -vt ' 'pont --target ' \
 	result=$(cd "$folders" && list_completions "$line")
 	[ "$result" = "link
 one
-two" ] || { echo "Completed '$line' as: $result"; exit 1; }
+two" ] || fail "Completed '$line' as: $result"
 done
 for line in 'pont -l t' 'pont -l=t' 'pont -vl=t' 'pont --log=t' \
 	'pont --log-level t' 'pont --log-level=t'; do
 	result=$(list_completions "$line")
-	[ "$result" = trace ] || { echo "Completed '$line' as: $result"; exit 1; }
+	[ "$result" = trace ] || fail "Completed '$line' as: $result"
 done
 expect_option() {
 	result=$(list_completions "$1")
 	case $result in
 	*'
-'* | '') echo "Completed '$1' as: $result"; exit 1 ;;
+'* | '') fail "Completed '$1' as: $result" ;;
 	"$2 "*) ;;
-	*) echo "Completed '$1' as: $result"; exit 1 ;;
+	*) fail "Completed '$1' as: $result" ;;
 	esac
 }
 expect_option 'pont --expand-selected' --expand-selected
@@ -96,15 +100,11 @@ expect_entries() {
 	entries_listed=$2
 	shift 2
 	result=$(list_completions "$entries_line")
-	printf '%s\n' "$result" | grep -qx -e "$entries_listed" || {
-		echo "Completed '$entries_line' without $entries_listed: $result"
-		exit 1
-	}
+	printf '%s\n' "$result" | grep -qx -e "$entries_listed" ||
+		fail "Completed '$entries_line' without $entries_listed: $result"
 	for unlisted; do
-		! printf '%s\n' "$result" | grep -qx -e "$unlisted" || {
-			echo "Completed '$entries_line' with $unlisted: $result"
-			exit 1
-		}
+		! printf '%s\n' "$result" | grep -qx -e "$unlisted" ||
+			fail "Completed '$entries_line' with $unlisted: $result"
 	done
 }
 expect_entries 'pont -T' -v -T
@@ -119,20 +119,20 @@ result=$(
 )
 [ "$result" = "module
 rc_one
-rc_two" ] || { echo "Completed 'pont --rename ' as: $result"; exit 1; }
+rc_two" ] || fail "Completed 'pont --rename ' as: $result"
 result=$(list_completions 'pont --rename=')
 [ "$result" = "rc_one
-rc_two" ] || { echo "Completed 'pont --rename=' as: $result"; exit 1; }
+rc_two" ] || fail "Completed 'pont --rename=' as: $result"
 for line in 'pont -t' 'pont -vt' 'pont -l' 'pont -y' 'pont -Y'; do
 	result=$(cd "$folders" && list_completions "$line" --insert)
 	[ "$result" = "$line X" ] ||
-		{ echo "Inserted after '$line': $result"; exit 1; }
+		fail "Inserted after '$line': $result"
 done
 result=$(cd "$folders" && list_completions 'pont -to' --insert)
 [ "$result" = 'pont -toX' ] ||
-	{ echo "Inserted after 'pont -to': $result"; exit 1; }
+	fail "Inserted after 'pont -to': $result"
 for line in 'pont -t' 'pont -to' 'pont -vto' 'pont -lt' 'pont -yo' \
 	'pont -Yo' 'pont --scaffold ' 'pont --cpt one ' 'pont --rename rc_one '; do
 	result=$(cd "$folders" && list_completions "$line")
-	[ -z "$result" ] || { echo "Completed '$line' as: $result"; exit 1; }
+	[ -z "$result" ] || fail "Completed '$line' as: $result"
 done

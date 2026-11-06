@@ -10,4 +10,4 @@ rm .pontrc
 # Assertions
 sync
 [ "$result" = "" ] ||
- 	{ echo "Result is not empty, systemd script ran on wsl"; exit 1; }
+ 	fail "Result is not empty, systemd script ran on wsl"
