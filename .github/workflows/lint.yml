@@ -26,28 +26,11 @@ jobs:
       - name: Install dependencies
         run: |
           ${SUDO_AVAIL:+sudo} apt-get install -y make
-      - name: Cache shellcheck
-        id: cache-shellcheck
-        uses: actions/cache@v6
-        with:
-          path: shellcheck-stable
-          key: ${{ runner.os }}-shellcheck
-      - name: Install shellcheck download only dependencies
-        if: steps.cache-shellcheck.outputs.cache-hit != 'true'
-        run: |
-          ${SUDO_AVAIL:+sudo} apt-get install -y wget tar xz-utils
-      - name: Download shellcheck and dependencies
-        if: steps.cache-shellcheck.outputs.cache-hit != 'true'
-        run: |
-          wget -qO- "https://github.com/koalaman/shellcheck/releases\
-          /download/stable\
-          /shellcheck-stable.linux.x86_64.tar.xz" | tar -xJv
-          ${SUDO_AVAIL:+sudo} \
-            cp "shellcheck-stable/shellcheck" /usr/bin/
       - name: Install shellcheck
-        run: |
-          ${SUDO_AVAIL:+sudo} \
-            cp "shellcheck-stable/shellcheck" /usr/bin/
+        uses: taiki-e/install-action@v2
+        with:
+          tool: shellcheck
+          fallback: none
       - name: Check shellcheck version
         run: shellcheck --version
       - name: Lint
