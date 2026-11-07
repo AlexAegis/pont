@@ -441,13 +441,13 @@ There is an extra special dependency setting called `fallback`, and this is
 where `script groups` come into play. A script group is the scripts with the
 same ordering segment.
 
-- The `fallback` scripts of a group run when no other script of the group
-  succeeds.
-  - Not a success: a script that fails, or that its third segment excludes.
-  - A success: a script that `pont` skips as done, such as after
-    `--skip-root` or a condition file that exits with 1.
-- The result of the fallbacks replaces the result of the group. A group whose
-  fallbacks all succeed does not fail the module.
+- The `fallback` scripts of a group run only when no other script of the group
+  applies.
+  - Not applicable: a script that its third segment excludes.
+  - Applicable: every other script, also one that fails or that `pont` skips
+    as done, such as after `--skip-root` or a condition file that exits with 1.
+- A failed script fails the module. The fallbacks of its group do not run.
+- When the fallbacks run, their result is the result of the group.
 
 > A usecase for this is the AUR. A lot of packages are available there, so on
 > `arch` systems you can probably install anyting using `pacman` or with an

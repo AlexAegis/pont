@@ -1167,14 +1167,13 @@ execute_scripts_for_module() {
 	# 1: module name
 	# 2: scripts to run
 	# 3: sourcing setting, if set, user privileged scripts will be sourced
-	# Outputs: group_result (sum of exit codes), successful_scripts (count)
+	# Outputs: group_result (sum of exit codes)
 	_esm_saved_dir="$PWD"
 	cd "$PONT_MODULES_HOME/$1" || {
 		log_error "Cannot cd to module $1"
 		return 1
 	}
 	group_result=0
-	successful_scripts=0
 	pause_globbing
 	for script in $2; do
 		resume_globbing
@@ -1232,9 +1231,6 @@ $script_condition_file_status"
 			fi
 			result=$?
 			group_result=$((group_result + result))
-			if [ $result = 0 ]; then
-				successful_scripts=$((successful_scripts + 1))
-			fi
 		else
 			log_trace "Skipping $script..."
 		fi
@@ -1697,16 +1693,18 @@ $script"
 		group_scripts_without_fallback=$(printf '%s\n' "$group_scripts_to_run" |
 			grep -v 'fallback')
 
+		group_fallback_scripts=$(printf '%s\n' "$group_scripts_to_run" |
+			grep 'fallback')
+
 		log_trace "scripts to execute after conditions
 $group_scripts_without_fallback"
 
-		execute_scripts_for_module "$1" "$group_scripts_without_fallback"
-
-		group_fallback_scripts=$(printf '%s\n' "$group_scripts_to_run" |
-			grep 'fallback')
-		if [ "$successful_scripts" = 0 ] && [ "$group_fallback_scripts" ]; then
-			log_info "Installing group $group for $1 was not successful, \
-trying fallbacks:
+		group_result=0
+		if [ "$group_scripts_without_fallback" ]; then
+			execute_scripts_for_module "$1" "$group_scripts_without_fallback"
+		elif [ "$group_fallback_scripts" ]; then
+			log_info "No other script of group $group for $1 applies, \
+running fallbacks:
 $group_fallback_scripts"
 
 			execute_scripts_for_module "$1" "$group_fallback_scripts"
