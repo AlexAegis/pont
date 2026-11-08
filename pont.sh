@@ -541,8 +541,9 @@ show_help() {
 -u, --update                  -- Run all scripts starting with u in the
                                  selected modules.
 -x, --execute, --install      -- Run init scripts, stow configs, then run
-                                 scripts starting with a number and the
-                                 Makefile in all the selected modules.
+                                 scripts starting with a number, or the
+                                 Makefile when there are none, in all the
+                                 selected modules.
 -r, --remove                  -- Unstows every stow package in the selected
                                  modules. If this flag is added twice it will
                                  also run all scripts starting with r in the
@@ -1252,6 +1253,7 @@ execute_scripts_for_module() {
 	# 3: sourcing setting, if set, user privileged scripts will be sourced
 	# Outputs: group_result (sum of exit codes)
 	_esm_saved_dir="$PWD"
+	group_result=1
 	cd "$PONT_MODULES_HOME/$1" || {
 		log_error "Cannot cd to module $1"
 		return 1
@@ -1304,7 +1306,9 @@ $script_condition_file_status"
 						set -a
 						# shellcheck disable=SC1090
 						. "$PONT_MODULES_HOME/$1/$script"
+						_esm_sourced_result=$?
 						set +a
+						(exit "$_esm_sourced_result")
 					else
 						(
 							"$PONT_MODULES_HOME/$1/$script"
@@ -1686,6 +1690,10 @@ unstow_modules() {
 make_module() {
 	if [ "${PONT_MAKE_ENABLED:-1}" = 1 ] &&
 		[ -e "$PONT_MODULES_HOME/$1/Makefile" ]; then
+		if [ "${PONT_DRY_FLAG:-0}" = 1 ]; then
+			log_trace "Make would run in $1"
+			return 0
+		fi
 		if ! is_installed "make"; then
 			log_error "Make not available"
 			return 1
@@ -1875,6 +1883,7 @@ execute_modules() {
 		# Source env, regardless, so the environment of the dependencies
 		# are available
 		source_modules_envs "$1"
+		total_result=$group_result
 
 		if [ "${PONT_FORCE_FLAG:-0}" = 1 ] ||
 			[ "$old_hash" != "$new_hash" ]; then
@@ -1892,6 +1901,7 @@ execute_modules() {
 			fi
 
 			init_modules "$1"
+			total_result=$((total_result + group_result))
 
 			# Stowing is hard disabled on windows
 			if [ -z "$windows" ]; then
@@ -1904,7 +1914,7 @@ execute_modules() {
 			# It's mutually exclusive with normal scripts, will only run
 			# When no numbered scripts exist
 			if [ -z "$(get_install_scripts_in_module "$1")" ]; then
-				make_module "$1"
+				make_module "$1" || total_result=$((total_result + 1))
 			fi
 
 			install_module "$1"
@@ -1914,7 +1924,8 @@ execute_modules() {
 				hash_module "$1"
 			else
 				log_error "Installation failed $1"
-				[ -e "$(hashfile_of "$1")" ] && rm "$(hashfile_of "$1")"
+				[ "${PONT_DRY_FLAG:-0}" = 1 ] || [ ! -e "$(hashfile_of "$1")" ] ||
+					rm "$(hashfile_of "$1")"
 			fi
 
 		else

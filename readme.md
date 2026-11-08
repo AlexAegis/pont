@@ -334,9 +334,8 @@ These scripts are what supposed to install packages for your module to work.
 And they will run by default when installing a module.
 
 > They are not the only way to describe the installation process of a module.
-> You can use a `Makefile` with an `install` target. Both will execute, so
-> either only create one type of installation or set a flag to disable one
-> of them. See the [Makefiles](#Makefiles) section for more.
+> A module without installation scripts can use a `Makefile` instead. See the
+> [Makefiles](#Makefiles) section for more.
 
 Since package management is unique to each system, and not just by having
 different commands to install a package. Often their name is different. Or
@@ -504,6 +503,13 @@ before any other script do. And if it's `user` privileged it will not just
 run, but it will be sourced so everything that it defines will be available
 later.
 
+A failed init script fails the module. The status of a sourced script is the
+status of its `return` or of its last command, so a last line such as
+`[ -e x ] && rm x` fails when `x` is missing. A failed `e` script fails a
+module that `pont` installs. `pont` also sources the `e` scripts of a module
+that it does not install, such as an up to date module, and at `-u` and `-r`.
+There, their status changes nothing.
+
 > Thorough every module after that
 
 These scripts are run before [stowing the stow packages](#Stow-packages) so
@@ -553,8 +559,6 @@ Non installed modules can't be updated. This won't expand the dependency graph
 and only the mentioned modules will be updated. You can force expanding with
 the `-e` flag after the `-u` though to update every dependency too.
 
-> Alternatively create a `Makefile` with an `update` target.
-
 ## Config files
 
 There are some files that are used for configuration but they are really
@@ -567,13 +571,13 @@ simple and do not follow a common format
 > implemented inside the `Makefile`) the regular
 > [Installation scripts](#Installation-scripts) are much easier to use.
 
-Makefiles provide an alternative or complementary mode of defining the
-installation, update and remove procedures using make targets.
-If there is a `Makefile` in the module, it will be executed if `make` is
-available, and running makefiles are enabled. (It is by default)
+Makefiles provide an alternative mode of installing a module: `pont` runs
+`make` with its default target. If there is a `Makefile` in the module, it will
+be executed when running makefiles are enabled. (It is by default)
 
-They will always execute after the regular installation scripts and
-are always executed using `user` privileges.
+They only run when the module has no installation scripts, and they are always
+executed using `user` privileges. A failed `make` fails the module, and so does
+a missing `make`.
 
 ### Dependencies
 
