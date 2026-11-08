@@ -107,9 +107,8 @@ Caveats on Windows:
 > [`conditionfiles`](#Conditional-modules) (To limit modules into certain OS')
 > or condition everything in it to windows or not windows. Disabling automatic
 > symlinking on Windows altogether is the easier choice. If needed you can
-> always write the PowerShell script to do the symlinking. Same thing with
-> PowerShell scripts on linux, since only the file extension is checked, you
-> can just give it something else and have the same shebang.
+> always write the PowerShell script to do the symlinking. To run a PowerShell
+> install script on linux, give it the `sh` extension and keep the shebang.
 
 ## Installation
 
@@ -356,14 +355,23 @@ configuration file into `/etc`
 
 ### The scripts names decide how and when they will run
 
-Their names can be separated into up to 4 segments, separated by 3 periods.
-Everything after the 3rd period is unused. At least 3 segments (two periods in
-the filename) is needed for `pont` to recognize it as a runnable script. So
-you can add other, non-managed scripts in the module folder when needed. But
-you can also just put them into a separate folder.
+A script name has the form `<kind>.<privilege>[.<condition>].<extension>`.
+`pont` runs a file of the module folder only when its name has this form:
 
-> \* If you skip the dependency segment then the extension will be read as
-> the dependency, but since it's `sh` anyway it will always be true.
+- kind: a segment that starts with a digit, such as `1` or `01`, for an
+  install script, or `e` or `env`, `i` or `init`, `u` or `update`, `r` or
+  `remove`, each with optional digits, such as `u0`
+- privilege: `user`, `root` or `sudo`, with an optional `-<suffix>`, such as
+  `user-local`
+- extension: `sh` or `ps1`. Of the install scripts, `pont` runs only the `ps1`
+  ones on Windows and only the others elsewhere. Scripts of the other kinds run
+  with either extension.
+
+Segments between the condition and the extension are unused. Other files, such
+as `eslint.config.ts` or `notes.md`, stay in the module folder and do not run.
+`pont` warns about a file whose first segment is a kind and whose name has two
+periods, but that has only one of a privilege and an extension above, such as
+the backup `0.root.pacman.bak`.
 
 ### First segment, order and grouping
 
@@ -387,7 +395,7 @@ The only mechanic related to this are `fallback` scripts, more on that in the
 is the privilege and it can be two things:
 
 - user
-- root
+- root, or `sudo` with the same meaning
 
 No matter whether you run `pont` with sudo or not, if it has to run a `user`
 script it will always `sudo` back to `$SUDO_USER` (If it has to) and it will

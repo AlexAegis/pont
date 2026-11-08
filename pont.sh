@@ -1116,12 +1116,95 @@ without_script_condition_files() {
 	done
 }
 
-is_script_file_name() {
+# Outputs: script_kind of a first segment: install when it starts with a digit,
+# else the kind of a kind word with optional digits (env, init, update or
+# remove). Fails for another segment.
+read_script_kind() {
+	script_kind=
 	case "$1" in
-		restore*) return 1 ;;
-		[0-9eiur]*.*.*) return 0 ;;
+		[0-9]*)
+			script_kind='install'
+			return 0
+			;;
+	esac
+	_rsk_word=$1
+	while :; do
+		case "$_rsk_word" in
+			*[0-9]) _rsk_word=${_rsk_word%?} ;;
+			*) break ;;
+		esac
+	done
+	case "$_rsk_word" in
+		e | env) script_kind='env' ;;
+		i | init) script_kind='init' ;;
+		u | update) script_kind='update' ;;
+		r | remove) script_kind='remove' ;;
+	esac
+	[ "$script_kind" ]
+}
+
+has_script_privilege() {
+	_hsp_privilege=${1#*.}
+	_hsp_privilege=${_hsp_privilege%%.*}
+	case "${_hsp_privilege%%-*}" in
+		user | root | sudo) return 0 ;;
 	esac
 	return 1
+}
+
+has_script_extension() {
+	case "$1" in
+		*.*.sh | *.*.ps1) return 0 ;;
+	esac
+	return 1
+}
+
+# Fails unless the name is <kind>.<privilege>[.<condition>].<extension>:
+# - privilege: user, root or sudo, with an optional -<suffix>
+# - extension: sh or ps1
+# Outputs: script_kind
+is_script_file_name() {
+	script_kind=
+	has_script_extension "$1" && has_script_privilege "$1" &&
+		read_script_kind "${1%%.*}"
+}
+
+# Prints the names of the scripts of a kind in a module, unsorted
+# 1: module name
+# 2: kind
+scripts_of_kind_in_module() {
+	find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 -type f 2>/dev/null |
+		sed 's|.*/||' | without_script_condition_files |
+		while IFS= read -r _sokim_name; do
+			if is_script_file_name "$_sokim_name" &&
+				[ "$script_kind" = "$2" ]; then
+				printf '%s\n' "$_sokim_name"
+			fi
+		done
+}
+
+# Warns about a file whose first segment names a kind of script and whose
+# name has two periods, but that has only one of a script privilege and a
+# script extension, such as 0.root.pacman.bak
+warn_not_script_files() {
+	find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 -type f 2>/dev/null |
+		sed 's|.*/||' | without_script_condition_files |
+		while IFS= read -r _wnsf_name; do
+			case "$_wnsf_name" in
+				*.*.*) ;;
+				*) continue ;;
+			esac
+			_wnsf_matches=0
+			has_script_privilege "$_wnsf_name" &&
+				_wnsf_matches=$((_wnsf_matches + 1))
+			has_script_extension "$_wnsf_name" &&
+				_wnsf_matches=$((_wnsf_matches + 1))
+			if [ "$_wnsf_matches" = 1 ] &&
+				read_script_kind "${_wnsf_name%%.*}"; then
+				log_warning "Not a script name, not run: \
+$PONT_MODULES_HOME/$1/$_wnsf_name"
+			fi
+		done
 }
 
 check_script_condition_file() {
@@ -1346,9 +1429,7 @@ call_with_lines() {
 init_modules() {
 	log_info "Initializing modules $*"
 	while [ "$1" ]; do
-		init_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
-			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' |
-			grep '^i.*\..*\..*$' | without_script_condition_files |
+		init_scripts_in_module=$(scripts_of_kind_in_module "$1" init |
 			sort_script_names)
 		execute_scripts_for_module "$1" "$init_scripts_in_module" "1"
 		shift
@@ -1358,9 +1439,7 @@ init_modules() {
 source_modules_envs() {
 	log_info "Sourcing modules envs $*"
 	while [ "$1" ]; do
-		env_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
-			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' |
-			grep '^e.*\..*\..*$' | without_script_condition_files |
+		env_scripts_in_module=$(scripts_of_kind_in_module "$1" env |
 			sort_script_names)
 		log_trace "Environmental scripts in $1 are $env_scripts_in_module"
 		execute_scripts_for_module "$1" "$env_scripts_in_module" "1"
@@ -1385,9 +1464,7 @@ update_modules() {
 		# Source env
 		source_modules_envs "$1"
 
-		update_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
-			-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' |
-			grep '^u.*\..*\..*$' | without_script_condition_files |
+		update_scripts_in_module=$(scripts_of_kind_in_module "$1" update |
 			sort_script_names)
 		execute_scripts_for_module "$1" "$update_scripts_in_module"
 		shift
@@ -1423,10 +1500,8 @@ remove_modules() {
 		# Only run the remove scripts with -rr, a single r just unstows
 		if [ "$remove_count" -ge 2 ] && [ "$module_applies" ]; then
 			log_info "Hard remove $1"
-			remove_scripts_in_module=$(find "$PONT_MODULES_HOME/$1/" \
-				-mindepth 1 -maxdepth 1 -type f | sed 's|.*/||' |
-				grep -v '^restore.*$' | grep '^r.*\..*\..*$' |
-				without_script_condition_files | sort_script_names)
+			remove_scripts_in_module=$(scripts_of_kind_in_module "$1" \
+				remove | sort_script_names)
 			execute_scripts_for_module "$1" "$remove_scripts_in_module"
 		else
 			log_info "Soft remove $1"
@@ -1636,14 +1711,13 @@ powershell_script_filter() {
 # The number of the first segment orders the groups. Names with the same
 # number, such as 01 and 1, follow in byte order, which keeps groups together.
 get_install_scripts_in_module() {
-	find "$PONT_MODULES_HOME/$1/" -mindepth 1 -maxdepth 1 \
-		-type f 2>/dev/null | sed 's|.*/||' | grep "^[0-9].*\..*\..*$" |
-		without_script_condition_files | sort_script_names -t . -k 1,1n |
-		powershell_script_filter
+	scripts_of_kind_in_module "$1" install |
+		sort_script_names -t . -k 1,1n | powershell_script_filter
 }
 
 install_module() {
 	warn_unused_script_condition_files "$1"
+	warn_not_script_files "$1"
 	scripts_in_module=$(get_install_scripts_in_module "$1")
 	log_trace "Scripts in module for $1 are:
 $scripts_in_module"

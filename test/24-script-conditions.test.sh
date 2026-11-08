@@ -93,10 +93,10 @@ echo 'exit 2' >"$failing/1.user.sh.condition"
 make_script "$failing/2.user.sh" failing-command
 echo pont_test_missing_command >"$failing/2.user.sh.condition"
 
-make_script "$suffix/1.user.second" suffix-like-name
+make_script "$suffix/1.user.sh" suffix-like-name
 make_script "$suffix/2.user.sh" suffix-condition
-echo false >"$suffix/2.user.sh.cond"
-echo true >"$suffix/orphan.cond"
+echo false >"$suffix/2.user.sh.h"
+echo true >"$suffix/orphan.h"
 
 $COVERAGE ./pont.sh -q -fx script_conditions
 sync
@@ -177,15 +177,15 @@ sync
 [ ! -e "$failing/.tarhash" ] ||
 	fail "Module with failed condition got a hash"
 
-PONT_CONDITIONFILE_NAME=cond $COVERAGE ./pont.sh -q -fx script_condition_suffix
+PONT_CONDITIONFILE_NAME=h $COVERAGE ./pont.sh -q -fx script_condition_suffix
 sync
 [ -e "$out/suffix-like-name" ] ||
 	fail "Script named like the suffix did not run"
 [ ! -e "$out/suffix-condition" ] ||
 	fail "Condition file with custom suffix ignored"
-PONT_CONDITIONFILE_NAME=cond ./pont.sh -fx script_condition_suffix \
+PONT_CONDITIONFILE_NAME=h ./pont.sh -fx script_condition_suffix \
 	>/dev/null 2>"$out/suffix-log"
-grep -q 'No script for condition file .*/orphan\.cond' "$out/suffix-log" ||
+grep -q 'No script for condition file .*/orphan\.h' "$out/suffix-log" ||
 	fail "No warning for condition file with custom suffix"
-! grep -q '1\.user\.second' "$out/suffix-log" ||
+! grep -q '1\.user\.sh' "$out/suffix-log" ||
 	fail "Warning for script named like the suffix"
