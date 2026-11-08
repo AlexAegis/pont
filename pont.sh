@@ -1517,7 +1517,8 @@ remove_modules() {
 		fi
 
 		# remove hashfile to mark as uninstalled
-		[ -e "$(hashfile_of "$1")" ] && rm "$(hashfile_of "$1")"
+		[ "${PONT_DRY_FLAG:-0}" = 1 ] || [ ! -e "$(hashfile_of "$1")" ] ||
+			rm "$(hashfile_of "$1")"
 
 		shift
 	done
@@ -1545,7 +1546,7 @@ do_stow() {
 	$1
 	$2
 	$3"
-		mkdir -p "$2"
+		[ "${PONT_DRY_FLAG:-0}" = 1 ] || mkdir -p "$2"
 	fi
 	if [ ! "$3" ]; then
 		die "no package name!
