@@ -561,17 +561,16 @@ they can be enabled using flags.
 
 > `remove.sudo.sh`
 
-Using the `-r` flag, scripts with `remove` as their first segment will be run.
-This also causes `pont` to `unstow` every **stow package** from the module,
-and also removes the `.tarhash` file, marking the module uninstalled.
-
-Specifying the flag twice causes it to also run scripts that start with an `r`
+With `-r`, `pont` unstows every **stow package** of the module and removes its
+`.tarhash` file, which marks the module uninstalled. With `-rr`, it also runs
+the remove scripts first, those whose first segment is `r` or `remove`.
 
 `-r` also removes an installed module whose
-[`.condition`](#Conditional-modules) fails. pont sources the `e` scripts of
-such a module before the unstow, although the condition fails. They can set
-the targets of its stow packages. `-rr` does not run the remove scripts of
-such a module. A syntax error in `.condition` leaves the module installed.
+[`.condition`](#Conditional-modules) fails. pont sources the user `e` scripts
+of such a module before the unstow, although the condition fails. They can set
+the targets of its stow packages. Its root and sudo `e` scripts and, with
+`-rr`, its remove scripts do not run. A syntax error in `.condition` leaves the
+module installed.
 
 #### Update
 

@@ -13,9 +13,10 @@ hash="$module/.tarhash"
 link="$PONT_TARGET/condition_remove_file"
 marker="$PONT_TARGET/condition_remove_script"
 env_marker="$PONT_TARGET/condition_remove_env"
-trap 'rm -rf "$module" "$never_module"' EXIT
+stubs="$PONT_TARGET/condition_remove_stubs"
+trap 'rm -rf "$module" "$never_module" "$stubs"' EXIT
 trap 'exit 1' HUP INT TERM
-rm -rf "$module" "$never_module"
+rm -rf "$module" "$never_module" "$stubs"
 
 mkdir -p "$module/.condition_remove" "$never_module/.condition_remove_never"
 echo package >"$module/.condition_remove/condition_remove_file"
@@ -69,3 +70,28 @@ for flag in -x -u; do
 		grep -qF 'Condition on condition_remove failed. Skipping. false' ||
 		fail "$flag did not log the failed condition: $output"
 done
+
+# -r sources the user e scripts of an installed module whose condition failed,
+# for the targets of the unstow. Its root and sudo e scripts need the condition.
+mkdir -p "$stubs"
+cat >"$stubs/sudo" <<EOF
+#!/bin/sh
+printf '%s\n' "\$*" >>"$stubs/sudo-calls"
+EOF
+chmod +x "$stubs/sudo"
+rm "$module/.condition"
+$COVERAGE ./pont.sh -q condition_remove
+printf 'touch "%s"\n' "$env_marker" >"$module/e.user.sh"
+for name in e.root.sh env.sudo-x.sh; do
+	printf '#!/bin/sh\n' >"$module/$name"
+	chmod +x "$module/$name"
+done
+echo false >"$module/.condition"
+PATH="$stubs:$PATH" $COVERAGE ./pont.sh -q -r condition_remove
+sync
+[ ! -L "$link" ] || fail "-r kept the links of the module"
+[ -e "$env_marker" ] ||
+	fail "-r did not source the user e script of a module whose condition failed"
+[ ! -e "$stubs/sudo-calls" ] ||
+	fail "-r ran a root e script of a module whose condition failed: \
+$(cat "$stubs/sudo-calls")"

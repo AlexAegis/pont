@@ -1194,10 +1194,16 @@ read_script_kind() {
 	[ "$script_kind" ]
 }
 
+# Outputs: script_privilege, the second segment without its -suffix
+read_script_privilege() {
+	script_privilege=${1#*.}
+	script_privilege=${script_privilege%%.*}
+	script_privilege=${script_privilege%%-*}
+}
+
 has_script_privilege() {
-	_hsp_privilege=${1#*.}
-	_hsp_privilege=${_hsp_privilege%%.*}
-	case "${_hsp_privilege%%-*}" in
+	read_script_privilege "$1"
+	case "$script_privilege" in
 		user | root | sudo) return 0 ;;
 	esac
 	return 1
@@ -1323,11 +1329,11 @@ execute_scripts_for_module() {
 			[ "${PONT_SCRIPTS_ENABLED:-1}" = 1 ]; then
 			log_trace "Running $script..."
 
-			privilege='user'
-			[ "$(printf '%s\n' "$script" | grep -o '\.' | wc -w)" -gt 1 ] &&
-				privilege=$(printf '%s\n' "$script" |
-					cut -d '.' -f 2 | sed 's/-.*//')
-			case "$privilege" in
+			script_privilege='user'
+			case "$script" in
+				*.*.*) read_script_privilege "$script" ;;
+			esac
+			case "$script_privilege" in
 				root | sudo) root_script=1 ;;
 				*) root_script= ;;
 			esac
@@ -1502,6 +1508,30 @@ source_modules_envs() {
 	done
 }
 
+# Sources the user env scripts of a module and skips its root and sudo ones
+# 1: module name
+source_user_envs_of_module() {
+	log_info "Sourcing the user envs of $1"
+	env_scripts_in_module=$(scripts_of_kind_in_module "$1" env |
+		sort_script_names | without_root_scripts "$1")
+	log_trace "User environmental scripts in $1 are $env_scripts_in_module"
+	execute_scripts_for_module "$1" "$env_scripts_in_module" "1"
+}
+
+# Prints the script names of stdin whose privilege is neither root nor sudo
+# 1: module name, for the log
+without_root_scripts() {
+	while IFS= read -r _wrs_name; do
+		read_script_privilege "$_wrs_name"
+		case "$script_privilege" in
+			root | sudo)
+				log_info "Skipping $_wrs_name, the condition of $1 failed"
+				;;
+			*) printf '%s\n' "$_wrs_name" ;;
+		esac
+	done
+}
+
 update_modules() {
 	log_info "Updating modules $*"
 	while [ "$1" ]; do
@@ -1549,8 +1579,13 @@ remove_modules() {
 			module_applies=
 		fi
 
-		# Source env
-		source_modules_envs "$1"
+		# The user env scripts can set the targets of the unstow. The root and
+		# sudo ones need the condition, like the remove scripts.
+		if [ "$module_applies" ]; then
+			source_modules_envs "$1"
+		else
+			source_user_envs_of_module "$1"
+		fi
 
 		# Only run the remove scripts with -rr, a single r just unstows
 		if [ "$remove_count" -ge 2 ] && [ "$module_applies" ]; then
