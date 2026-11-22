@@ -667,7 +667,8 @@ show_help() {
 -y <DIR>, --yank <DIR>        -- will yank the selection (with none expansion
                                  by default) to the target folder. Useful for
                                  copying modules along with their
-                                 dependencies. (Used presets are also copied!)
+                                 dependencies. (Used presets are also copied!
+                                 Two preset files with one name make yank fail.)
 -Y <DIR>, --yank-expanded <DIR> -- will yank the expanded selection
                                    (same as -ey) to the target folder.
 
@@ -2146,14 +2147,7 @@ action_update_modules() {
 }
 
 do_yank() {
-	as_user mkdir -p "$yank_target"
-	# Copy all modules
-	while [ "$1" ]; do
-		log_info "Yanking $PONT_MODULES_HOME/$1 to $yank_target/$1"
-		as_user cp -r "$PONT_MODULES_HOME/$1" "$yank_target/$1"
-		shift
-	done
-	# Copy all used presets
+	yank_preset_files=
 	pause_globbing
 	for preset in $expanded_presets; do
 		resume_globbing
@@ -2161,13 +2155,30 @@ do_yank() {
 			cut -d '+' -f 2-)$PONT_PRESET_EXTENSION"
 		preset_file=$(find "$PONT_PRESETS_HOME" -type f \
 			-name "$(literal_pattern "$preset_file_name")")
-		if [ -z "$preset_file" ]; then
-			log_warning "Preset $preset_file_name not found, not yanked"
-			continue
-		fi
-		as_user cp "$preset_file" "$yank_target/$preset_file_name"
+		case $preset_file in
+			'')
+				log_warning "Preset $preset_file_name not found, not yanked"
+				continue
+				;;
+			*'
+'*)
+				die "More than one $preset_file_name, nothing yanked:
+$preset_file"
+				;;
+		esac
+		yank_preset_files="$yank_preset_files$preset_file
+"
 	done
 	resume_globbing
+	as_user mkdir -p "$yank_target"
+	while [ "$1" ]; do
+		log_info "Yanking $PONT_MODULES_HOME/$1 to $yank_target/$1"
+		as_user cp -r "$PONT_MODULES_HOME/$1" "$yank_target/$1"
+		shift
+	done
+	printf '%s' "$yank_preset_files" | while IFS= read -r preset_file; do
+		as_user cp "$preset_file" "$yank_target/${preset_file##*/}"
+	done
 }
 
 action_yank() {
