@@ -627,7 +627,9 @@ if with `+`. More about those in their own sections.
 When installing a module, first every single dependency it has will be
 installed before. **It avoids circular dependencies**: it expands each module,
 preset or tag at its first entry whose condition holds, and skips its later
-entries, whatever their condition.
+entries, whatever their condition. A preset or tag that is still expanding
+counts as expanded, so a member that depends on its own preset or tag does not
+wait for the other members.
 
 > Using the `-sm` or `--show-modules` flag, instead of installing (can be
 > turned back on) you only get the list of modules that are gonna be
