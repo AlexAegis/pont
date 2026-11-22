@@ -49,6 +49,30 @@ entry_lines_root" ] ||
 result=$(./pont.sh -nL 'entry_lines_crlf # why? false' 2>/dev/null)
 [ "$result" = entry_lines_crlf ] ||
 	fail "A ? in a comment made a condition: $result"
+# shellcheck disable=SC2016
+for line in 'entry_lines_crlf ? [ "a#b" = "a#b" ]' \
+	"entry_lines_crlf ? [ '#' = '#' ] # [ x = y ]" \
+	'entry_lines_crlf ? [ a#b = a#b ]' \
+	'entry_lines_crlf ? x=ab; [ "${#x}" = 2 ]' \
+	'entry_lines_crlf ? [ a\ #b = "a #b" ]' \
+	"entry_lines_crlf ? [ 'a #b' = 'a #b' ]" \
+	'entry_lines_crlf ? [ $(printf a)#b = a#b ]' \
+	'entry_lines_crlf ? [ $((1 + 1))#b = 2#b ]' \
+	'entry_lines_crlf ? [ $( { printf a; } )#b = a#b ]' \
+	'entry_lines_crlf ? [ `printf x #y` = x ] # [ x = y ]' \
+	'entry_lines_crlf ? x=${entry_lines_unset:-a #b}; [ "$x" = "a #b" ]'; do
+	result=$(./pont.sh -nL "$line" 2>/dev/null)
+	[ "$result" = entry_lines_crlf ] ||
+		fail "A # that starts no word outside quotes cut $line: $result"
+done
+# shellcheck disable=SC2016
+for entry in 'entry_lines_crlf;' 'entry_lines_crlf&' 'entry_lines_crlf|' \
+	'entry_lines_crlf(' 'entry_lines_crlf)' 'entry_lines_crlf<' \
+	'entry_lines_crlf>' 'entry_lines_crlf ( x )' 'entry_lines_crlf $(x) )'; do
+	result=$(./pont.sh -nL "$entry# why? false" 2>/dev/null)
+	[ "$result" = "$entry" ] ||
+		fail "The comment after $entry stayed: $result"
+done
 result=$(./pont.sh -nL '  +entry_lines_preset' 2>/dev/null)
 [ "$result" = entry_lines_member ] ||
 	fail "The preset with leading blanks selected: $result"

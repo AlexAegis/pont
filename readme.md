@@ -605,10 +605,14 @@ a missing `make`.
 
 > .dependencies
 
-This file lists all the dependencies the module has, one on each line. A `#`
-starts a comment that ends with the line. Blanks (spaces, tabs and carriage
-returns) at either end of a line are ignored. A line that is empty after that
-is skipped.
+This file lists all the dependencies the module has, one on each line. A
+comment starts at a `#` that begins a word, as in `sh`. That is a `#` after a
+blank or one of `;&|()<>`, not after a backslash and not in quotes, backticks,
+`$(...)` or `${...}`. `a#b`, `"a #b"`, `${#x}` and `$(x)#y` keep their `#`.
+Limits: each line is read on its own, and pont does not parse inside `$(...)` or
+`${...}`, so quotes nested in a quoted `$(...)` or an unbalanced `(`, `{` or `)`
+in one can still misplace a comment. Blanks (spaces, tabs and carriage returns)
+at either end of a line are ignored. A line that is empty after that is skipped.
 Every other line is a dependency and the first word can be the name of a
 [module](#Dotmodules) if its not prefixed with anything. It can also be a
 [tag](#Tags) if prefixed with `:` or a [preset](#Presets)

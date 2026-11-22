@@ -363,13 +363,39 @@ literal_pattern() {
 	printf '%s\n' "$1" | sed 's/[][*?\\]/\\&/g'
 }
 
-# awk code that sets line to the current line without its comment, which starts
-# at the first #, and without spaces, tabs and carriage returns at either end.
-# Every reader of entry, tag and condition lines starts its awk program with it.
+# awk code that sets line to the current line without its comment and without
+# spaces, tabs and carriage returns at either end. As in sh, a comment starts at
+# a # that starts a word outside quotes and substitutions. Every reader of
+# entry, tag and condition lines starts its awk program with it.
 # shellcheck disable=SC2016
-awk_normalize_line='{
-	line = $0
-	sub(/#.*/, "", line)
+awk_normalize_line='
+function pont_uncommented(text,    i, char, quote, previous, depth) {
+	if (!index(text, "#")) return text
+	previous = " "
+	for (i = 1; i <= length(text); i++) {
+		char = substr(text, i, 1)
+		if (quote == "\047") {
+			if (char == quote) quote = ""
+		} else if (char == "\\") {
+			i++
+		} else if (quote != "") {
+			if (char == quote) quote = ""
+		} else if (char == "\047" || char == "\"" || char == "\140") {
+			quote = char
+		} else if ((char == "(" || char == "{") && (previous == "$" || depth)) {
+			depth++
+		} else if ((char == ")" || char == "}") && depth) {
+			depth--
+			char = "x"
+		} else if (char == "#" && !depth && previous ~ /[ \t;&|()<>]/) {
+			return substr(text, 1, i - 1)
+		}
+		previous = char
+	}
+	return text
+}
+{
+	line = pont_uncommented($0)
 	sub(/^[ \t\r]+/, "", line)
 	sub(/[ \t\r]+$/, "", line)
 }'

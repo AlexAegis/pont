@@ -49,7 +49,6 @@ result=$(./pont.sh -nL :exact_tag 2>/dev/null)
 [ "$result" = "exact_tags_a
 exact_tags_c
 exact_tags_e
-exact_tags_f
 exact_tags_g
 exact_tags_k" ] ||
 	fail "The tag exact_tag selected: $result"
@@ -60,12 +59,13 @@ for module in $unreadable; do
 		fail "No warning for the tags file of $module"
 done
 
-for tag in exact.tag 'exact|tag' exact_tag++; do
+for tag in exact.tag 'exact|tag' exact_tag++ 'exact_tag#comment'; do
 	result=$(./pont.sh -nL ":$tag" 2>/dev/null | tr '\n' ' ')
 	case $tag in
 		exact.tag) expected='exact_tags_d ' ;;
 		'exact|tag') expected='exact_tags_h ' ;;
 		exact_tag++) expected='exact_tags_i ' ;;
+		'exact_tag#comment') expected='exact_tags_f ' ;;
 	esac
 	[ "$result" = "$expected" ] ||
 		fail "The tag $tag selected: $result"
