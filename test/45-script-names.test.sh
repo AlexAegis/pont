@@ -69,6 +69,8 @@ done
 echo true >"$module/0.user.sh.condition"
 
 ./pont.sh -fx script_names >/dev/null 2>"$out/log"
+[ "$(grep -c -x -- --version "$out/sudo-calls")" = 1 ] ||
+	fail "pont read the version of sudo more than once"
 $COVERAGE ./pont.sh -q -fu script_names
 $COVERAGE ./pont.sh -q -rr script_names
 sync

@@ -63,12 +63,46 @@ get_home() {
 	fi
 }
 
+# Sets sudo_flavor to sudo-rs or sudo, if it is not set yet
+read_sudo_flavor() {
+	[ "$sudo_flavor" ] && return
+	case $(sudo --version 2>/dev/null) in
+		sudo-rs*) sudo_flavor=sudo-rs ;;
+		*) sudo_flavor=sudo ;;
+	esac
+}
+
 # Same as sudo -E, but also works with sudo-rs, which ignores -E
 sudo_with_environment() {
-	case $(sudo --version 2>/dev/null) in
-		sudo-rs*) sudo --preserve-env="$(sudo_kept_variables)" "$@" ;;
-		*) sudo --preserve-env="PATH" -E "$@" ;;
-	esac
+	read_sudo_flavor
+	if [ "$sudo_flavor" = sudo-rs ]; then
+		sudo --preserve-env="$(sudo_kept_variables)" "$@"
+	else
+		sudo --preserve-env="PATH" -E "$@"
+	fi
+}
+
+# Runs a command as the user who ran sudo, with the home of that user
+sudo_as_user() {
+	# shellcheck disable=SC2016
+	sudo_with_environment -u "$SUDO_USER" /bin/sh -c \
+		'HOME=$1 && export HOME && shift && exec "$@"' sh "$user_home" "$@"
+}
+
+# Runs a command as the user who ran sudo, or as pont without sudo
+as_user() {
+	if [ "$SUDO_USER" ]; then
+		sudo_as_user "$@"
+	else
+		"$@"
+	fi
+}
+
+# Runs /bin/sh with the arguments as the user who ran sudo. The shell gets the
+# SUDO_USER, SUDO_UID and SUDO_GID of pont, which sudo replaces.
+condition_as_user() {
+	sudo_as_user env SUDO_USER="$SUDO_USER" SUDO_UID="${SUDO_UID-}" \
+		SUDO_GID="${SUDO_GID-}" /bin/sh "$@"
 }
 
 # Exported variables that sudo -E would keep, as a comma-separated list. The
@@ -296,11 +330,15 @@ all_outdated_modules=
 all_deprecated_modules=
 all_tags=
 yank_target=
+sudo_flavor=
 resolved=
 expanded_presets=
 entries_selected=
 final_module_list=
 expand_abstract_only=
+
+# Read once here: under sudo, pont calls sudo in subshells, which lose the value
+[ ! "$SUDO_USER" ] || read_sudo_flavor
 
 # Newline separated list of actions. Used to preserve order of flags
 execution_queue=
@@ -1054,13 +1092,18 @@ get_condition() {
 }
 
 # Runs the condition $1 in a subshell, so that an exit or a syntax error in it
-# cannot stop pont. Returns 0 if true, 1 if false, 2 on a syntax error.
+# cannot stop pont. Under sudo, a shell of the user who ran sudo runs it, with
+# the exported variables. Returns 0 if true, 1 if false, 2 on a syntax error.
 eval_condition() {
 	_ec_code=$1
 	shift
 	[ "$_ec_code" ] || return 0
-	(eval "$_ec_code") && return 0
-	# eval already printed the error
+	if [ "$SUDO_USER" ]; then
+		condition_as_user -c "$_ec_code" sh "$@" && return 0
+	else
+		(eval "$_ec_code") && return 0
+	fi
+	# The shell already printed the error
 	/bin/sh -n -c "$_ec_code" 2>/dev/null || return 2
 	return 1
 }
@@ -1068,11 +1111,8 @@ eval_condition() {
 pull_dotfiles() {
 	log_trace "Performing git pull on DOTFILES_HOME ($DOTFILES_HOME)"
 	if [ -d "$DOTFILES_HOME/.git" ]; then
-		(
-			cd "$DOTFILES_HOME" || exit 1
-			git pull
-			git submodule update --init
-		)
+		as_user git -C "$DOTFILES_HOME" pull
+		as_user git -C "$DOTFILES_HOME" submodule update --init
 	else
 		log_error "DOTFILES_HOME ($DOTFILES_HOME) is not a git folder"
 	fi
@@ -1083,6 +1123,16 @@ get_script_condition() {
 	# at least 4 section long, so there is a condition
 	[ "$(printf '%s\n' "$1" | cut -d '.' -f 4)" ] &&
 		printf '%s\n' "$1" | cut -d '.' -f 3
+}
+
+# Prints the value of the variable that a condition segment, such as $pacman,
+# names. Fails for a segment that is not $ and a variable name.
+segment_variable_value() {
+	_svv_name=${1#\$}
+	case $_svv_name in
+		'' | [0-9]* | *[!A-Za-z0-9_]*) return 1 ;;
+	esac
+	eval "printf '%s' \"\${$_svv_name-}\""
 }
 
 script_requires_package_manager() {
@@ -1211,17 +1261,23 @@ $PONT_MODULES_HOME/$1/$_wnsf_name"
 check_script_condition_file() {
 	# 1: module name
 	# 2: script name
+	# 3: set for a root script, whose condition runs in pont also under sudo
 	# Outputs: script_condition_file_status (0: run, 1: skip, other: fail)
 	script_condition_file_status=0
 	_cscf_file="$PONT_MODULES_HOME/$1/$2$(script_condition_file_suffix)"
 	[ -e "$_cscf_file" ] || return 0
 	log_trace "Condition file: ${_cscf_file##*/}"
-	# shellcheck disable=SC1090
-	(
-		unset IFS
-		set --
-		. "$_cscf_file"
-	)
+	if [ "$SUDO_USER" ] && [ ! "$3" ]; then
+		# shellcheck disable=SC2016
+		condition_as_user -c '. "$0"' "$_cscf_file"
+	else
+		# shellcheck disable=SC1090
+		(
+			unset IFS
+			set --
+			. "$_cscf_file"
+		)
+	fi
 	script_condition_file_status=$?
 	[ "$script_condition_file_status" = 0 ]
 }
@@ -1283,7 +1339,7 @@ execute_scripts_for_module() {
 			elif [ "$root_script" ] && [ "${PONT_ROOT_FLAG:-1}" != 1 ]; then
 				log_info "Skipping $script because root execution" \
 					"is disabled"
-			elif ! check_script_condition_file "$1" "$script"; then
+			elif ! check_script_condition_file "$1" "$script" "$root_script"; then
 				if [ "$script_condition_file_status" = 1 ]; then
 					log_info "Skipping $script, condition not met"
 				else
@@ -1292,15 +1348,10 @@ $script_condition_file_status"
 					false
 				fi
 			elif [ "$root_script" ]; then
-				(
-					sudo_with_environment "$PONT_MODULES_HOME/$1/$script"
-				)
+				sudo_with_environment "$PONT_MODULES_HOME/$1/$script"
 			else
 				if [ "$SUDO_USER" ]; then
-					(
-						sudo_with_environment -u "$SUDO_USER" \
-							"$PONT_MODULES_HOME/$1/$script"
-					)
+					sudo_as_user "$PONT_MODULES_HOME/$1/$script"
 				else
 					if [ "$3" ]; then
 						set -a
@@ -1546,7 +1597,7 @@ do_stow() {
 	$1
 	$2
 	$3"
-		[ "${PONT_DRY_FLAG:-0}" = 1 ] || mkdir -p "$2"
+		[ "${PONT_DRY_FLAG:-0}" = 1 ] || as_user mkdir -p "$2"
 	fi
 	if [ ! "$3" ]; then
 		die "no package name!
@@ -1557,7 +1608,15 @@ do_stow() {
 
 	if [ "${PONT_DRY_FLAG:-0}" != 1 ]; then
 		if [ ! "$2" ]; then
-			log_error "Target variable ${3%%.*} of $3 is empty or not exported"
+			case ${3%%.*} in
+				[0-9]* | *[!A-Za-z0-9_]*)
+					log_error "Not a variable name in the target of package $3"
+					;;
+				*)
+					log_error "Target variable ${3%%.*} of $3 is empty or not \
+exported"
+					;;
+			esac
 			[ "$stow_mode" = "stow" ] && stow_failed "$3"
 			return
 		fi
@@ -1570,20 +1629,11 @@ do_stow() {
 		fi
 		# Not stow -R, which keeps the unchanged links, so that file watchers
 		# see every link change: https://github.com/aspiers/stow/issues/69
-		stow_as_user -D -d "$1" -t "$2" "$3"
+		as_user stow -D -d "$1" -t "$2" "$3"
 		if [ "$stow_mode" = "stow" ]; then
-			stow_as_user -S -d "$1" -t "$2" "$3" || stow_failed "$3"
+			as_user stow -S -d "$1" -t "$2" "$3" || stow_failed "$3"
 		fi
 		log_trace "Stowed $1"
-	fi
-}
-
-stow_as_user() {
-	# Under sudo, the links belong to the user who ran sudo
-	if [ "$SUDO_USER" ]; then
-		sudo_with_environment -u "$SUDO_USER" stow "$@"
-	else
-		stow "$@"
 	fi
 }
 
@@ -1592,7 +1642,7 @@ check_stow() {
 	# $2: target directory
 	# $3: package name
 	# Simulates the restow. Prints the output of stow only when it fails.
-	if ! _cs_output=$(stow_as_user -n -R -d "$1" -t "$2" "$3" 2>&1); then
+	if ! _cs_output=$(as_user stow -n -R -d "$1" -t "$2" "$3" 2>&1); then
 		printf '%s\n' "$_cs_output" >&2
 		return 1
 	fi
@@ -1621,12 +1671,14 @@ stow_package() {
 					shift
 					continue
 				}
-			else
-				log_trace "Stow condition $stow_condition is a variable"
-				[ "$(eval "echo $stow_condition")" ] || {
-					shift
-					continue
-				}
+			elif ! _sp_value=$(segment_variable_value "$stow_condition"); then
+				log_error "Not a variable name in the condition of package \
+$(basename "$1"). Skipping."
+				shift
+				continue
+			elif [ ! "$_sp_value" ]; then
+				shift
+				continue
 			fi
 		fi
 
@@ -1644,12 +1696,16 @@ package_target() {
 	# $1: package name
 	# The variable before the first dot names the target. A relative value is
 	# under PONT_TARGET. Without a variable, as in .module, the target is
-	# PONT_TARGET. An empty or unset variable gives an empty target.
+	# PONT_TARGET. An empty or unset variable, or a segment that is not a
+	# variable name, gives an empty target.
 	_pt_variable="${1%%.*}"
-	if [ ! "$_pt_variable" ]; then
-		printf '%s\n' "$PONT_TARGET"
-		return
-	fi
+	case $_pt_variable in
+		'')
+			printf '%s\n' "$PONT_TARGET"
+			return
+			;;
+		[0-9]* | *[!A-Za-z0-9_]*) return ;;
+	esac
 	# A child shell reads the variable, so only an exported one counts
 	_pt_value=$(/bin/sh -c "printf '%s' \"\$$_pt_variable\"")
 	case $_pt_value in
@@ -1700,12 +1756,7 @@ make_module() {
 			return 1
 		fi
 		cd "$PONT_MODULES_HOME/$1" || return 1
-		# Makefiles are always executed using user rights
-		if [ "$SUDO_USER" ]; then
-			sudo_with_environment -u "$SUDO_USER" make
-		else
-			make
-		fi
+		as_user make
 	fi
 }
 
@@ -1760,10 +1811,12 @@ $script"
 					is_installed "$script_condition" &&
 						group_scripts_to_run="$group_scripts_to_run
 $script"
-				else
-					log_trace "condition $script_condition is a variable"
-					[ "$(eval "echo $script_condition")" ] &&
-						group_scripts_to_run="$group_scripts_to_run
+				elif ! _im_value=$(segment_variable_value "$script_condition"); then
+					log_error "Not a variable name in the condition of \
+$script. Skipping."
+				elif [ "$_im_value" ]; then
+					log_trace "condition $script_condition is a set variable"
+					group_scripts_to_run="$group_scripts_to_run
 $script"
 				fi
 			else
@@ -1815,8 +1868,7 @@ hash_module() {
 
 		if [ "$SUDO_USER" ]; then
 			# shellcheck disable=SC2016
-			sudo_with_environment -u "$SUDO_USER" \
-				sh -c 'mkdir -p "$(dirname "$4")" &&
+			sudo_as_user sh -c 'mkdir -p "$(dirname "$4")" &&
 					tar --exclude="$3" -c "$1" 2>/dev/null | $2 > "$4"' \
 				_ "$PONT_MODULES_HOME/$1" "$HASH_COMMAND" \
 				"$(literal_pattern \
@@ -2033,11 +2085,11 @@ action_update_modules() {
 }
 
 do_yank() {
-	mkdir -p "$yank_target"
+	as_user mkdir -p "$yank_target"
 	# Copy all modules
 	while [ "$1" ]; do
 		log_info "Yanking $PONT_MODULES_HOME/$1 to $yank_target/$1"
-		cp -r "$PONT_MODULES_HOME/$1" "$yank_target/$1"
+		as_user cp -r "$PONT_MODULES_HOME/$1" "$yank_target/$1"
 		shift
 	done
 	# Copy all used presets
@@ -2052,7 +2104,7 @@ do_yank() {
 			log_warning "Preset $preset_file_name not found, not yanked"
 			continue
 		fi
-		cp "$preset_file" "$yank_target/$preset_file_name"
+		as_user cp "$preset_file" "$yank_target/$preset_file_name"
 	done
 	resume_globbing
 }

@@ -404,6 +404,23 @@ always `sudo` into `root` (While keeping your environment) if it's running
 **This makes sure that your `HOME` folder will only contain items owned by you,
 and not `root`.**
 
+Under `sudo`, pont runs the following as `$SUDO_USER`, with the `HOME` of that
+user:
+
+- the `user` scripts, stow, the module `Makefile` and the hash of a module
+- the `mkdir` of a missing stow target, the `git pull` and
+  `git submodule update` of `-p` and the copies of `-y` and `-Y`
+- each condition of an entry in `.dependencies` or in a preset
+  ([Conditional dependencies](#Conditional-dependencies)), of a
+  [module](#Conditional-modules) and in the
+  [condition file](#Condition-files) of a `user` script. A shell of that user
+  runs it, so it gets only the exported variables. It gets the `SUDO_USER`,
+  `SUDO_UID` and `SUDO_GID` of pont.
+
+Under `sudo`, the condition file of a `root` script runs in pont as `root`,
+like the script. In the `user` and `root` scripts, `SUDO_USER` is `root`,
+because pont runs as `root`.
+
 > `sudo` will be executed as many time it needs to as I described it above
 > most distributions have a timeout enabled by default but if not, prepare
 > to write your password in a few times.
@@ -429,6 +446,10 @@ which can be executable dependencies and variable dependencies, if prefixed
 with `$`. If it is, and that variable is set and not empty, it will be
 executed. If it's not prefixed with `$`, it will be checked that
 `command -v` returns something for it or not. If yes, it will be executed.
+
+After the `$` comes a variable name, such as `$wsl`. pont reads the value of
+that variable. It does not run the segment as code. For another `$` segment,
+pont logs an error and skips the script.
 
 > Currently you can only specify 1 dependency on 1 script.
 
@@ -472,7 +493,9 @@ same ordering segment.
 
 Any script can have a condition file, named `<script>.condition`:
 
-- sourced in a subshell, right before the script
+- sourced in a subshell, right before the script. Under `sudo`, a shell of
+  `$SUDO_USER` sources the condition file of a `user` script, as
+  [Second segment, privileges](#Second-segment,-privileges) describes.
 - working directory: the module folder
 - variables: same as the scripts, like `$pacman`
 - always POSIX `sh`, also for a `.ps1` script
@@ -618,7 +641,8 @@ executed earlier.
 
 Dependencies can be conditional. After the dependency statement you can put
 a `?`. Everything after the first `?`, up to a comment, will be `eval`d in a
-subshell and then `test`ed. If it's not true, the dependency will be skipped.
+subshell and then `test`ed, under `sudo` in a shell of `$SUDO_USER`. If it's
+not true, the dependency will be skipped.
 On a syntax error in the condition, pont logs an error and skips the
 dependency.
 
@@ -679,10 +703,10 @@ Instead of marking each dependency with a condition, the module itself can be.
 For this, create a file name `.condition` in the modules root. Its lines, with
 comments and the blanks at either end removed as in
 [`.dependencies`](#Dependencies), will be `eval`d in a subshell before
-executing anything in the module. So not even `init` will run if `.condition`
-is false. [Remove](#Remove) describes how `-r` handles an installed module
-whose `.condition` fails. On a syntax error in `.condition`, pont logs an error
-and skips the module.
+executing anything in the module, under `sudo` in a shell of `$SUDO_USER`. So
+not even `init` will run if `.condition` is false. [Remove](#Remove) describes
+how `-r` handles an installed module whose `.condition` fails. On a syntax
+error in `.condition`, pont logs an error and skips the module.
 
 ### Tags
 
@@ -731,8 +755,8 @@ in their names. These variables will then be expanded. If it's an absolute
 path it will be treated as such (Ignoring `PONT_TARGET`) but if its a relative
 path (it doesn't start with `/`) it will be appended after `PONT_TARGET`.
 This path then will be used as the final target to stow to. If the variable is
-empty or not exported, pont does not stow the package. The module then fails
-like a module whose stow fails.
+empty or not exported, or the first segment is not a variable name, pont does
+not stow the package. The module then fails like a module whose stow fails.
 
 > This variable can be set in the `init` script too if you wan't to be module
 > specific. These scripts are run before stowing and everything they define
@@ -742,7 +766,9 @@ like a module whose stow fails.
 
 Just like packages, the second segment can be prefixed with `$`. In this case
 `pont` checks if that variable is set or not. If it's not prefixed, it will
-check with `command -v` if that it's a valid executable.
+check with `command -v` if that it's a valid executable. As for scripts, a
+variable name comes after the `$`. For another `$` segment, pont logs an error
+and skips the package.
 
 ## Presets
 
