@@ -105,6 +105,18 @@ condition_as_user() {
 		SUDO_GID="${SUDO_GID-}" /bin/sh "$@"
 }
 
+# Runs the script $2 through the sudo function $1 with pont's SUDO_ variables
+sudo_script() {
+	if [ "$SUDO_USER" ]; then
+		# shellcheck disable=SC2016
+		"$1" /bin/sh -c 'SUDO_USER=$1 SUDO_UID=$2 SUDO_GID=$3 &&
+export SUDO_USER SUDO_UID SUDO_GID && exec "$4"' sh "$SUDO_USER" \
+			"${SUDO_UID-}" "${SUDO_GID-}" "$2"
+	else
+		"$1" "$2"
+	fi
+}
+
 # Exported variables that sudo -E would keep, as a comma-separated list. The
 # patterns below are sudo's default env_delete and env_check lists, plus USER,
 # LOGNAME and SUDO_*, which sudo sets itself.
@@ -1381,10 +1393,10 @@ $script_condition_file_status"
 					false
 				fi
 			elif [ "$root_script" ]; then
-				sudo_with_environment "$PONT_MODULES_HOME/$1/$script"
+				sudo_script sudo_with_environment "$PONT_MODULES_HOME/$1/$script"
 			else
 				if [ "$SUDO_USER" ]; then
-					sudo_as_user "$PONT_MODULES_HOME/$1/$script"
+					sudo_script sudo_as_user "$PONT_MODULES_HOME/$1/$script"
 				else
 					if [ "$3" ]; then
 						set -a

@@ -36,7 +36,11 @@ printf '%s\n' 'echo "$(id -un) $SUDO_USER" >"$PONT_TARGET/sudo_user_root_conditi
 # shellcheck disable=SC2016
 printf '#!/bin/sh\n%s >"$PONT_TARGET/sudo_user_root"\n' "$identity" \
 	>"$module/2.root.sh"
-chmod +x "$module/1.user.sh" "$module/2.root.sh"
+# shellcheck disable=SC2016
+printf '#!/bin/sh\n%s >"$PONT_TARGET/sudo_user_root_equals"\n' "$identity" \
+	>"$module/3.root.fallback.x=y.sh"
+chmod +x "$module/1.user.sh" "$module/2.root.sh" \
+	"$module/3.root.fallback.x=y.sh"
 
 owner() {
 	# shellcheck disable=SC2012
@@ -46,13 +50,14 @@ owner() {
 # Without $COVERAGE: kcov would write its results as root. sudo-rs ignores -E.
 sudo -n --preserve-env="$test_variables" ./pont.sh -q -fx sudo_user
 sync
-# SUDO_USER is root in both steps, because pont itself runs as root
-[ "$(cat "$PONT_TARGET/sudo_user_user")" = "$user $user $user root" ] ||
+[ "$(cat "$PONT_TARGET/sudo_user_user")" = "$user $user $user $user" ] ||
 	fail "The user script got the wrong identity:
 $(cat "$PONT_TARGET/sudo_user_user")"
-[ "$(cat "$PONT_TARGET/sudo_user_root")" = "root root root root" ] ||
-	fail "The root script got the wrong identity:
-$(cat "$PONT_TARGET/sudo_user_root")"
+for name in sudo_user_root sudo_user_root_equals; do
+	[ "$(cat "$PONT_TARGET/$name" 2>/dev/null)" = "root root root $user" ] ||
+		fail "The root script $name got the wrong identity:
+$(cat "$PONT_TARGET/$name" 2>/dev/null)"
+done
 user_home=$(getent passwd "$user" | cut -d: -f6)
 [ "$(cat "$PONT_TARGET/sudo_user_home")" = "$user_home" ] ||
 	fail "The user script got the HOME $(cat "$PONT_TARGET/sudo_user_home")"

@@ -418,8 +418,8 @@ user:
   `SUDO_UID` and `SUDO_GID` of pont.
 
 Under `sudo`, the condition file of a `root` script runs in pont as `root`,
-like the script. In the `user` and `root` scripts, `SUDO_USER` is `root`,
-because pont runs as `root`.
+like the script. The `user` and `root` scripts get the `SUDO_USER`, `SUDO_UID`
+and `SUDO_GID` of pont too.
 
 > `sudo` will be executed as many time it needs to as I described it above
 > most distributions have a timeout enabled by default but if not, prepare

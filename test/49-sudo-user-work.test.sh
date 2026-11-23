@@ -13,9 +13,12 @@ out="$PONT_TARGET/sudo_user_work"
 stubs="$PONT_TARGET/sudo_user_work_stubs"
 link="$PONT_TARGET/sudo_user_work_file"
 preset="$PONT_PRESETS_HOME/sudo_user_work_preset.preset"
-trap 'rm -rf "$module" "$dependency" "$out" "$stubs" "$link" "$preset"' EXIT
+failing="$PONT_MODULES_HOME/sudo_user_work_failing"
+trap 'rm -rf "$module" "$dependency" "$out" "$stubs" "$link" "$preset" \
+	"$failing"_user "$failing"_root' EXIT
 trap 'exit 1' HUP INT TERM
-rm -rf "$module" "$dependency" "$out" "$stubs" "$link" "$preset"
+rm -rf "$module" "$dependency" "$out" "$stubs" "$link" "$preset" \
+	"$failing"_user "$failing"_root
 mkdir -p "$module" "$dependency" "$out" "$stubs"
 
 cat >"$stubs/sudo" <<EOF
@@ -33,6 +36,13 @@ while [ "\$#" -gt 0 ]; do
 		*) break ;;
 	esac
 done
+case \$1 in
+	/* | =*) ;;
+	*=*)
+		printf 'sudo read %s as a variable\\n' "\$1" >>"$out/sudo-variables"
+		exit 1
+		;;
+esac
 SUDO_USER=root SUDO_UID=0 SUDO_GID=0 exec "\$@"
 EOF
 chmod +x "$stubs/sudo"
@@ -44,11 +54,10 @@ uid=$(id -u)
 gid=$(id -g)
 user_home=$(getent passwd "$user" | cut -d: -f6)
 
-# Prints code that writes the HOME, SUDO_USER and SUDO_UID that it sees to the
-# file $1 in $out
+# Prints code that writes the HOME and SUDO_ variables that it sees to $out/$1
 identity() {
 	# shellcheck disable=SC2016
-	printf 'printf "%%s\\n" "$HOME:$SUDO_USER:$SUDO_UID" >"$PONT_TARGET/sudo_user_work/%s"' \
+	printf 'printf "%%s\\n" "$HOME:$SUDO_USER:$SUDO_UID:$SUDO_GID" >"$PONT_TARGET/sudo_user_work/%s"' \
 		"$1"
 }
 
@@ -63,8 +72,11 @@ printf '#!/bin/sh\n%s\n' "$(identity equals_step)" \
 	>"$module/3.user.fallback.x=y.sh"
 identity root_condition >"$module/4.root.sh.condition"
 printf '#!/bin/sh\n%s\n' "$(identity root_step)" >"$module/4.root.sh"
+printf '#!/bin/sh\n%s\n' "$(identity root_equals_step)" \
+	>"$module/5.root.fallback.x=y.sh"
 chmod +x "$module/1.user.sh" "$module/2.user.sh" \
-	"$module/3.user.fallback.x=y.sh" "$module/4.root.sh"
+	"$module/3.user.fallback.x=y.sh" "$module/4.root.sh" \
+	"$module/5.root.fallback.x=y.sh"
 mkdir -p "$module/.sudo_user_work" "$module/SUDO_USER_WORK_TARGET.sudo_user_work"
 echo package >"$module/.sudo_user_work/sudo_user_work_file"
 echo package >"$module/SUDO_USER_WORK_TARGET.sudo_user_work/target_file"
@@ -77,22 +89,22 @@ HOME="$out/root-home" SUDO_USER="$user" SUDO_UID="$uid" SUDO_GID="$gid" \
 	SUDO_USER_WORK_TARGET="$out/missing_target" \
 	$COVERAGE ./pont.sh -q -ex sudo_user_work
 
-for name in module_condition entry_condition step_condition; do
-	[ "$(cat "$out/$name" 2>/dev/null)" = "$user_home:$user:$uid" ] ||
+for name in module_condition entry_condition step_condition step \
+	equals_step; do
+	[ "$(cat "$out/$name" 2>/dev/null)" = "$user_home:$user:$uid:$gid" ] ||
 		fail "The $name saw $(cat "$out/$name" 2>/dev/null), not \
-$user_home:$user:$uid"
+$user_home:$user:$uid:$gid"
 done
-for name in step equals_step; do
-	[ "$(cat "$out/$name" 2>/dev/null)" = "$user_home:root:0" ] ||
-		fail "The $name saw $(cat "$out/$name" 2>/dev/null), not \
-$user_home:root:0"
-done
-[ "$(cat "$out/root_condition" 2>/dev/null)" = "$out/root-home:$user:$uid" ] ||
+[ "$(cat "$out/root_condition" 2>/dev/null)" = "$out/root-home:$user:$uid:$gid" ] ||
 	fail "The root_condition saw $(cat "$out/root_condition" 2>/dev/null), \
-not $out/root-home:$user:$uid"
-[ "$(cat "$out/root_step" 2>/dev/null)" = "$out/root-home:root:0" ] ||
-	fail "The root_step saw $(cat "$out/root_step" 2>/dev/null), not \
-$out/root-home:root:0"
+not $out/root-home:$user:$uid:$gid"
+for name in root_step root_equals_step; do
+	[ "$(cat "$out/$name" 2>/dev/null)" = "$out/root-home:$user:$uid:$gid" ] ||
+		fail "The $name saw $(cat "$out/$name" 2>/dev/null), not \
+$out/root-home:$user:$uid:$gid"
+done
+[ ! -e "$out/sudo-variables" ] ||
+	fail "A sudo call got a path as a variable: $(cat "$out/sudo-variables")"
 [ "$(cat "$out/make" 2>/dev/null)" = "$user_home" ] ||
 	fail "make saw the HOME $(cat "$out/make" 2>/dev/null), not $user_home"
 [ ! -e "$out/skipped_step" ] ||
@@ -142,3 +154,16 @@ ran_as_user "mkdir of the yank target" "mkdir -p $out/yank"
 ran_as_user "copy of the module" "cp -r $module $out/yank/sudo_user_work"
 ran_as_user "copy of the preset" \
 	"cp $preset $out/yank/sudo_user_work_preset.preset"
+
+for kind in user root; do
+	mkdir -p "$failing"_$kind
+	printf '#!/bin/sh\nexit 3\n' >"$failing"_$kind/1.$kind.sh
+	chmod +x "$failing"_$kind/1.$kind.sh
+done
+HOME="$out/root-home" SUDO_USER="$user" SUDO_UID="$uid" SUDO_GID="$gid" \
+	$COVERAGE ./pont.sh -q -ex sudo_user_work_failing_user \
+	sudo_user_work_failing_root || true
+for kind in user root; do
+	[ ! -e "$failing"_$kind/.tarhash ] ||
+		fail "The module with a failing $kind step got a hash"
+done
