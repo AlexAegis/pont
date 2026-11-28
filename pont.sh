@@ -348,6 +348,7 @@ expanded_presets=
 entries_selected=
 final_module_list=
 expand_abstract_only=
+failed_modules=0
 
 # Read once here: under sudo, pont calls sudo in subshells, which lose the value
 [ ! "$SUDO_USER" ] || read_sudo_flavor
@@ -1587,10 +1588,12 @@ update_modules() {
 
 		# Source env
 		source_modules_envs "$1"
+		[ "$group_result" = 0 ] || module_failed
 
 		update_scripts_in_module=$(scripts_of_kind_in_module "$1" update |
 			sort_script_names)
 		execute_scripts_for_module "$1" "$update_scripts_in_module"
+		[ "$group_result" = 0 ] || module_failed
 		shift
 	done
 }
@@ -1625,6 +1628,7 @@ remove_modules() {
 		else
 			source_user_envs_of_module "$1"
 		fi
+		[ "$group_result" = 0 ] || module_failed
 
 		# Only run the remove scripts with -rr, a single r just unstows
 		if [ "$remove_count" -ge 2 ] && [ "$module_applies" ]; then
@@ -1632,18 +1636,34 @@ remove_modules() {
 			remove_scripts_in_module=$(scripts_of_kind_in_module "$1" \
 				remove | sort_script_names)
 			execute_scripts_for_module "$1" "$remove_scripts_in_module"
+			[ "$group_result" = 0 ] || module_failed
 		else
 			log_info "Soft remove $1"
 		fi
 
 		# Stowing is hard disabled on windows
+		unstow_result=0
 		if [ -z "$windows" ]; then
 			unstow_modules "$1"
 		fi
 
-		# remove hashfile to mark as uninstalled
-		[ "${PONT_DRY_FLAG:-0}" = 1 ] || [ ! -e "$(hashfile_of "$1")" ] ||
+		if [ "$unstow_result" != 0 ]; then
+			module_failed
+			if [ "${PONT_DRY_FLAG:-0}" != 1 ] &&
+				[ -e "$(hashfile_of "$1")" ]; then
+				log_error "Unstow failed for $1. Marking it as changed"
+				# shellcheck disable=SC2016
+				as_user sh -c 'printf "%s\n" "unstow failed" >"$1.new" &&
+					mv -f "$1.new" "$1" || { rm -f "$1.new"; exit 1; }' _ \
+					"$(hashfile_of "$1")" ||
+					log_error "Cannot mark $1 as changed in $(hashfile_of "$1")"
+			else
+				log_error "Unstow failed for $1"
+			fi
+		elif [ "${PONT_DRY_FLAG:-0}" != 1 ] &&
+			[ -e "$(hashfile_of "$1")" ]; then
 			rm "$(hashfile_of "$1")"
+		fi
 
 		shift
 	done
@@ -1691,7 +1711,11 @@ do_stow() {
 exported"
 					;;
 			esac
-			[ "$stow_mode" = "stow" ] && stow_failed "$3"
+			if [ "$stow_mode" = "stow" ]; then
+				stow_failed "$3"
+			else
+				unstow_failed "$3"
+			fi
 			return
 		fi
 		# Package target symlinks are always cleaned
@@ -1703,9 +1727,11 @@ exported"
 		fi
 		# Not stow -R, which keeps the unchanged links, so that file watchers
 		# see every link change: https://github.com/aspiers/stow/issues/69
-		as_user stow -D -d "$1" -t "$2" "$3"
 		if [ "$stow_mode" = "stow" ]; then
+			as_user stow -D -d "$1" -t "$2" "$3"
 			as_user stow -S -d "$1" -t "$2" "$3" || stow_failed "$3"
+		else
+			as_user stow -D -d "$1" -t "$2" "$3" || unstow_failed "$3"
 		fi
 		log_trace "Stowed $1"
 	fi
@@ -1727,6 +1753,15 @@ stow_failed() {
 	# Fails the module like a failed install script, so pont deletes its hash
 	log_error "stow failed for package $1"
 	total_result=$((${total_result:-0} + 1))
+}
+
+unstow_failed() {
+	log_error "unstow failed for package $1"
+	unstow_result=$((${unstow_result:-0} + 1))
+}
+
+module_failed() {
+	failed_modules=$((failed_modules + 1))
 }
 
 stow_package() {
@@ -1970,6 +2005,7 @@ check_module_condition() {
 log_module_condition_skip() {
 	if [ "$condition_status" = 2 ]; then
 		log_error "Syntax error in the condition of $1. Skipping. $condition"
+		module_failed
 	else
 		log_info "Condition on $1 failed. Skipping. $condition"
 	fi
@@ -2017,6 +2053,7 @@ execute_modules() {
 
 			if [ "${PONT_FORCE_FLAG:-0}" != 1 ] && is_deprecated "$1"; then
 				log_warning "$1 is deprecated"
+				[ "$total_result" = 0 ] || module_failed
 				shift
 				continue
 			fi
@@ -2051,12 +2088,14 @@ execute_modules() {
 				hash_module "$1"
 			else
 				log_error "Installation failed $1"
+				module_failed
 				[ "${PONT_DRY_FLAG:-0}" = 1 ] || [ ! -e "$(hashfile_of "$1")" ] ||
 					rm "$(hashfile_of "$1")"
 			fi
 
 		else
 			log_info "$1 is already installed and no changes are detected"
+			[ "$total_result" = 0 ] || module_failed
 		fi
 		shift
 	done
@@ -2262,3 +2301,4 @@ execute_queue $execution_queue
 [ "$PONT_CLEAN_SYMLINKS" = 1 ] && action_clean_symlinks
 
 set +a
+[ "$failed_modules" = 0 ] || exit 1

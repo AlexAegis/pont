@@ -53,7 +53,7 @@ make_script "$earlier/1.user.fallback.sh" earlier-fallback 0
 
 $COVERAGE ./pont.sh -q fallback_result_blocked fallback_result_condition \
 	fallback_result_recovered fallback_result_failed fallback_result_mixed \
-	fallback_result_earlier
+	fallback_result_earlier && fail "pont exited with 0 after failed modules"
 sync
 for name in blocked-package recovered-fallback failed-fallback \
 	mixed-fallback mixed-fallback-second earlier-plain earlier-fallback; do

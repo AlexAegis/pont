@@ -41,7 +41,9 @@ check_real_dir() {
 		fail "$1: the other file is gone"
 }
 
-$COVERAGE ./pont.sh -q stow_failure stow_failure_ok
+if $COVERAGE ./pont.sh -q stow_failure stow_failure_ok; then
+	fail "pont exited with 0 after a failed module"
+fi
 [ ! -e "$hash" ] || fail "A module whose stow failed got a hash"
 ./pont.sh -I | grep -qx stow_failure &&
 	fail "A module whose stow failed is listed as installed"
@@ -82,7 +84,8 @@ sync
 # A failed stow of an installed module deletes its hash
 echo package >"$module/.stow_failure/stow_failure_file2"
 echo real >"$PONT_TARGET/stow_failure_file2"
-$COVERAGE ./pont.sh -q stow_failure
+$COVERAGE ./pont.sh -q stow_failure &&
+	fail "pont exited with 0 after a failed stow"
 [ ! -e "$hash" ] ||
 	fail "An installed module whose stow failed kept its hash"
 [ -L "$PONT_TARGET/stow_failure_file" ] ||
@@ -91,8 +94,10 @@ $COVERAGE ./pont.sh -q stow_failure
 # An unset target variable fails the module
 echo package >"$empty_module/STOW_FAILURE_EMPTY.stow_failure_empty/empty_file"
 unset STOW_FAILURE_EMPTY
-$COVERAGE ./pont.sh -q -fx stow_failure_empty 2>/dev/null
-errors=$(./pont.sh -q -fx stow_failure_empty 2>&1 >/dev/null)
+$COVERAGE ./pont.sh -q -fx stow_failure_empty 2>/dev/null &&
+	fail "pont exited with 0 after an unset target variable"
+errors=$(./pont.sh -q -fx stow_failure_empty 2>&1 >/dev/null) &&
+	fail "pont exited with 0 after an unset target variable"
 case $errors in
 	*'Target variable STOW_FAILURE_EMPTY of '*) ;;
 	*) fail "The error does not name the target variable: $errors" ;;
