@@ -37,8 +37,8 @@ cat >"$PONT_MODULES_HOME/condition_error_name/.condition" <<'EOF'
 EOF
 
 output=$(./pont.sh -fx condition_error_broken condition_error_exit \
-	condition_error_brace condition_error_name condition_error_after 2>&1) ||
-	fail "pont failed: $output"
+	condition_error_brace condition_error_name condition_error_after 2>&1) &&
+	fail "pont exited with 0 after syntax errors in conditions: $output"
 [ -e "$PONT_TARGET/condition_error_after.1.ran" ] ||
 	fail "pont stopped at a module condition: $output"
 [ ! -e "$PONT_TARGET/condition_error_broken.1.ran" ] ||
@@ -65,15 +65,15 @@ $COVERAGE ./pont.sh -q -fx condition_error_installed
 [ -L "$link" ] && [ -e "$installed/.tarhash" ] ||
 	fail "The module did not install"
 printf '%s\n' 'if true' >"$installed/.condition"
-output=$(./pont.sh -u condition_error_installed 2>&1) ||
-	fail "-u failed: $output"
+output=$(./pont.sh -u condition_error_installed 2>&1) &&
+	fail "-u exited with 0 after a syntax error: $output"
 [ ! -e "$PONT_TARGET/condition_error_installed.u.ran" ] ||
 	fail "-u ran an update script of a module with a syntax error"
 printf '%s\n' "$output" |
 	grep -qF 'Syntax error in the condition of condition_error_installed.' ||
 	fail "-u did not log the syntax error: $output"
-output=$(./pont.sh -rr condition_error_installed 2>&1) ||
-	fail "-rr failed: $output"
+output=$(./pont.sh -rr condition_error_installed 2>&1) &&
+	fail "-rr exited with 0 after a syntax error: $output"
 sync
 [ -L "$link" ] || fail "-r removed the links of a module with a syntax error"
 [ -e "$installed/.tarhash" ] ||

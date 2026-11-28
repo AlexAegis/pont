@@ -168,7 +168,8 @@ sync
 [ ! -e "$out/condition-as-script" ] ||
 	fail "Condition file ran as a remove script"
 
-$COVERAGE ./pont.sh -q -fx script_condition_error
+$COVERAGE ./pont.sh -q -fx script_condition_error &&
+	fail "pont exited with 0 after failed conditions"
 sync
 [ ! -e "$out/failing-status" ] ||
 	fail "Script ran after condition exit 2"

@@ -266,7 +266,9 @@ for example on a conflict, the package keeps its links. pont deletes the
 `.tarhash` of the module, so `-I` and `-O` no longer list it. `-i` and `-o`
 select it only as a dependency of a module that they select. A later run that
 selects the module tries it again. A deprecated module is tried again only
-with `-f`.
+with `-f`. pont runs the other modules, then exits with 1 when a module failed,
+such as on a failed stow, script or unstow, or a syntax error in its
+`.condition`.
 
 > The `.tarhash` file marks a module installed.
 
@@ -563,7 +565,11 @@ they can be enabled using flags.
 
 With `-r`, `pont` unstows every **stow package** of the module and removes its
 `.tarhash` file, which marks the module uninstalled. With `-rr`, it also runs
-the remove scripts first, those whose first segment is `r` or `remove`.
+the remove scripts first, those whose first segment is `r` or `remove`. When an
+unstow fails, for example because the target variable of a package is empty,
+pont writes `unstow failed` into the `.tarhash` of the module in place of its
+hash. `-I` and `-O` list the module. The next install stows it again, a
+deprecated module only with `-f`.
 
 `-r` also removes an installed module whose
 [`.condition`](#Conditional-modules) fails. pont sources the user `e` scripts

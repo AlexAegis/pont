@@ -55,7 +55,9 @@ sync
 # Nor when that link is the target directory of another package
 mkdir -p "$fold_module/SCOPED_CLEAN_FOLD.scoped_clean_fold/inner"
 : >"$fold_module/SCOPED_CLEAN_FOLD.scoped_clean_fold/inner/dangling"
-SCOPED_CLEAN_FOLD="$PONT_TARGET/fold" $COVERAGE ./pont.sh -q scoped_clean_fold
+SCOPED_CLEAN_FOLD="$PONT_TARGET/fold" \
+	$COVERAGE ./pont.sh -q scoped_clean_fold &&
+	fail "pont exited with 0 after a stow conflict"
 sync
 [ "$(readlink "$dangling")" = missing ] ||
 	fail "A target directory that is a link was entered"
@@ -63,7 +65,8 @@ sync
 # A valid link at a package path stays. stow reports it as a conflict.
 rm "$PONT_TARGET/topfile"
 ln -s "$PONT_TARGET/other" "$PONT_TARGET/topfile"
-$COVERAGE ./pont.sh -q -fx scoped_clean
+$COVERAGE ./pont.sh -q -fx scoped_clean &&
+	fail "pont exited with 0 after a stow conflict"
 sync
 [ "$(readlink "$PONT_TARGET/topfile")" = "$PONT_TARGET/other" ] ||
 	fail "A valid link at a package path was removed"
@@ -94,7 +97,8 @@ done
 mkdir -p "$unset_module/PONT_SCOPED_UNSET.scoped_clean_unset$PONT_TARGET"
 : >"$unset_module/PONT_SCOPED_UNSET.scoped_clean_unset$PONT_TARGET/probe"
 ln -s "$PONT_TARGET/missing" "$PONT_TARGET/probe"
-$COVERAGE ./pont.sh -q scoped_clean_unset
+$COVERAGE ./pont.sh -q scoped_clean_unset &&
+	fail "pont exited with 0 after an unset target variable"
 sync
 [ -L "$PONT_TARGET/probe" ] ||
 	fail "The cleanup started from / for an unset target"
